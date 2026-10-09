@@ -55,6 +55,45 @@ fn id3v2_4_gives_every_field() -> TestResult {
 }
 
 #[test]
+fn id3v2_2_gives_its_fields() -> TestResult {
+    let metadata = read(&fixture("v22.mp3"))?;
+
+    assert_eq!(
+        metadata.tags,
+        Tags {
+            album_artist: None,
+            disc: None,
+            disc_total: None,
+            genre: None,
+            ..every_field()
+        }
+    );
+    assert_eq!(metadata.formats, [TagFormat::Id3v2(Id3v2Version::V2_2)]);
+    Ok(())
+}
+
+#[test]
+fn an_ape_tag_gives_every_field() -> TestResult {
+    let metadata = read(&fixture("ape.mp3"))?;
+
+    assert_eq!(metadata.tags, every_field());
+    assert_eq!(metadata.formats, [TagFormat::Ape]);
+    Ok(())
+}
+
+#[test]
+fn id3v1_wins_over_ape() -> TestResult {
+    let metadata = read(&fixture("ape_v1.mp3"))?;
+
+    assert_eq!(metadata.tags.title, text("Plain ASCII title"));
+    assert_eq!(
+        metadata.formats,
+        [TagFormat::Id3v1(Id3v1Version::V1_0), TagFormat::Ape]
+    );
+    Ok(())
+}
+
+#[test]
 fn the_comment_comes_from_a_comm_frame() -> TestResult {
     let tags = read(&fixture("v23_comm.mp3"))?.tags;
 
@@ -219,7 +258,10 @@ fn a_text_file_is_damaged() -> TestResult {
 #[test]
 fn tag_formats_are_named_as_in_the_tags_column() {
     let names: Vec<String> = [
+        TagFormat::Id3v2(Id3v2Version::V2_2),
         TagFormat::Id3v2(Id3v2Version::V2_3),
+        TagFormat::Id3v2(Id3v2Version::V2_4),
+        TagFormat::Id3v1(Id3v1Version::V1_0),
         TagFormat::Id3v1(Id3v1Version::V1_1),
         TagFormat::Ape,
     ]
@@ -227,5 +269,8 @@ fn tag_formats_are_named_as_in_the_tags_column() {
     .map(ToString::to_string)
     .collect();
 
-    assert_eq!(names, ["ID3v2.3", "ID3v1.1", "APE"]);
+    assert_eq!(
+        names,
+        ["ID3v2.2", "ID3v2.3", "ID3v2.4", "ID3v1.0", "ID3v1.1", "APE"]
+    );
 }
