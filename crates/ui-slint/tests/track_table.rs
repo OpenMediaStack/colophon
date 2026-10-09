@@ -67,7 +67,7 @@ fn only_the_rows_in_view_are_created() -> TestResult {
 }
 
 #[test]
-fn scrolling_the_tracks_scrolls_the_pinned_titles_too() -> TestResult {
+fn scrolling_down_shows_the_last_tracks() -> TestResult {
     let window = window_with_tracks(10_000, 1440.0, 900.0)?;
     window.show()?;
 
@@ -77,19 +77,6 @@ fn scrolling_the_tracks_scrolls_the_pinned_titles_too() -> TestResult {
     assert!(shows(&window, "Artist 10000"));
     assert!(shows(&window, "Track 10000"));
     assert!(!shows(&window, "Track 00001"));
-    Ok(())
-}
-
-#[test]
-fn scrolling_the_pinned_titles_scrolls_the_tracks_too() -> TestResult {
-    let window = window_with_tracks(10_000, 1440.0, 900.0)?;
-    window.show()?;
-
-    find(&window, "Track 00001")?.scroll(0.0, -1_000_000.0);
-    settle();
-
-    assert!(shows(&window, "Track 10000"));
-    assert!(shows(&window, "Artist 10000"));
     Ok(())
 }
 
@@ -205,7 +192,7 @@ fn an_unreadable_track_is_marked() -> TestResult {
 }
 
 #[test]
-fn a_narrow_window_scrolls_the_columns_sideways_but_not_the_titles() -> TestResult {
+fn a_narrow_window_scrolls_every_column_sideways() -> TestResult {
     let window = window_with_tracks(100, 960.0, 600.0)?;
     window.show()?;
     assert!(shows(&window, "Horizontal scroll bar"));
@@ -216,12 +203,17 @@ fn a_narrow_window_scrolls_the_columns_sideways_but_not_the_titles() -> TestResu
     find(&window, "Tracks")?.scroll(-100.0, 0.0);
     settle();
 
-    assert!(find(&window, "Album")?.absolute_position().x < album.x);
-    assert_eq!(find(&window, "Title")?.absolute_position(), title);
-    assert_eq!(
-        find(&window, "Track 00001")?.absolute_position(),
-        first_title
-    );
+    for (name, before) in [
+        ("Title", title),
+        ("Album", album),
+        ("Track 00001", first_title),
+    ] {
+        let after = find(&window, name)?.absolute_position();
+        assert!(
+            (after.x - (before.x - 100.0)).abs() < 1.0,
+            "{name} at {after:?}"
+        );
+    }
     Ok(())
 }
 

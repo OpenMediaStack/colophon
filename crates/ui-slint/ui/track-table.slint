@@ -151,14 +151,17 @@ component RowDivider inherits Rectangle {
     background: Theme.border-row;
 }
 
-component PinnedRow inherits Rectangle {
+component TableRow inherits Rectangle {
     in property <TrackRow> track;
     in property <length> status-width;
     in property <length> number-width;
+    in property <TrackColumnWidths> widths;
 
     height: 26px;
 
     HorizontalLayout {
+        alignment: start;
+
         Rectangle {
             width: root.status-width;
 
@@ -179,27 +182,11 @@ component PinnedRow inherits Rectangle {
             separator: transparent;
         }
 
-        // Its separator is the line between the two sides of the table.
         Cell {
+            width: root.widths.title;
             text: root.track.title;
             text-color: root.track.status == TrackStatus.unreadable ? Theme.error : root.track.untitled ? Theme.text-tertiary : Theme.text-primary;
-            separator: transparent;
         }
-    }
-
-    RowDivider {
-        y: root.height - 1px;
-    }
-}
-
-component ScrollingRow inherits Rectangle {
-    in property <TrackRow> track;
-    in property <TrackColumnWidths> widths;
-
-    height: 26px;
-
-    HorizontalLayout {
-        alignment: start;
 
         if root.widths.artist > 0: Cell {
             width: root.widths.artist;
@@ -245,8 +232,7 @@ component ScrollingRow inherits Rectangle {
     }
 }
 
-// The tracks of the opened folder. Status, number and title stay pinned on the left while the other
-// columns scroll sideways: the two sides are two lists that share their vertical position.
+// The tracks of the opened folder, in a list that scrolls sideways when its columns do not fit.
 export component TrackTable inherits Rectangle {
     in property <[TrackRow]> rows;
     in property <TrackColumns> columns;
@@ -301,9 +287,8 @@ export component TrackTable inherits Rectangle {
     property <float> file-weight: root.columns.file ? 1 : 0;
     property <float> folder-weight: root.columns.folder ? 1 : 0;
     property <float> total-weight: root.title-weight + root.artist-weight + root.album-weight + root.file-weight + root.folder-weight;
-    property <length> scrolling-min-width: root.min-widths.artist + root.min-widths.album + root.min-widths.year + root.min-widths.genre + root.min-widths.time + root.min-widths.bitrate + root.min-widths.tags + root.min-widths.file + root.min-widths.folder + root.end-width;
-    property <length> columns-min-width: root.status-width + root.number-width + root.min-widths.title + root.scrolling-min-width;
-    property <length> spare-width: max(0px, root.width - 1px - root.columns-min-width) / root.total-weight;
+    property <length> columns-min-width: root.status-width + root.number-width + root.min-widths.title + root.min-widths.artist + root.min-widths.album + root.min-widths.year + root.min-widths.genre + root.min-widths.time + root.min-widths.bitrate + root.min-widths.tags + root.min-widths.file + root.min-widths.folder + root.end-width;
+    property <length> spare-width: max(0px, root.width - root.columns-min-width) / root.total-weight;
     property <TrackColumnWidths> shared-widths: {
         title: root.min-widths.title + root.spare-width * root.title-weight,
         artist: root.min-widths.artist + root.spare-width * root.artist-weight,
@@ -341,13 +326,9 @@ export component TrackTable inherits Rectangle {
         file: root.columns.file ? root.widths.file : root.natural-widths.file,
         folder: root.columns.folder ? root.widths.folder : root.natural-widths.folder,
     };
-    property <length> pinned-width: root.status-width + root.number-width + root.widths.title;
-    // The 1px line between the two sides, which is also the title's separator.
-    property <length> scrolling-x: root.pinned-width + 1px;
-    property <length> scrolling-width: root.width - root.scrolling-x;
-    property <length> scrolling-columns-width: root.widths.artist + root.widths.album + root.widths.year + root.widths.genre + root.widths.time + root.widths.bitrate + root.widths.tags + root.widths.file + root.widths.folder + root.end-width;
-    property <bool> scrolls-sideways: root.sized ? root.scrolling-columns-width > root.scrolling-width : root.width - 1px < root.columns-min-width;
-    property <length> scrolling-content-width: root.scrolls-sideways ? root.scrolling-columns-width : root.scrolling-width;
+    property <length> columns-width: root.status-width + root.number-width + root.widths.title + root.widths.artist + root.widths.album + root.widths.year + root.widths.genre + root.widths.time + root.widths.bitrate + root.widths.tags + root.widths.file + root.widths.folder + root.end-width;
+    property <bool> scrolls-sideways: root.sized ? root.columns-width > root.width : root.width < root.columns-min-width;
+    property <length> content-width: root.scrolls-sideways ? root.columns-width : root.width;
     property <length> list-height: root.height - root.header-height - (root.scrolls-sideways ? root.scrollbar-size : 0px);
     property <length> rows-height: root.rows.length * root.row-height;
     property <length> scroll-x;
@@ -355,7 +336,7 @@ export component TrackTable inherits Rectangle {
 
     // Keeps the lists in bounds when the window grows or a new folder empties the table.
     function clamp-scroll() {
-        root.scroll-x = max(root.scroll-x, min(0px, root.scrolling-width - root.scrolling-content-width));
+        root.scroll-x = max(root.scroll-x, min(0px, root.width - root.content-width));
         root.scroll-y = max(root.scroll-y, min(0px, root.list-height - root.rows-height));
     }
 
@@ -407,10 +388,10 @@ export component TrackTable inherits Rectangle {
         }
     }
 
-    changed scrolling-width => {
+    changed width => {
         root.clamp-scroll();
     }
-    changed scrolling-content-width => {
+    changed content-width => {
         root.clamp-scroll();
     }
     changed list-height => {
@@ -597,44 +578,36 @@ export component TrackTable inherits Rectangle {
         Rectangle {
             background: Theme.surface-2;
 
-            HorizontalLayout {
-                x: 0;
-                width: root.pinned-width;
-                height: parent.height;
-
-                Rectangle {
-                    width: root.status-width;
-                }
-
-                HeaderCell {
-                    width: root.number-width;
-                    text: "#";
-                    text-alignment: right;
-                    resizable: false;
-                }
-
-                HeaderCell {
-                    text: @tr("Title");
-                    separator: transparent;
-                    resized(width) => {
-                        root.resize(TrackColumn.title, width);
-                    }
-                    fitted => {
-                        root.fit(TrackColumn.title);
-                    }
-                }
-            }
-
             Rectangle {
-                x: root.scrolling-x;
-                width: root.scrolling-width;
                 clip: true;
 
                 HorizontalLayout {
                     x: root.scroll-x;
-                    width: root.scrolling-content-width;
+                    width: root.content-width;
                     height: parent.height;
                     alignment: start;
+
+                    Rectangle {
+                        width: root.status-width;
+                    }
+
+                    HeaderCell {
+                        width: root.number-width;
+                        text: "#";
+                        text-alignment: right;
+                        resizable: false;
+                    }
+
+                    HeaderCell {
+                        width: root.widths.title;
+                        text: @tr("Title");
+                        resized(width) => {
+                            root.resize(TrackColumn.title, width);
+                        }
+                        fitted => {
+                            root.fit(TrackColumn.title);
+                        }
+                    }
 
                     if root.columns.artist: HeaderCell {
                         width: root.widths.artist;
@@ -758,61 +731,24 @@ export component TrackTable inherits Rectangle {
         }
     }
 
-    ListView {
+    track-list := ListView {
         x: 0;
         y: root.header-height;
-        width: root.pinned-width;
+        width: root.width;
         height: root.list-height;
-        content-width: self.width;
-        content-y <=> root.scroll-y;
-
-        for row in root.rows: PinnedRow {
-            width: root.pinned-width;
-            track: row;
-            status-width: root.status-width;
-            number-width: root.number-width;
-        }
-    }
-
-    scrolling-list := ListView {
-        x: root.scrolling-x;
-        y: root.header-height;
-        width: root.scrolling-width;
-        height: root.list-height;
-        content-width: root.scrolling-content-width;
+        content-width: root.content-width;
         content-x <=> root.scroll-x;
         content-y <=> root.scroll-y;
         accessible-role: list;
         accessible-label: @tr("Tracks");
 
-        for row in root.rows: ScrollingRow {
-            width: root.scrolling-content-width;
+        for row in root.rows: TableRow {
+            width: root.content-width;
             track: row;
+            status-width: root.status-width;
+            number-width: root.number-width;
             widths: root.widths;
         }
-    }
-
-    Rectangle {
-        x: root.pinned-width;
-        y: 0;
-        width: 1px;
-        height: root.header-height;
-        background: Theme.border-subtle;
-    }
-
-    Rectangle {
-        x: root.pinned-width;
-        y: root.header-height;
-        width: 1px;
-        height: root.list-height;
-        background: root.scrolls-sideways ? Theme.border-subtle : Theme.border-row;
-    }
-
-    if root.scroll-x < 0px: Rectangle {
-        x: root.scrolling-x;
-        y: 0;
-        width: 10px;
-        background: @linear-gradient(90deg, Theme.shadow-pinned 0%, transparent 100%);
     }
 
     vertical-bar := ScrollBar {
@@ -821,15 +757,15 @@ export component TrackTable inherits Rectangle {
         width: root.scrollbar-size;
         height: root.list-height;
         content-size: root.rows-height;
-        visible-size: scrolling-list.visible-height;
+        visible-size: track-list.visible-height;
         position <=> root.scroll-y;
         accessible-label: @tr("Vertical scroll bar");
     }
 
     if root.scrolls-sideways: Rectangle {
-        x: root.scrolling-x;
+        x: 0;
         y: root.height - root.scrollbar-size;
-        width: root.scrolling-width;
+        width: root.width;
         height: root.scrollbar-size;
 
         Rectangle {
@@ -840,8 +776,8 @@ export component TrackTable inherits Rectangle {
 
         ScrollBar {
             horizontal: true;
-            content-size: root.scrolling-content-width;
-            visible-size: scrolling-list.visible-width;
+            content-size: root.content-width;
+            visible-size: track-list.visible-width;
             position <=> root.scroll-x;
             accessible-label: @tr("Horizontal scroll bar");
         }
