@@ -9,8 +9,8 @@ use std::time::{Duration, Instant};
 
 use colophon_ui::{AppWindow, ComponentHandle};
 use i_slint_backend_testing::{ElementHandle, TestingBackend, TestingBackendOptions};
-use slint::LogicalSize;
-use slint::platform::SetPlatformError;
+use slint::platform::{PointerEventButton, SetPlatformError, WindowEvent};
+use slint::{LogicalPosition, LogicalSize};
 use tempfile::TempDir;
 
 pub type TestResult = Result<(), Box<dyn Error>>;
@@ -122,4 +122,54 @@ pub fn menu_item(window: &AppWindow, label: &str) -> Result<ElementHandle, Strin
     ElementHandle::find_by_accessible_label(window, label)
         .find(|element| element.id().is_some_and(|id| id == "MenuItemBase::label"))
         .ok_or_else(|| format!("no menu item labelled {label:?}"))
+}
+
+/// Where a column's resize handle is: the last pixels of its header cell, which ends 8 pixels of
+/// padding after its name.
+pub fn resize_handle(window: &AppWindow, name: &str) -> Result<LogicalPosition, String> {
+    let name = find(window, name)?;
+    let position = name.absolute_position();
+    let size = name.size();
+    Ok(LogicalPosition::new(
+        position.x + size.width + 8.0 - 3.0,
+        position.y + size.height / 2.0,
+    ))
+}
+
+/// Drags with the left button through raw pointer events, as a mouse would.
+pub fn drag(window: &AppWindow, from: LogicalPosition, to: LogicalPosition) {
+    let left = PointerEventButton::Left;
+    for event in [
+        WindowEvent::PointerMoved { position: from },
+        WindowEvent::PointerPressed {
+            position: from,
+            button: left,
+        },
+        WindowEvent::PointerMoved { position: to },
+        WindowEvent::PointerReleased {
+            position: to,
+            button: left,
+        },
+    ] {
+        window.window().dispatch_event(event);
+    }
+}
+
+pub fn double_click(window: &AppWindow, at: LogicalPosition) {
+    let left = PointerEventButton::Left;
+    window
+        .window()
+        .dispatch_event(WindowEvent::PointerMoved { position: at });
+    for _ in 0..2 {
+        window.window().dispatch_event(WindowEvent::PointerPressed {
+            position: at,
+            button: left,
+        });
+        window
+            .window()
+            .dispatch_event(WindowEvent::PointerReleased {
+                position: at,
+                button: left,
+            });
+    }
 }

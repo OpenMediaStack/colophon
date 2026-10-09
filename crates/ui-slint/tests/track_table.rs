@@ -1,16 +1,18 @@
 mod common;
 
+use std::cell::RefCell;
 use std::error::Error;
 use std::rc::Rc;
 use std::time::Duration;
 
 use colophon_ui::{
-    AppWindow, ComponentHandle, ScanState, Theme, TrackColumns, TrackRow, TrackStatus,
+    AppWindow, ComponentHandle, ScanState, Theme, TrackColumnWidths, TrackColumns, TrackRow,
+    TrackStatus,
 };
 use slint::platform::PointerEventButton;
 use slint::{LogicalPosition, ModelRc, VecModel};
 
-use common::{TestResult, assert_matches_reference, find, shows};
+use common::{TestResult, assert_matches_reference, find, resize_handle, shows};
 
 /// A window in English at the given size, with an opened folder of these tracks.
 fn window_with(rows: Vec<TrackRow>, width: f32, height: f32) -> Result<AppWindow, Box<dyn Error>> {
@@ -220,6 +222,113 @@ fn a_narrow_window_scrolls_the_columns_sideways_but_not_the_titles() -> TestResu
         find(&window, "Track 00001")?.absolute_position(),
         first_title
     );
+    Ok(())
+}
+
+/// The widths the table asks for, as the engine would receive them.
+fn record_resizes(window: &AppWindow) -> Rc<RefCell<Option<TrackColumnWidths>>> {
+    let asked = Rc::new(RefCell::new(None));
+    window.on_resize_columns({
+        let asked = Rc::clone(&asked);
+        move |widths| *asked.borrow_mut() = Some(widths)
+    });
+    asked
+}
+
+/// The width of a column, from its name: the cell is 8 pixels of padding wider on each side.
+fn column_width(window: &AppWindow, name: &str) -> Result<f32, String> {
+    Ok(find(window, name)?.size().width + 16.0)
+}
+
+#[test]
+fn dragging_a_separator_resizes_its_column_alone() -> TestResult {
+    let window = window_with_tracks(100, 1440.0, 900.0)?;
+    window.show()?;
+    let asked = record_resizes(&window);
+    let artist = column_width(&window, "Artist")?;
+    let album = column_width(&window, "Album")?;
+    let handle = resize_handle(&window, "Artist")?;
+
+    common::drag(
+        &window,
+        handle,
+        slint::LogicalPosition::new(handle.x + 100.0, handle.y),
+    );
+
+    let widths = asked.borrow().clone().ok_or("no resize asked")?;
+    assert!((widths.artist - (artist + 100.0)).abs() < 1.0, "{widths:?}");
+    assert!((widths.album - album).abs() < 1.0, "{widths:?}");
+    Ok(())
+}
+
+#[test]
+fn a_column_never_gets_narrower_than_40_pixels() -> TestResult {
+    let window = window_with_tracks(100, 1440.0, 900.0)?;
+    window.show()?;
+    let asked = record_resizes(&window);
+    let handle = resize_handle(&window, "Artist")?;
+
+    common::drag(
+        &window,
+        handle,
+        slint::LogicalPosition::new(handle.x - 500.0, handle.y),
+    );
+
+    let widths = asked.borrow().clone().ok_or("no resize asked")?;
+    assert_eq!(widths.artist, 40.0);
+    Ok(())
+}
+
+#[test]
+fn a_double_click_on_a_separator_fits_the_column_to_its_longest_value() -> TestResult {
+    let window = window_with_tracks(100, 1440.0, 900.0)?;
+    window.set_longest(TrackRow {
+        artist: "Bloom".into(),
+        album: "An album whose name goes on and on and on, far beyond any sensible width"
+            .repeat(4)
+            .into(),
+        ..TrackRow::default()
+    });
+    window.show()?;
+    let asked = record_resizes(&window);
+    let artist = column_width(&window, "Artist")?;
+
+    common::double_click(&window, resize_handle(&window, "Artist")?);
+    let short = asked.borrow().clone().ok_or("no resize asked")?;
+    common::double_click(&window, resize_handle(&window, "Album")?);
+    let long = asked.borrow().clone().ok_or("no resize asked")?;
+
+    assert!(short.artist < artist && short.artist > 40.0, "{short:?}");
+    assert_eq!(long.album, 600.0);
+    Ok(())
+}
+
+#[test]
+fn resized_columns_wider_than_the_window_scroll_sideways() -> TestResult {
+    let window = window_with_tracks(100, 1440.0, 900.0)?;
+    let narrow = TrackColumnWidths {
+        title: 200.0,
+        artist: 100.0,
+        album: 100.0,
+        year: 56.0,
+        genre: 96.0,
+        time: 56.0,
+        bitrate: 72.0,
+        tags: 132.0,
+        file: 180.0,
+        folder: 180.0,
+    };
+    window.set_columns_sized(true);
+    window.set_column_widths(narrow.clone());
+    window.show()?;
+    assert!(!shows(&window, "Horizontal scroll bar"));
+
+    window.set_column_widths(TrackColumnWidths {
+        artist: 600.0,
+        ..narrow
+    });
+
+    assert!(shows(&window, "Horizontal scroll bar"));
     Ok(())
 }
 

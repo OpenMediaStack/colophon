@@ -7,9 +7,9 @@ import { Theme } from "theme.slint";
 import { Region, ToolbarButton } from "widgets.slint";
 import { EmptyState } from "empty-state.slint";
 import { ScanState, StatusBar } from "status-bar.slint";
-import { TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
+import { TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
 
-export { Theme, ScanState, TrackColumn, TrackColumns, TrackRow, TrackStatus }
+export { Theme, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus }
 
 // The user actions the window can ask the engine to run.
 export enum Command { open-folder, stop-scan, toggle-sidebar, toggle-inspector, reset-columns }
@@ -38,7 +38,13 @@ export component AppWindow inherits Window {
     // reference captures do not depend on the machine.
     in property <bool> mac-shortcuts: Platform.os == OperatingSystemType.macos;
     callback run(Command);
+    // Set once the user has resized a column.
+    in property <bool> columns-sized;
+    in property <TrackColumnWidths> column-widths;
+    // The longest value of each column, to fit a column to its content.
+    in property <TrackRow> longest;
     callback toggle-column(TrackColumn);
+    callback resize-columns(TrackColumnWidths);
 
     property <length> sidebar-width: 220px;
     property <length> inspector-width: 320px;
@@ -181,6 +187,12 @@ export component AppWindow inherits Window {
                 if root.folder-open: TrackTable {
                     rows: root.tracks;
                     columns: root.columns;
+                    sized: root.columns-sized;
+                    sized-widths: root.column-widths;
+                    longest: root.longest;
+                    columns-resized(widths) => {
+                        root.resize-columns(widths);
+                    }
                     toggle-column(column) => {
                         root.toggle-column(column);
                     }
