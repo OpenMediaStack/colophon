@@ -122,13 +122,11 @@ impl Bridge {
         if library.tracks.len() < self.tracks.row_count() {
             self.tracks.clear();
         }
-        let folder = library.folder.as_deref().unwrap_or(Path::new(""));
         let found = library
             .tracks
             .get(self.tracks.row_count()..)
             .unwrap_or_default();
-        self.tracks
-            .extend(found.iter().map(|track| track_row(folder, track)));
+        self.tracks.extend(found.iter().map(track_row));
     }
 }
 
@@ -186,7 +184,7 @@ fn show_library(window: &AppWindow, library: &Library) {
 
 /// A track as the table shows it. A file without a title tag, or whose tags cannot be read, is
 /// titled after its file name.
-fn track_row(folder: &Path, track: &Track) -> TrackRow {
+fn track_row(track: &Track) -> TrackRow {
     let path = &track.path;
     let name = |part: Option<&OsStr>| -> SharedString {
         part.map(|part| part.to_string_lossy().as_ref().into())
@@ -195,11 +193,7 @@ fn track_row(folder: &Path, track: &Track) -> TrackRow {
     let row = TrackRow {
         title: name(path.file_stem()),
         file: name(path.file_name()),
-        folder: path
-            .parent()
-            .and_then(|parent| parent.strip_prefix(folder).ok())
-            .map(|relative| relative.display().to_string().into())
-            .unwrap_or_default(),
+        folder: path.parent().map(display_folder).unwrap_or_default().into(),
         ..TrackRow::default()
     };
     let Ok(metadata) = &track.metadata else {
@@ -315,7 +309,7 @@ mod tests {
     #[test]
     fn a_track_shows_its_tags() {
         let path = Path::new("/music/07.mp3");
-        let row = track_row(Path::new("/music"), &track(path, Ok(paper_satellites())));
+        let row = track_row(&track(path, Ok(paper_satellites())));
 
         assert_eq!(row.status, TrackStatus::Normal);
         assert_eq!(row.number, "03");
@@ -334,7 +328,7 @@ mod tests {
     #[test]
     fn a_track_without_a_title_is_titled_after_its_file_name() {
         let path = Path::new("/music/07 Paper Satellites.mp3");
-        let row = track_row(Path::new("/music"), &track(path, Ok(Metadata::default())));
+        let row = track_row(&track(path, Ok(Metadata::default())));
 
         assert_eq!(row.title, "07 Paper Satellites");
         assert!(row.untitled);
@@ -345,10 +339,7 @@ mod tests {
     #[test]
     fn an_unreadable_track_is_titled_after_its_file_name() {
         let path = Path::new("/music/07 Paper Satellites.mp3");
-        let row = track_row(
-            Path::new("/music"),
-            &track(path, Err(ReadError::ReaderPanicked)),
-        );
+        let row = track_row(&track(path, Err(ReadError::ReaderPanicked)));
 
         assert_eq!(row.status, TrackStatus::Unreadable);
         assert_eq!(row.title, "07 Paper Satellites");
@@ -365,21 +356,19 @@ mod tests {
     }
 
     #[test]
-    fn a_track_in_a_subfolder_shows_the_path_from_the_opened_folder() {
-        let folder = Path::new("/music");
-        let path = folder
-            .join("Marlowe Kite")
-            .join("Small Hours")
-            .join("07.mp3");
-        let row = track_row(folder, &track(&path, Ok(Metadata::default())));
+    fn a_track_shows_the_full_path_of_its_folder() {
+        let path = Path::new("/Volumes/Music/Marlowe Kite/Small Hours/07.mp3");
+        let row = track_row(&track(path, Ok(Metadata::default())));
 
-        assert_eq!(
-            row.folder,
-            Path::new("Marlowe Kite")
-                .join("Small Hours")
-                .display()
-                .to_string()
-        );
+        assert_eq!(row.folder, "/Volumes/Music/Marlowe Kite/Small Hours");
+    }
+
+    #[test]
+    fn a_track_in_the_home_folder_shows_its_folder_with_a_tilde() {
+        let path = home().join("Music").join("07.mp3");
+        let row = track_row(&track(&path, Ok(Metadata::default())));
+
+        assert_eq!(row.folder, "~/Music");
     }
 
     #[test]
