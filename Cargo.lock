@@ -722,6 +722,7 @@ dependencies = [
 name = "colophon"
 version = "0.1.0"
 dependencies = [
+ "colophon-engine",
  "colophon-ui",
 ]
 
@@ -733,6 +734,7 @@ version = "0.1.0"
 name = "colophon-ui"
 version = "0.1.0"
 dependencies = [
+ "colophon-engine",
  "i-slint-backend-testing",
  "image",
  "slint",

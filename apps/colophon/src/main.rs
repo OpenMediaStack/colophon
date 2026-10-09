@@ -1,5 +1,6 @@
-use colophon_ui::{AppWindow, ComponentHandle, PlatformError};
+use colophon_engine::Engine;
+use colophon_ui::{ComponentHandle, PlatformError};
 
 fn main() -> Result<(), PlatformError> {
-    AppWindow::new()?.run()
+    colophon_ui::main_window(Engine::new())?.run()
 }

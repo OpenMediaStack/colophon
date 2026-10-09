@@ -7,6 +7,9 @@ import { Theme } from "theme.slint";
 
 export { Theme }
 
+// The user actions the window can ask the engine to run.
+export enum Command { toggle-sidebar, toggle-inspector }
+
 // A placeholder for a part of the window that is not built yet.
 component Region inherits Rectangle {
     in property <string> label;
@@ -18,9 +21,44 @@ component Region inherits Rectangle {
     }
 }
 
+// A toolbar button that shows and hides a panel; it looks pressed while the panel is visible.
+component PanelToggle inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    in property <bool> active;
+    callback clicked;
+
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    background: root.active || touch.has-hover ? Theme.surface-3 : transparent;
+    animate background { duration: 100ms; }
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-checkable: true;
+    accessible-checked: root.active;
+    accessible-action-default => {
+        root.clicked();
+    }
+
+    Image {
+        width: 16px;
+        height: 16px;
+        source: root.icon;
+        colorize: root.active ? Theme.text-primary : Theme.text-secondary;
+    }
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
 export component AppWindow inherits Window {
     in property <bool> sidebar-visible: true;
     in property <bool> inspector-visible: true;
+    callback run(Command);
 
     property <length> sidebar-width: 220px;
     property <length> inspector-width: 320px;
@@ -53,13 +91,69 @@ export component AppWindow inherits Window {
     default-font-family: "Inter";
     default-font-size: 13px;
 
+    MenuBar {
+        // Slint calls the Command key Control on macOS: these read Option Command S and I there, as in the Finder.
+        Menu {
+            title: @tr("View");
+
+            MenuItem {
+                title: root.sidebar-visible ? @tr("Hide Sidebar") : @tr("Show Sidebar");
+                shortcut: @keys(Control + Alt + S);
+                activated => {
+                    root.run(Command.toggle-sidebar);
+                }
+            }
+
+            MenuItem {
+                title: root.inspector-visible ? @tr("Hide Inspector") : @tr("Show Inspector");
+                shortcut: @keys(Control + Alt + I);
+                activated => {
+                    root.run(Command.toggle-inspector);
+                }
+            }
+        }
+    }
+
     VerticalLayout {
         spacing: 1px;
 
-        Region {
+        Rectangle {
             height: 40px;
-            label: @tr("Toolbar");
             background: Theme.surface-2;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 8px;
+                padding-top: 6px;
+                padding-bottom: 6px;
+                spacing: 4px;
+
+                Text {
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                    text: @tr("Toolbar");
+                    font-size: 12px;
+                    color: Theme.text-tertiary;
+                }
+
+                PanelToggle {
+                    icon: @image-url("images/panel-left.svg");
+                    label: @tr("Toggle sidebar");
+                    active: root.sidebar-visible;
+                    clicked => {
+                        root.run(Command.toggle-sidebar);
+                    }
+                }
+
+                PanelToggle {
+                    icon: @image-url("images/panel-right.svg");
+                    label: @tr("Toggle inspector");
+                    active: root.inspector-visible;
+                    clicked => {
+                        root.run(Command.toggle-inspector);
+                    }
+                }
+            }
         }
 
         HorizontalLayout {
