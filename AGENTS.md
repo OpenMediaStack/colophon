@@ -12,9 +12,11 @@ Florent decides, the agents build.
 - **The agents** plan, implement, test and verify. They propose; they never decide product questions alone. When a choice is genuinely Florent's (a behaviour, a dependency, a file format trade-off), ask.
 - **Small slices.** One change does one thing and can be reviewed in a few minutes. A larger feature is cut into slices first, and the plan is shown before any code.
 - **Plan first** for anything that touches more than one crate, adds a dependency, or changes a file format: a short plan with the files involved, the approach, and how it will be verified.
-- **Commit only when Florent approves.** Commit messages follow Conventional Commits, in English.
+- **One branch and one pull request per change.** Branches are named after the Conventional Commits type and the change, in English (`feat/engine-view-commands`, `fix/...`, `docs/...`, `chore/...`). `main` only takes squash merges, so the pull request title, a Conventional Commit, becomes the commit on `main`. Nothing is pushed to `main` directly.
+- **Florent merges.** A pull request is merged once Florent approves it and the CI passes.
 - **Florent keeps learning.** When a change relies on a concept that is not obvious (a wgpu bind group, how Slint re-evaluates a property binding when a value it reads changes, ID3 unsynchronisation, a lock-free ring buffer), the summary explains it in two or three sentences with a link to the reference. No lectures, just enough to review with understanding.
 - Talk to Florent in French. Code, comments, docs, commit messages and pull requests (title, description, review comments) are in English.
+- No em dashes or en dashes anywhere: code, comments, docs, commits, pull requests. Use a comma, a colon, parentheses or a new sentence.
 
 ## Code style
 
@@ -45,6 +47,7 @@ A change is done when all of this holds, and the summary says which checks ran:
 - `cargo clippy --workspace --all-targets -- -D warnings` passes.
 - `cargo test --workspace` passes, with new tests for the new behaviour.
 - UI changes: the app was run, and the summary includes a screenshot (`screencapture`) or a Slint reference capture of the result (see [Testing](#testing)).
+- The CI passes on the pull request: format, Clippy and tests on Linux, plus YAML lint.
 - Anything not verified is named as such. Never claim a check that did not run.
 
 ## Rules that are never bent
@@ -52,7 +55,7 @@ A change is done when all of this holds, and the summary says which checks ran:
 - **User files are sacred.** Writing tags never touches audio bytes. A write goes to a temporary file in the same directory, is flushed, then renamed over the original. Tests never write to a real user file: they copy fixtures into a temporary directory.
 - **No panic on untrusted input.** Audio files are untrusted. Truncated, corrupted or lying files give an error or a partial result, never a panic. No `unwrap` or `expect` on data that comes from a file.
 - **The UI thread never blocks.** Scanning folders, reading tags, decoding audio and computing waveforms run off the UI thread and report back through channels.
-- **Engine first.** Every user action is a command in the engine. The UI, the CLI and later an MCP server call the same commands. A feature that only exists in the UI is a bug.
+- **Engine first.** Every user action is a command in the engine, which the UI calls. The logic lives in the engine and is tested there, without a window. A behaviour that only exists in the UI is a bug.
 - **Business logic is tested.** Every change to `engine`, `tags`, `audio` or `library` comes with tests for the behaviour it adds or fixes. The UI is tested too whenever it can be, with Slint's testing backend (see [Testing](#testing)); what cannot be tested is checked by running the app and named as such in the summary.
 - **Dependencies point down.** `engine`, `tags`, `audio` and `library` never depend on `slint`.
 
@@ -65,10 +68,9 @@ A Cargo workspace, in the style of PhotoCraft (`github.com/storytold/photocraft`
 | `crates/tags` | Read and write metadata through `lofty` (https://docs.rs/lofty), which covers every format Colophon targets (MP3, FLAC, WAV, AIFF, M4A, Ogg, APE…), writes ID3v2.3 or 2.4 (`WriteOptions::use_id3v23`) with a chosen padding (`preferred_padding`), writes ID3v1, and gives the audio properties (bitrate, sample rate, duration). Colophon adds validation and safe writing. For the few developer-mode writes `lofty` does not do (ID3v2.2, unsynchronisation, compression, forcing ID3v1.0 rather than 1.1), check first, then use the `id3` crate's `Encoder` behind developer mode only. |
 | `crates/audio` | Decoding with `symphonia`, playback with `cpal`, the min/max waveform pyramid, the FFT (`realfft`). |
 | `crates/library` | Scanning folders, the track model, caching tag reads. |
-| `crates/engine` | Application state: open library, selection, pending edits, undo and redo, the command registry (a stable id and JSON parameters for each command). No UI types. |
+| `crates/engine` | Application state: open library, selection, pending edits, undo and redo, the commands, each with a stable id. No UI types. |
 | `crates/ui-slint` | The Slint frontend: the `.slint` files (the `global Theme`, Colophon's own components, the panels), compiled by `slint-build` in its `build.rs`, and the Rust bridge that turns engine state into Slint properties and models, and Slint callbacks into engine commands. It reads engine state and issues commands, nothing else. |
 | `apps/colophon` | The desktop app: the Slint application, which wires `ui-slint` to the engine. |
-| `apps/colophon-cli` | Headless use: print and edit tags, batch edits, run any command. Later: an MCP server so agents can drive Colophon. |
 
 Add a crate only when a real boundary appears, never upfront.
 
@@ -143,7 +145,7 @@ Each step ends on something Florent can run. Cut a step into slices before start
      - a test with Slint's testing backend that finds an element by its accessible label and activates it, and a reference capture of one panel rendered with the software renderer (`Window::take_snapshot()`), compared with a stored PNG.
 
      If a point blocks, stop and discuss it with Florent before going further.
-   - Then the skeleton itself: the workspace, the Slint window with the `global Theme` (dark and light), the English and French translations, and the layout chosen in the design brief in grey boxes, the collapsible sidebar and inspector with their buttons and shortcuts, `colophon-cli --version`.
+   - Then the skeleton itself: the workspace, the Slint window with the `global Theme` (dark and light), the English and French translations, and the layout chosen in the design brief in grey boxes, the collapsible sidebar and inspector with their buttons and shortcuts.
 2. **Library.** Open a folder with the native dialog, scan MP3 files in the background, a virtualised track list that stays smooth with 10 000 entries and scrolls horizontally when its columns do not fit, with status, number and title pinned on the left.
 3. **Read tags.** The `tags` crate, fixtures, ffprobe parity, no panic on the corrupted corpus. The edit panel shows the values, read only, the column chooser (right click on the header), and the Tags column, off by default, which shows the tag formats present in each file (`ID3v2.3, ID3v1.1`).
 4. **Edit and save.** Editable fields, pending edits, undo and redo through commands, safe writing, round-trip tests. Writes ID3v2.4 by default. ID3v1 is kept where it exists and rewritten from the new values, with a warning when a value does not fit its 30 Latin-1 characters. Removing an ID3v1 tag always goes through a confirmation dialog.
@@ -158,5 +160,5 @@ Each step ends on something Florent can run. Cut a step into slices before start
 Later versions:
 
 - **Other formats**, all through `lofty`: FLAC and Ogg, M4A, WAV, AIFF. Mostly scanning, the inspector fields each format supports, the conversions that lose information, and fixtures. The Tags column shows `Vorbis`, `MP4` or `RIFF INFO, ID3v2.4`.
-- The MCP server in `colophon-cli`, a web build.
+- A web build.
 
