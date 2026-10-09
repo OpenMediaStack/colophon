@@ -68,3 +68,19 @@ impl FromIterator<Column> for Columns {
         )
     }
 }
+
+/// The width of every column once the user has resized one, in logical pixels. The status and
+/// number columns keep theirs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct ColumnWidths {
+    pub title: u32,
+    pub artist: u32,
+    pub album: u32,
+    pub year: u32,
+    pub genre: u32,
+    pub time: u32,
+    pub bitrate: u32,
+    pub tags: u32,
+    pub file: u32,
+    pub folder: u32,
+}

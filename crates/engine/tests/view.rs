@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use colophon_engine::{Column, Command, Engine, ViewState};
+use colophon_engine::{Column, ColumnWidths, Command, Engine, ViewState};
 
 #[test]
 fn both_panels_are_visible_at_start() {
@@ -78,10 +78,26 @@ fn toggling_a_column_shows_or_hides_it_alone() {
 }
 
 #[test]
+fn the_table_shares_its_width_until_a_column_is_resized() {
+    let mut engine = Engine::new();
+    assert_eq!(engine.view().column_widths, None);
+    let widths = ColumnWidths {
+        title: 300,
+        artist: 180,
+        ..ColumnWidths::default()
+    };
+
+    engine.execute(Command::ResizeColumns(widths));
+
+    assert_eq!(engine.view().column_widths, Some(widths));
+}
+
+#[test]
 fn resetting_the_columns_brings_back_those_of_the_mockup() {
     let mut engine = Engine::new();
     engine.execute(Command::ToggleColumn(Column::Tags));
     engine.execute(Command::ToggleColumn(Column::Artist));
+    engine.execute(Command::ResizeColumns(ColumnWidths::default()));
 
     engine.execute(Command::ResetColumns);
 
@@ -96,6 +112,7 @@ fn command_ids_are_unique() {
         Command::OpenFolder(PathBuf::new()),
         Command::StopScan,
         Command::ToggleColumn(Column::Tags),
+        Command::ResizeColumns(ColumnWidths::default()),
         Command::ResetColumns,
     ];
 

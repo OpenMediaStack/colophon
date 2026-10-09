@@ -3,7 +3,7 @@ import { ListView, ScrollBar, ToolbarButton } from "widgets.slint";
 
 export enum TrackStatus { normal, unreadable }
 
-export enum TrackColumn { artist, album, year, genre, time, bitrate, tags, file, folder }
+export enum TrackColumn { title, artist, album, year, genre, time, bitrate, tags, file, folder }
 
 // One file of the opened folder, as the table shows it.
 export struct TrackRow {
@@ -36,8 +36,8 @@ export struct TrackColumns {
     folder: bool,
 }
 
-// The width of every column, zero for a hidden one.
-struct ColumnWidths {
+// The width of every column but status and number.
+export struct TrackColumnWidths {
     title: length,
     artist: length,
     album: length,
@@ -50,26 +50,36 @@ struct ColumnWidths {
     folder: length,
 }
 
-component Cell inherits HorizontalLayout {
+component Cell inherits Rectangle {
     in property <string> text;
-    in property <color> color: Theme.text-secondary;
+    in property <color> text-color: Theme.text-secondary;
     in property <bool> mono;
     in property <TextHorizontalAlignment> text-alignment: left;
     in property <length> size: root.mono ? 12px : 13px;
     in property <int> weight: 400;
+    // The line at the right edge, where the column can be resized.
+    in property <color> separator: Theme.border-row;
 
-    padding-left: 8px;
-    padding-right: 8px;
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
 
-    Text {
-        vertical-alignment: center;
-        horizontal-alignment: root.text-alignment;
-        overflow: elide;
-        text: root.text;
-        font-family: root.mono ? "JetBrains Mono" : "Inter";
-        font-size: root.size;
-        font-weight: root.weight;
-        color: root.color;
+        Text {
+            vertical-alignment: center;
+            horizontal-alignment: root.text-alignment;
+            overflow: elide;
+            text: root.text;
+            font-family: root.mono ? "JetBrains Mono" : "Inter";
+            font-size: root.size;
+            font-weight: root.weight;
+            color: root.text-color;
+        }
+    }
+
+    Rectangle {
+        x: root.width - 1px;
+        width: 1px;
+        background: root.separator;
     }
 }
 
@@ -79,9 +89,61 @@ component NumberCell inherits Cell {
     text-alignment: right;
 }
 
+// A column's name. Dragging its last pixels resizes the column, and a double click there fits the
+// column to its longest value.
 component HeaderCell inherits Cell {
+    in property <bool> resizable: true;
+    callback resized(length);
+    callback fitted;
+
     size: 12px;
     weight: 500;
+    separator: root.resizable ? Theme.border-subtle : transparent;
+
+    if root.resizable: TouchArea {
+        // The pointer and the width when the drag started. The handle moves with the column's edge, so
+        // the pointer is followed in window coordinates.
+        property <length> start-pointer;
+        property <length> start-width;
+
+        x: root.width - 6px;
+        width: 6px;
+        mouse-cursor: col-resize;
+
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down && event.button == PointerEventButton.left {
+                self.start-pointer = self.absolute-position.x + self.pressed-x;
+                self.start-width = root.width;
+            }
+        }
+        moved => {
+            if self.pressed {
+                root.resized(self.start-width + self.absolute-position.x + self.mouse-x - self.start-pointer);
+            }
+        }
+        double-clicked => {
+            root.fitted();
+        }
+    }
+}
+
+// Measures a text in the font of the cells, without showing it to anyone.
+component Probe inherits Text {
+    visible: false;
+    accessible-role: none;
+    accessible-label: "";
+    font-family: "Inter";
+    font-size: 13px;
+}
+
+component NumberProbe inherits Probe {
+    font-family: "JetBrains Mono";
+    font-size: 12px;
+}
+
+component HeaderProbe inherits Probe {
+    font-size: 12px;
+    font-weight: 500;
 }
 
 component RowDivider inherits Rectangle {
@@ -89,14 +151,17 @@ component RowDivider inherits Rectangle {
     background: Theme.border-row;
 }
 
-component PinnedRow inherits Rectangle {
+component TableRow inherits Rectangle {
     in property <TrackRow> track;
     in property <length> status-width;
     in property <length> number-width;
+    in property <TrackColumnWidths> widths;
 
     height: 26px;
 
     HorizontalLayout {
+        alignment: start;
+
         Rectangle {
             width: root.status-width;
 
@@ -113,28 +178,15 @@ component PinnedRow inherits Rectangle {
         NumberCell {
             width: root.number-width;
             text: root.track.number;
-            color: Theme.text-tertiary;
+            text-color: Theme.text-tertiary;
+            separator: transparent;
         }
 
         Cell {
+            width: root.widths.title;
             text: root.track.title;
-            color: root.track.status == TrackStatus.unreadable ? Theme.error : root.track.untitled ? Theme.text-tertiary : Theme.text-primary;
+            text-color: root.track.status == TrackStatus.unreadable ? Theme.error : root.track.untitled ? Theme.text-tertiary : Theme.text-primary;
         }
-    }
-
-    RowDivider {
-        y: root.height - 1px;
-    }
-}
-
-component ScrollingRow inherits Rectangle {
-    in property <TrackRow> track;
-    in property <ColumnWidths> widths;
-
-    height: 26px;
-
-    HorizontalLayout {
-        alignment: start;
 
         if root.widths.artist > 0: Cell {
             width: root.widths.artist;
@@ -180,13 +232,19 @@ component ScrollingRow inherits Rectangle {
     }
 }
 
-// The tracks of the opened folder. Status, number and title stay pinned on the left while the other
-// columns scroll sideways: the two sides are two lists that share their vertical position.
+// The tracks of the opened folder, in a list that scrolls sideways when its columns do not fit.
 export component TrackTable inherits Rectangle {
     in property <[TrackRow]> rows;
     in property <TrackColumns> columns;
+    // Until the user resizes a column, the table shares its width between the columns. From then
+    // on, each column keeps the width the user gave it and the table scrolls sideways if it must.
+    in property <bool> sized;
+    in property <TrackColumnWidths> sized-widths;
+    // The longest value of each column, measured to fit a column to its content.
+    in property <TrackRow> longest;
     callback toggle-column(TrackColumn);
     callback reset-columns;
+    callback columns-resized(TrackColumnWidths);
 
     property <length> header-height: 28px;
     property <length> row-height: 26px;
@@ -195,20 +253,33 @@ export component TrackTable inherits Rectangle {
     property <length> number-width: 36px;
     // Room at the right end of the rows for the vertical scroll bar and the columns button.
     property <length> end-width: 32px;
+    property <length> narrowest-width: 40px;
+    property <length> widest-fit: 600px;
     // Every column has a minimum width. The text columns share the room left by these weights, as
     // in the mockup, and the others keep their width.
-    property <length> title-min-width: 200px;
-    property <ColumnWidths> min-widths: {
-        title: root.title-min-width,
-        artist: root.columns.artist ? 140px : 0px,
-        album: root.columns.album ? 160px : 0px,
-        year: root.columns.year ? 56px : 0px,
-        genre: root.columns.genre ? 96px : 0px,
-        time: root.columns.time ? 56px : 0px,
-        bitrate: root.columns.bitrate ? 72px : 0px,
-        tags: root.columns.tags ? 132px : 0px,
-        file: root.columns.file ? 180px : 0px,
-        folder: root.columns.folder ? 180px : 0px,
+    property <TrackColumnWidths> natural-widths: {
+        title: 200px,
+        artist: 140px,
+        album: 160px,
+        year: 56px,
+        genre: 96px,
+        time: 56px,
+        bitrate: 72px,
+        tags: 132px,
+        file: 180px,
+        folder: 180px,
+    };
+    property <TrackColumnWidths> min-widths: {
+        title: root.natural-widths.title,
+        artist: root.columns.artist ? root.natural-widths.artist : 0px,
+        album: root.columns.album ? root.natural-widths.album : 0px,
+        year: root.columns.year ? root.natural-widths.year : 0px,
+        genre: root.columns.genre ? root.natural-widths.genre : 0px,
+        time: root.columns.time ? root.natural-widths.time : 0px,
+        bitrate: root.columns.bitrate ? root.natural-widths.bitrate : 0px,
+        tags: root.columns.tags ? root.natural-widths.tags : 0px,
+        file: root.columns.file ? root.natural-widths.file : 0px,
+        folder: root.columns.folder ? root.natural-widths.folder : 0px,
     };
     property <float> title-weight: 1.6;
     property <float> artist-weight: root.columns.artist ? 1.1 : 0;
@@ -216,12 +287,9 @@ export component TrackTable inherits Rectangle {
     property <float> file-weight: root.columns.file ? 1 : 0;
     property <float> folder-weight: root.columns.folder ? 1 : 0;
     property <float> total-weight: root.title-weight + root.artist-weight + root.album-weight + root.file-weight + root.folder-weight;
-    property <length> scrolling-min-width: root.min-widths.artist + root.min-widths.album + root.min-widths.year + root.min-widths.genre + root.min-widths.time + root.min-widths.bitrate + root.min-widths.tags + root.min-widths.file + root.min-widths.folder + root.end-width;
-    property <length> columns-min-width: root.status-width + root.number-width + root.title-min-width + root.scrolling-min-width;
-    // The 1px line between the two sides is always there, drawn only while the table scrolls sideways.
-    property <bool> scrolls-sideways: root.width - 1px < root.columns-min-width;
-    property <length> spare-width: max(0px, root.width - 1px - root.columns-min-width) / root.total-weight;
-    property <ColumnWidths> widths: {
+    property <length> columns-min-width: root.status-width + root.number-width + root.min-widths.title + root.min-widths.artist + root.min-widths.album + root.min-widths.year + root.min-widths.genre + root.min-widths.time + root.min-widths.bitrate + root.min-widths.tags + root.min-widths.file + root.min-widths.folder + root.end-width;
+    property <length> spare-width: max(0px, root.width - root.columns-min-width) / root.total-weight;
+    property <TrackColumnWidths> shared-widths: {
         title: root.min-widths.title + root.spare-width * root.title-weight,
         artist: root.min-widths.artist + root.spare-width * root.artist-weight,
         album: root.min-widths.album + root.spare-width * root.album-weight,
@@ -233,10 +301,34 @@ export component TrackTable inherits Rectangle {
         file: root.min-widths.file + root.spare-width * root.file-weight,
         folder: root.min-widths.folder + root.spare-width * root.folder-weight,
     };
-    property <length> pinned-width: root.status-width + root.number-width + root.widths.title;
-    property <length> scrolling-x: root.pinned-width + 1px;
-    property <length> scrolling-width: root.width - root.scrolling-x;
-    property <length> scrolling-content-width: root.scrolls-sideways ? root.scrolling-min-width : root.scrolling-width;
+    property <TrackColumnWidths> widths: root.sized ? {
+        title: root.sized-widths.title,
+        artist: root.columns.artist ? root.sized-widths.artist : 0px,
+        album: root.columns.album ? root.sized-widths.album : 0px,
+        year: root.columns.year ? root.sized-widths.year : 0px,
+        genre: root.columns.genre ? root.sized-widths.genre : 0px,
+        time: root.columns.time ? root.sized-widths.time : 0px,
+        bitrate: root.columns.bitrate ? root.sized-widths.bitrate : 0px,
+        tags: root.columns.tags ? root.sized-widths.tags : 0px,
+        file: root.columns.file ? root.sized-widths.file : 0px,
+        folder: root.columns.folder ? root.sized-widths.folder : 0px,
+    } : root.shared-widths;
+    // The widths as they stand, a hidden column keeping its natural width for when it shows again.
+    property <TrackColumnWidths> current-widths: {
+        title: root.widths.title,
+        artist: root.columns.artist ? root.widths.artist : root.natural-widths.artist,
+        album: root.columns.album ? root.widths.album : root.natural-widths.album,
+        year: root.columns.year ? root.widths.year : root.natural-widths.year,
+        genre: root.columns.genre ? root.widths.genre : root.natural-widths.genre,
+        time: root.columns.time ? root.widths.time : root.natural-widths.time,
+        bitrate: root.columns.bitrate ? root.widths.bitrate : root.natural-widths.bitrate,
+        tags: root.columns.tags ? root.widths.tags : root.natural-widths.tags,
+        file: root.columns.file ? root.widths.file : root.natural-widths.file,
+        folder: root.columns.folder ? root.widths.folder : root.natural-widths.folder,
+    };
+    property <length> columns-width: root.status-width + root.number-width + root.widths.title + root.widths.artist + root.widths.album + root.widths.year + root.widths.genre + root.widths.time + root.widths.bitrate + root.widths.tags + root.widths.file + root.widths.folder + root.end-width;
+    property <bool> scrolls-sideways: root.sized ? root.columns-width > root.width : root.width < root.columns-min-width;
+    property <length> content-width: root.scrolls-sideways ? root.columns-width : root.width;
     property <length> list-height: root.height - root.header-height - (root.scrolls-sideways ? root.scrollbar-size : 0px);
     property <length> rows-height: root.rows.length * root.row-height;
     property <length> scroll-x;
@@ -244,14 +336,62 @@ export component TrackTable inherits Rectangle {
 
     // Keeps the lists in bounds when the window grows or a new folder empties the table.
     function clamp-scroll() {
-        root.scroll-x = max(root.scroll-x, min(0px, root.scrolling-width - root.scrolling-content-width));
+        root.scroll-x = max(root.scroll-x, min(0px, root.width - root.content-width));
         root.scroll-y = max(root.scroll-y, min(0px, root.list-height - root.rows-height));
     }
 
-    changed scrolling-width => {
+    function resize(column: TrackColumn, width: length) {
+        root.columns-resized(root.with-width(column, max(root.narrowest-width, width)));
+    }
+
+    function with-width(column: TrackColumn, width: length) -> TrackColumnWidths {
+        return {
+            title: column == TrackColumn.title ? width : root.current-widths.title,
+            artist: column == TrackColumn.artist ? width : root.current-widths.artist,
+            album: column == TrackColumn.album ? width : root.current-widths.album,
+            year: column == TrackColumn.year ? width : root.current-widths.year,
+            genre: column == TrackColumn.genre ? width : root.current-widths.genre,
+            time: column == TrackColumn.time ? width : root.current-widths.time,
+            bitrate: column == TrackColumn.bitrate ? width : root.current-widths.bitrate,
+            tags: column == TrackColumn.tags ? width : root.current-widths.tags,
+            file: column == TrackColumn.file ? width : root.current-widths.file,
+            folder: column == TrackColumn.folder ? width : root.current-widths.folder,
+        };
+    }
+
+    // The width that shows a column's name and its longest value whole: both paddings and the separator.
+    function fit-width(value: length, name: length) -> length {
+        return min(root.widest-fit, max(value, name) + 17px);
+    }
+
+    function fit(column: TrackColumn) {
+        if column == TrackColumn.title {
+            root.resize(column, root.fit-width(title-probe.preferred-width, title-name.preferred-width));
+        } else if column == TrackColumn.artist {
+            root.resize(column, root.fit-width(artist-probe.preferred-width, artist-name.preferred-width));
+        } else if column == TrackColumn.album {
+            root.resize(column, root.fit-width(album-probe.preferred-width, album-name.preferred-width));
+        } else if column == TrackColumn.year {
+            root.resize(column, root.fit-width(year-probe.preferred-width, year-name.preferred-width));
+        } else if column == TrackColumn.genre {
+            root.resize(column, root.fit-width(genre-probe.preferred-width, genre-name.preferred-width));
+        } else if column == TrackColumn.time {
+            root.resize(column, root.fit-width(time-probe.preferred-width, time-name.preferred-width));
+        } else if column == TrackColumn.bitrate {
+            root.resize(column, root.fit-width(bitrate-probe.preferred-width, bitrate-name.preferred-width));
+        } else if column == TrackColumn.tags {
+            root.resize(column, root.fit-width(tags-probe.preferred-width, tags-name.preferred-width));
+        } else if column == TrackColumn.file {
+            root.resize(column, root.fit-width(file-probe.preferred-width, file-name.preferred-width));
+        } else if column == TrackColumn.folder {
+            root.resize(column, root.fit-width(folder-probe.preferred-width, folder-name.preferred-width));
+        }
+    }
+
+    changed width => {
         root.clamp-scroll();
     }
-    changed scrolling-content-width => {
+    changed content-width => {
         root.clamp-scroll();
     }
     changed list-height => {
@@ -262,6 +402,74 @@ export component TrackTable inherits Rectangle {
     }
 
     background: Theme.surface-1;
+
+    // A container of no size, so that the long texts measured inside never stretch the table.
+    Rectangle {
+        width: 0;
+        height: 0;
+        clip: true;
+
+        title-probe := Probe {
+            text: root.longest.title;
+        }
+        artist-probe := Probe {
+            text: root.longest.artist;
+        }
+        album-probe := Probe {
+            text: root.longest.album;
+        }
+        year-probe := NumberProbe {
+            text: root.longest.year;
+        }
+        genre-probe := Probe {
+            text: root.longest.genre;
+        }
+        time-probe := NumberProbe {
+            text: root.longest.time;
+        }
+        bitrate-probe := NumberProbe {
+            text: root.longest.bitrate;
+        }
+        tags-probe := NumberProbe {
+            text: root.longest.tags;
+        }
+        file-probe := Probe {
+            text: root.longest.file;
+        }
+        folder-probe := Probe {
+            text: root.longest.folder;
+        }
+        title-name := HeaderProbe {
+            text: @tr("Title");
+        }
+        artist-name := HeaderProbe {
+            text: @tr("Artist");
+        }
+        album-name := HeaderProbe {
+            text: @tr("Album");
+        }
+        year-name := HeaderProbe {
+            text: @tr("Year");
+        }
+        genre-name := HeaderProbe {
+            text: @tr("Genre");
+        }
+        time-name := HeaderProbe {
+            text: @tr("Time");
+        }
+        bitrate-name := HeaderProbe {
+            text: @tr("Bitrate");
+        }
+        tags-name := HeaderProbe {
+            text: @tr("Tags");
+        }
+        file-name := HeaderProbe {
+            text: @tr("File");
+        }
+        folder-name := HeaderProbe {
+            text: @tr("Folder");
+        }
+    }
 
     // A right click on the header, or the button at its right end, opens the column chooser.
     header-menu := ContextMenuArea {
@@ -370,75 +578,129 @@ export component TrackTable inherits Rectangle {
         Rectangle {
             background: Theme.surface-2;
 
-            HorizontalLayout {
-                x: 0;
-                width: root.pinned-width;
-                height: parent.height;
-
-                Rectangle {
-                    width: root.status-width;
-                }
-
-                HeaderCell {
-                    width: root.number-width;
-                    text: "#";
-                    text-alignment: right;
-                }
-
-                HeaderCell {
-                    text: @tr("Title");
-                }
-            }
-
             Rectangle {
-                x: root.scrolling-x;
-                width: root.scrolling-width;
                 clip: true;
 
                 HorizontalLayout {
                     x: root.scroll-x;
-                    width: root.scrolling-content-width;
+                    width: root.content-width;
                     height: parent.height;
                     alignment: start;
+
+                    Rectangle {
+                        width: root.status-width;
+                    }
+
+                    HeaderCell {
+                        width: root.number-width;
+                        text: "#";
+                        text-alignment: right;
+                        resizable: false;
+                    }
+
+                    HeaderCell {
+                        width: root.widths.title;
+                        text: @tr("Title");
+                        resized(width) => {
+                            root.resize(TrackColumn.title, width);
+                        }
+                        fitted => {
+                            root.fit(TrackColumn.title);
+                        }
+                    }
 
                     if root.columns.artist: HeaderCell {
                         width: root.widths.artist;
                         text: @tr("Artist");
+                        resized(width) => {
+                            root.resize(TrackColumn.artist, width);
+                        }
+                        fitted => {
+                            root.fit(TrackColumn.artist);
+                        }
                     }
                     if root.columns.album: HeaderCell {
                         width: root.widths.album;
                         text: @tr("Album");
+                        resized(width) => {
+                            root.resize(TrackColumn.album, width);
+                        }
+                        fitted => {
+                            root.fit(TrackColumn.album);
+                        }
                     }
                     if root.columns.year: HeaderCell {
                         width: root.widths.year;
                         text: @tr("Year");
                         text-alignment: right;
+                        resized(width) => {
+                            root.resize(TrackColumn.year, width);
+                        }
+                        fitted => {
+                            root.fit(TrackColumn.year);
+                        }
                     }
                     if root.columns.genre: HeaderCell {
                         width: root.widths.genre;
                         text: @tr("Genre");
+                        resized(width) => {
+                            root.resize(TrackColumn.genre, width);
+                        }
+                        fitted => {
+                            root.fit(TrackColumn.genre);
+                        }
                     }
                     if root.columns.time: HeaderCell {
                         width: root.widths.time;
                         text: @tr("Time");
                         text-alignment: right;
+                        resized(width) => {
+                            root.resize(TrackColumn.time, width);
+                        }
+                        fitted => {
+                            root.fit(TrackColumn.time);
+                        }
                     }
                     if root.columns.bitrate: HeaderCell {
                         width: root.widths.bitrate;
                         text: @tr("Bitrate");
                         text-alignment: right;
+                        resized(width) => {
+                            root.resize(TrackColumn.bitrate, width);
+                        }
+                        fitted => {
+                            root.fit(TrackColumn.bitrate);
+                        }
                     }
                     if root.columns.tags: HeaderCell {
                         width: root.widths.tags;
                         text: @tr("Tags");
+                        resized(width) => {
+                            root.resize(TrackColumn.tags, width);
+                        }
+                        fitted => {
+                            root.fit(TrackColumn.tags);
+                        }
                     }
                     if root.columns.file: HeaderCell {
                         width: root.widths.file;
                         text: @tr("File");
+                        resized(width) => {
+                            root.resize(TrackColumn.file, width);
+                        }
+                        fitted => {
+                            root.fit(TrackColumn.file);
+                        }
                     }
                     if root.columns.folder: HeaderCell {
                         width: root.widths.folder;
                         text: @tr("Folder");
+                        resized(width) => {
+                            root.resize(TrackColumn.folder, width);
+                        }
+                        fitted => {
+                            root.fit(TrackColumn.folder);
+                        }
                     }
                 }
             }
@@ -469,52 +731,24 @@ export component TrackTable inherits Rectangle {
         }
     }
 
-    ListView {
+    track-list := ListView {
         x: 0;
         y: root.header-height;
-        width: root.pinned-width;
+        width: root.width;
         height: root.list-height;
-        content-width: self.width;
-        content-y <=> root.scroll-y;
-
-        for row in root.rows: PinnedRow {
-            width: root.pinned-width;
-            track: row;
-            status-width: root.status-width;
-            number-width: root.number-width;
-        }
-    }
-
-    scrolling-list := ListView {
-        x: root.scrolling-x;
-        y: root.header-height;
-        width: root.scrolling-width;
-        height: root.list-height;
-        content-width: root.scrolling-content-width;
+        content-width: root.content-width;
         content-x <=> root.scroll-x;
         content-y <=> root.scroll-y;
         accessible-role: list;
         accessible-label: @tr("Tracks");
 
-        for row in root.rows: ScrollingRow {
-            width: root.scrolling-content-width;
+        for row in root.rows: TableRow {
+            width: root.content-width;
             track: row;
+            status-width: root.status-width;
+            number-width: root.number-width;
             widths: root.widths;
         }
-    }
-
-    if root.scrolls-sideways: Rectangle {
-        x: root.pinned-width;
-        y: 0;
-        width: 1px;
-        background: Theme.border-subtle;
-    }
-
-    if root.scroll-x < 0px: Rectangle {
-        x: root.scrolling-x;
-        y: 0;
-        width: 10px;
-        background: @linear-gradient(90deg, Theme.shadow-pinned 0%, transparent 100%);
     }
 
     vertical-bar := ScrollBar {
@@ -523,15 +757,15 @@ export component TrackTable inherits Rectangle {
         width: root.scrollbar-size;
         height: root.list-height;
         content-size: root.rows-height;
-        visible-size: scrolling-list.visible-height;
+        visible-size: track-list.visible-height;
         position <=> root.scroll-y;
         accessible-label: @tr("Vertical scroll bar");
     }
 
     if root.scrolls-sideways: Rectangle {
-        x: root.scrolling-x;
+        x: 0;
         y: root.height - root.scrollbar-size;
-        width: root.scrolling-width;
+        width: root.width;
         height: root.scrollbar-size;
 
         Rectangle {
@@ -542,8 +776,8 @@ export component TrackTable inherits Rectangle {
 
         ScrollBar {
             horizontal: true;
-            content-size: root.scrolling-content-width;
-            visible-size: scrolling-list.visible-width;
+            content-size: root.content-width;
+            visible-size: track-list.visible-width;
             position <=> root.scroll-x;
             accessible-label: @tr("Horizontal scroll bar");
         }

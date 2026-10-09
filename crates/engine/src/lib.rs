@@ -10,7 +10,7 @@ use colophon_library::{
 };
 
 pub use colophon_library::{Track, tags};
-pub use columns::{Column, Columns};
+pub use columns::{Column, ColumnWidths, Columns};
 
 /// A user action. The UI turns buttons, menu items and shortcuts into commands.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -20,6 +20,7 @@ pub enum Command {
     OpenFolder(PathBuf),
     StopScan,
     ToggleColumn(Column),
+    ResizeColumns(ColumnWidths),
     ResetColumns,
 }
 
@@ -32,6 +33,7 @@ impl Command {
             Command::OpenFolder(_) => "library.open_folder",
             Command::StopScan => "library.stop_scan",
             Command::ToggleColumn(_) => "view.toggle_column",
+            Command::ResizeColumns(_) => "view.resize_columns",
             Command::ResetColumns => "view.reset_columns",
         }
     }
@@ -44,6 +46,8 @@ pub struct ViewState {
     pub sidebar_visible: bool,
     pub inspector_visible: bool,
     pub columns: Columns,
+    /// `None` until the user resizes a column: the table then shares its width between them.
+    pub column_widths: Option<ColumnWidths>,
 }
 
 impl Default for ViewState {
@@ -52,6 +56,7 @@ impl Default for ViewState {
             sidebar_visible: true,
             inspector_visible: true,
             columns: Columns::default(),
+            column_widths: None,
         }
     }
 }
@@ -105,7 +110,11 @@ impl Engine {
             Command::OpenFolder(folder) => self.open_folder(folder),
             Command::StopScan => self.stop_scan(),
             Command::ToggleColumn(column) => self.view.columns.toggle(column),
-            Command::ResetColumns => self.view.columns = Columns::default(),
+            Command::ResizeColumns(widths) => self.view.column_widths = Some(widths),
+            Command::ResetColumns => {
+                self.view.columns = Columns::default();
+                self.view.column_widths = None;
+            }
         }
     }
 

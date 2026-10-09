@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::time::Duration;
 
-use colophon_engine::{Column, Command, Engine, Library, ScanStatus, Track, ViewState};
+use colophon_engine::{
+    Column, ColumnWidths, Command, Engine, Library, ScanStatus, Track, ViewState,
+};
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
 mod generated {
@@ -16,7 +18,8 @@ mod generated {
 }
 
 pub use generated::{
-    AppWindow, ScanState, Theme, TrackColumn, TrackColumns, TrackRow, TrackStatus,
+    AppWindow, ScanState, Theme, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow,
+    TrackStatus,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -37,6 +40,7 @@ pub fn main_window(
         engine: RefCell::new(engine),
         window: window.as_weak(),
         tracks,
+        longest: RefCell::default(),
         scan_timer: Timer::default(),
         pick_folder: Box::new(pick_folder),
     });
@@ -47,7 +51,15 @@ pub fn main_window(
     });
     window.on_toggle_column({
         let bridge = Rc::clone(&bridge);
-        move |column| execute(&bridge, Command::ToggleColumn(engine_column(column)))
+        move |column| {
+            if let Some(column) = engine_column(column) {
+                execute(&bridge, Command::ToggleColumn(column));
+            }
+        }
+    });
+    window.on_resize_columns({
+        let bridge = Rc::clone(&bridge);
+        move |widths| execute(&bridge, Command::ResizeColumns(engine_widths(widths)))
     });
     Ok(window)
 }
@@ -56,6 +68,8 @@ struct Bridge {
     engine: RefCell<Engine>,
     window: slint::Weak<AppWindow>,
     tracks: Rc<VecModel<TrackRow>>,
+    /// The longest value of each column among the tracks shown.
+    longest: RefCell<TrackRow>,
     scan_timer: Timer,
     pick_folder: Box<dyn Fn() -> Option<PathBuf>>,
 }
@@ -113,20 +127,27 @@ impl Bridge {
         let engine = self.engine.borrow();
         show_view(&window, engine.view());
         show_library(&window, engine.library());
-        self.show_tracks(engine.library());
+        self.show_tracks(&window, engine.library());
     }
 
     /// Adds the tracks found since the last call. A newly opened folder has fewer tracks than the
     /// table, which empties it first.
-    fn show_tracks(&self, library: &Library) {
+    fn show_tracks(&self, window: &AppWindow, library: &Library) {
         if library.tracks.len() < self.tracks.row_count() {
             self.tracks.clear();
+            self.longest.take();
         }
         let found = library
             .tracks
             .get(self.tracks.row_count()..)
             .unwrap_or_default();
-        self.tracks.extend(found.iter().map(track_row));
+        let rows: Vec<TrackRow> = found.iter().map(track_row).collect();
+        let mut longest = self.longest.borrow_mut();
+        for row in &rows {
+            keep_longest(&mut longest, row);
+        }
+        window.set_longest(longest.clone());
+        self.tracks.extend(rows);
     }
 }
 
@@ -145,20 +166,79 @@ fn show_view(window: &AppWindow, view: &ViewState) {
         file: shown(Column::File),
         folder: shown(Column::Folder),
     });
+    window.set_columns_sized(view.column_widths.is_some());
+    if let Some(widths) = view.column_widths {
+        window.set_column_widths(slint_widths(widths));
+    }
 }
 
-fn engine_column(column: TrackColumn) -> Column {
+/// The title cannot be hidden, so it is not a column of the chooser.
+fn engine_column(column: TrackColumn) -> Option<Column> {
     match column {
-        TrackColumn::Artist => Column::Artist,
-        TrackColumn::Album => Column::Album,
-        TrackColumn::Year => Column::Year,
-        TrackColumn::Genre => Column::Genre,
-        TrackColumn::Time => Column::Time,
-        TrackColumn::Bitrate => Column::Bitrate,
-        TrackColumn::Tags => Column::Tags,
-        TrackColumn::File => Column::File,
-        TrackColumn::Folder => Column::Folder,
+        TrackColumn::Title => None,
+        TrackColumn::Artist => Some(Column::Artist),
+        TrackColumn::Album => Some(Column::Album),
+        TrackColumn::Year => Some(Column::Year),
+        TrackColumn::Genre => Some(Column::Genre),
+        TrackColumn::Time => Some(Column::Time),
+        TrackColumn::Bitrate => Some(Column::Bitrate),
+        TrackColumn::Tags => Some(Column::Tags),
+        TrackColumn::File => Some(Column::File),
+        TrackColumn::Folder => Some(Column::Folder),
     }
+}
+
+/// Widths in whole logical pixels, which is all a column needs.
+fn engine_widths(widths: TrackColumnWidths) -> ColumnWidths {
+    let pixels = |width: f32| width.round() as u32;
+    ColumnWidths {
+        title: pixels(widths.title),
+        artist: pixels(widths.artist),
+        album: pixels(widths.album),
+        year: pixels(widths.year),
+        genre: pixels(widths.genre),
+        time: pixels(widths.time),
+        bitrate: pixels(widths.bitrate),
+        tags: pixels(widths.tags),
+        file: pixels(widths.file),
+        folder: pixels(widths.folder),
+    }
+}
+
+fn slint_widths(widths: ColumnWidths) -> TrackColumnWidths {
+    let length = |pixels: u32| pixels as f32;
+    TrackColumnWidths {
+        title: length(widths.title),
+        artist: length(widths.artist),
+        album: length(widths.album),
+        year: length(widths.year),
+        genre: length(widths.genre),
+        time: length(widths.time),
+        bitrate: length(widths.bitrate),
+        tags: length(widths.tags),
+        file: length(widths.file),
+        folder: length(widths.folder),
+    }
+}
+
+/// Keeps, column by column, the value with the most characters: a close enough guess at the
+/// widest one, which the table then measures.
+fn keep_longest(longest: &mut TrackRow, row: &TrackRow) {
+    let keep = |longest: &mut SharedString, value: &SharedString| {
+        if value.chars().count() > longest.chars().count() {
+            *longest = value.clone();
+        }
+    };
+    keep(&mut longest.title, &row.title);
+    keep(&mut longest.artist, &row.artist);
+    keep(&mut longest.album, &row.album);
+    keep(&mut longest.year, &row.year);
+    keep(&mut longest.genre, &row.genre);
+    keep(&mut longest.time, &row.time);
+    keep(&mut longest.bitrate, &row.bitrate);
+    keep(&mut longest.tags, &row.tags);
+    keep(&mut longest.file, &row.file);
+    keep(&mut longest.folder, &row.folder);
 }
 
 fn show_library(window: &AppWindow, library: &Library) {
@@ -344,6 +424,22 @@ mod tests {
         assert_eq!(row.status, TrackStatus::Unreadable);
         assert_eq!(row.title, "07 Paper Satellites");
         assert_eq!(row.artist, "");
+    }
+
+    #[test]
+    fn the_longest_value_of_each_column_is_kept() {
+        let mut longest = TrackRow::default();
+        let row = |title: &str, artist: &str| TrackRow {
+            title: title.into(),
+            artist: artist.into(),
+            ..TrackRow::default()
+        };
+
+        keep_longest(&mut longest, &row("Neon Overpass", "Cassette Bloom"));
+        keep_longest(&mut longest, &row("Long Exposure at Night", "Bloom"));
+
+        assert_eq!(longest.title, "Long Exposure at Night");
+        assert_eq!(longest.artist, "Cassette Bloom");
     }
 
     #[test]
