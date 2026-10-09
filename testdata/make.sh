@@ -27,6 +27,46 @@ sine=(-v error -y -f lavfi -i sine=frequency=440:duration=1
 	-fflags +bitexact -flags:a +bitexact)
 v1_only=(-id3v2_version 0 -write_id3v1 1)
 no_tags=(-id3v2_version 0 -write_id3v1 0)
+# le32 N: N as a 32-bit little-endian number, as APE writes its sizes.
+le32() {
+	local n=$1
+	printf "\\x$(printf %02x $((n & 255)))\\x$(printf %02x $((n >> 8 & 255)))"
+	printf "\\x$(printf %02x $((n >> 16 & 255)))\\x$(printf %02x $((n >> 24 & 255)))"
+}
+
+# ape_item KEY VALUE: an APEv2 item: the value's size, flags 0 (UTF-8 text), the key, a NUL, the
+# value. Values are ASCII here, so their length in characters is their length in bytes.
+ape_item() {
+	le32 "${#2}"
+	le32 0
+	printf '%s\0%s' "$1" "$2"
+}
+
+# ape_tag COUNT: an APEv2 tag around the COUNT items read from standard input, with a header and a
+# footer of 32 bytes each, as MP3Gain and foobar2000 write it: "APETAGEX", version 2000, the size
+# of the items and the footer, the item count, the flags, 8 reserved bytes. Both flags say the tag
+# has a header (bit 31); the header's also say it is the header (bit 29).
+ape_tag() {
+	local items size
+	items=$(mktemp)
+	cat >"$items"
+	size=$(($(wc -c <"$items") + 32))
+	printf 'APETAGEX'
+	le32 2000
+	le32 "$size"
+	le32 "$1"
+	le32 $((0xa0000000))
+	printf '\0\0\0\0\0\0\0\0'
+	cat "$items"
+	printf 'APETAGEX'
+	le32 2000
+	le32 "$size"
+	le32 "$1"
+	le32 $((0x80000000))
+	printf '\0\0\0\0\0\0\0\0'
+	rm "$items"
+}
+
 every_field=(
 	-metadata title="Paper Satellites"
 	-metadata artist="Marlowe Kite"
@@ -65,6 +105,24 @@ ffmpeg "${silence[@]}" -id3v2_version 4 -write_id3v1 0 "${every_field[@]}" v24_f
 	printf 'COMM\x00\x00\x00\x1a\x00\x00\x00eng\x00Recorded in one take.'
 	cat no_tag.mp3
 } >v23_comm.mp3
+
+# v22.mp3: an ID3v2.2 tag written byte by byte before the audio of no_tag.mp3, since ffmpeg only
+# writes ID3v2.3 and 2.4. ID3v2.2 frames have 3 letter IDs and a 6 byte header: the ID, then the
+# size as a plain 24-bit number, no flags. Each frame starts with its text encoding, 0 for Latin-1.
+# TT2 is 6 + 17 bytes, TP1 6 + 13, TAL 6 + 12, TYE and TRK 6 + 5, COM 6 + 26, so the tag holds 114
+# bytes (0x72).
+# Expect: formats ID3v2.2, title "Paper Satellites", artist "Marlowe Kite", album "Small Hours",
+#   year 2019, track 3 of 12, comment "Recorded in one take.".
+{
+	printf 'ID3\x02\x00\x00\x00\x00\x00\x72'
+	printf 'TT2\x00\x00\x11\x00Paper Satellites'
+	printf 'TP1\x00\x00\x0d\x00Marlowe Kite'
+	printf 'TAL\x00\x00\x0c\x00Small Hours'
+	printf 'TYE\x00\x00\x05\x002019'
+	printf 'TRK\x00\x00\x05\x003/12'
+	printf 'COM\x00\x00\x1a\x00eng\x00Recorded in one take.'
+	cat no_tag.mp3
+} >v22.mp3
 
 # v23_v1_long_title.mp3: ID3v2.3 and ID3v1.1 written from the same values, with a title
 # longer than ID3v1's 30 bytes.
@@ -158,6 +216,35 @@ ffmpeg "${silence[@]}" "${v1_only[@]}" \
 size=$(wc -c <v1_genre_out_of_range.mp3)
 printf '\310' | dd of=v1_genre_out_of_range.mp3 bs=1 seek=$((size - 1)) conv=notrunc 2>/dev/null
 
+# ape.mp3: an APEv2 tag after the audio of no_tag.mp3, since ffmpeg cannot write APE tags.
+# Expect: formats APE, the same values as v23_full.mp3.
+{
+	cat no_tag.mp3
+	{
+		ape_item Title "Paper Satellites"
+		ape_item Artist "Marlowe Kite"
+		ape_item "Album Artist" "Various Artists"
+		ape_item Album "Small Hours"
+		ape_item Year 2019
+		ape_item Track 3/12
+		ape_item Disc 1/2
+		ape_item Genre Folk
+		ape_item Comment "Recorded in one take."
+	} | ape_tag 9
+} >ape.mp3
+
+# ape_v1.mp3: what MP3Gain leaves on a file with an ID3v1 tag: its APEv2 tag between the audio
+# and ID3v1, here with a title as well.
+# Expect: formats ID3v1.0 then APE, the values of v1_0_ascii.mp3, since ID3v1 comes before APE.
+{
+	cat no_tag.mp3
+	{
+		ape_item MP3GAIN_MINMAX 120,180
+		ape_item Title "Title from APE"
+	} | ape_tag 2
+	tail -c 128 v1_0_ascii.mp3
+} >ape_v1.mp3
+
 # cbr_stereo.mp3: 1 s of a 440 Hz sine, constant 128 kbps, stereo, 44.1 kHz, no tag.
 # Expect: about 1 s, 128 kbps, 44100 Hz, 2 channels.
 ffmpeg "${sine[@]}" -ac 2 -ar 44100 -b:a 128k "${no_tags[@]}" cbr_stereo.mp3
@@ -176,3 +263,6 @@ for fixture in ./*.mp3; do
 		rm -f "$probe"
 	fi
 done
+
+# ffmpeg reads no APE tag in an MP3, so ffprobe has nothing to compare with in ape.mp3.
+rm ffprobe/ape.txt
