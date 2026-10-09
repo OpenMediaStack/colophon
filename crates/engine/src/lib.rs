@@ -4,8 +4,10 @@ use std::path::PathBuf;
 use std::sync::mpsc::TryRecvError;
 
 use colophon_library::{
-    AUDIO_EXTENSIONS, ScanError, ScanEvent, ScanHandle, ScanOutcome, Track, spawn_scan,
+    AUDIO_EXTENSIONS, ScanError, ScanEvent, ScanHandle, ScanOutcome, spawn_scan,
 };
+
+pub use colophon_library::{Track, tags};
 
 /// A user action. The UI turns buttons, menu items and shortcuts into commands.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

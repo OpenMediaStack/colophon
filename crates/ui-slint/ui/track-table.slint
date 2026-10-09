@@ -1,18 +1,59 @@
 import { Theme } from "theme.slint";
 import { ListView, ScrollBar } from "widgets.slint";
 
+export enum TrackStatus { normal, unreadable }
+
 // One file of the opened folder, as the table shows it.
 export struct TrackRow {
+    status: TrackStatus,
+    number: string,
     title: string,
+    // The file has no title tag: the title shown is its file name.
+    untitled: bool,
+    artist: string,
+    album: string,
+    year: string,
+    genre: string,
+    time: string,
+    bitrate: string,
+    tags: string,
     file: string,
     folder: string,
+}
+
+// The columns the table shows besides status, number and title, which are always there.
+export struct TrackColumns {
+    artist: bool,
+    album: bool,
+    year: bool,
+    genre: bool,
+    time: bool,
+    bitrate: bool,
+    tags: bool,
+    file: bool,
+    folder: bool,
+}
+
+// The width of every column, zero for a hidden one.
+struct ColumnWidths {
+    title: length,
+    artist: length,
+    album: length,
+    year: length,
+    genre: length,
+    time: length,
+    bitrate: length,
+    tags: length,
+    file: length,
+    folder: length,
 }
 
 component Cell inherits HorizontalLayout {
     in property <string> text;
     in property <color> color: Theme.text-secondary;
+    in property <bool> mono;
     in property <TextHorizontalAlignment> text-alignment: left;
-    in property <length> size: 13px;
+    in property <length> size: root.mono ? 12px : 13px;
     in property <int> weight: 400;
 
     padding-left: 8px;
@@ -23,10 +64,17 @@ component Cell inherits HorizontalLayout {
         horizontal-alignment: root.text-alignment;
         overflow: elide;
         text: root.text;
+        font-family: root.mono ? "JetBrains Mono" : "Inter";
         font-size: root.size;
         font-weight: root.weight;
         color: root.color;
     }
+}
+
+// Numbers line up in JetBrains Mono, aligned right.
+component NumberCell inherits Cell {
+    mono: true;
+    text-alignment: right;
 }
 
 component HeaderCell inherits Cell {
@@ -49,15 +97,26 @@ component PinnedRow inherits Rectangle {
     HorizontalLayout {
         Rectangle {
             width: root.status-width;
+
+            if root.track.status == TrackStatus.unreadable: Image {
+                width: 14px;
+                height: 14px;
+                source: @image-url("images/circle-alert.svg");
+                colorize: Theme.error;
+                accessible-role: image;
+                accessible-label: @tr("Unreadable");
+            }
         }
 
-        Rectangle {
+        NumberCell {
             width: root.number-width;
+            text: root.track.number;
+            color: Theme.text-tertiary;
         }
 
         Cell {
             text: root.track.title;
-            color: Theme.text-primary;
+            color: root.track.status == TrackStatus.unreadable ? Theme.error : root.track.untitled ? Theme.text-tertiary : Theme.text-primary;
         }
     }
 
@@ -68,17 +127,48 @@ component PinnedRow inherits Rectangle {
 
 component ScrollingRow inherits Rectangle {
     in property <TrackRow> track;
-    in property <length> file-width;
+    in property <ColumnWidths> widths;
 
     height: 26px;
 
     HorizontalLayout {
-        Cell {
-            width: root.file-width;
+        alignment: start;
+
+        if root.widths.artist > 0: Cell {
+            width: root.widths.artist;
+            text: root.track.artist;
+        }
+        if root.widths.album > 0: Cell {
+            width: root.widths.album;
+            text: root.track.album;
+        }
+        if root.widths.year > 0: NumberCell {
+            width: root.widths.year;
+            text: root.track.year;
+        }
+        if root.widths.genre > 0: Cell {
+            width: root.widths.genre;
+            text: root.track.genre;
+        }
+        if root.widths.time > 0: NumberCell {
+            width: root.widths.time;
+            text: root.track.time;
+        }
+        if root.widths.bitrate > 0: NumberCell {
+            width: root.widths.bitrate;
+            text: root.track.bitrate;
+        }
+        if root.widths.tags > 0: Cell {
+            width: root.widths.tags;
+            text: root.track.tags;
+            mono: true;
+        }
+        if root.widths.file > 0: Cell {
+            width: root.widths.file;
             text: root.track.file;
         }
-
-        Cell {
+        if root.widths.folder > 0: Cell {
+            width: root.widths.folder;
             text: root.track.folder;
         }
     }
@@ -92,26 +182,57 @@ component ScrollingRow inherits Rectangle {
 // columns scroll sideways: the two sides are two lists that share their vertical position.
 export component TrackTable inherits Rectangle {
     in property <[TrackRow]> rows;
+    in property <TrackColumns> columns;
 
     property <length> header-height: 28px;
     property <length> row-height: 26px;
     property <length> scrollbar-size: 10px;
     property <length> status-width: 24px;
     property <length> number-width: 36px;
-    property <length> title-min-width: 220px;
-    property <length> file-min-width: 200px;
-    property <length> folder-min-width: 200px;
-    property <length> columns-min-width: root.status-width + root.number-width + root.title-min-width + root.file-min-width + root.folder-min-width;
+    // Room at the right end of the rows for the vertical scroll bar and the columns button.
+    property <length> end-width: 32px;
+    // Every column has a minimum width. The text columns share the room left by these weights, as
+    // in the mockup, and the others keep their width.
+    property <length> title-min-width: 200px;
+    property <ColumnWidths> min-widths: {
+        title: root.title-min-width,
+        artist: root.columns.artist ? 140px : 0px,
+        album: root.columns.album ? 160px : 0px,
+        year: root.columns.year ? 56px : 0px,
+        genre: root.columns.genre ? 96px : 0px,
+        time: root.columns.time ? 56px : 0px,
+        bitrate: root.columns.bitrate ? 72px : 0px,
+        tags: root.columns.tags ? 132px : 0px,
+        file: root.columns.file ? 180px : 0px,
+        folder: root.columns.folder ? 180px : 0px,
+    };
+    property <float> title-weight: 1.6;
+    property <float> artist-weight: root.columns.artist ? 1.1 : 0;
+    property <float> album-weight: root.columns.album ? 1.2 : 0;
+    property <float> file-weight: root.columns.file ? 1 : 0;
+    property <float> folder-weight: root.columns.folder ? 1 : 0;
+    property <float> total-weight: root.title-weight + root.artist-weight + root.album-weight + root.file-weight + root.folder-weight;
+    property <length> scrolling-min-width: root.min-widths.artist + root.min-widths.album + root.min-widths.year + root.min-widths.genre + root.min-widths.time + root.min-widths.bitrate + root.min-widths.tags + root.min-widths.file + root.min-widths.folder + root.end-width;
+    property <length> columns-min-width: root.status-width + root.number-width + root.title-min-width + root.scrolling-min-width;
     // The 1px line between the two sides is always there, drawn only while the table scrolls sideways.
     property <bool> scrolls-sideways: root.width - 1px < root.columns-min-width;
-    // Once every column has its minimum width, the room left goes to the title, the file and the folder.
-    property <length> spare-width: max(0px, root.width - 1px - root.columns-min-width);
-    property <length> title-width: root.title-min-width + root.spare-width * 0.4;
-    property <length> file-width: root.file-min-width + root.spare-width * 0.3;
-    property <length> pinned-width: root.status-width + root.number-width + root.title-width;
+    property <length> spare-width: max(0px, root.width - 1px - root.columns-min-width) / root.total-weight;
+    property <ColumnWidths> widths: {
+        title: root.min-widths.title + root.spare-width * root.title-weight,
+        artist: root.min-widths.artist + root.spare-width * root.artist-weight,
+        album: root.min-widths.album + root.spare-width * root.album-weight,
+        year: root.min-widths.year,
+        genre: root.min-widths.genre,
+        time: root.min-widths.time,
+        bitrate: root.min-widths.bitrate,
+        tags: root.min-widths.tags,
+        file: root.min-widths.file + root.spare-width * root.file-weight,
+        folder: root.min-widths.folder + root.spare-width * root.folder-weight,
+    };
+    property <length> pinned-width: root.status-width + root.number-width + root.widths.title;
     property <length> scrolling-x: root.pinned-width + 1px;
     property <length> scrolling-width: root.width - root.scrolling-x;
-    property <length> scrolling-content-width: root.scrolls-sideways ? root.file-min-width + root.folder-min-width : root.scrolling-width;
+    property <length> scrolling-content-width: root.scrolls-sideways ? root.scrolling-min-width : root.scrolling-width;
     property <length> list-height: root.height - root.header-height - (root.scrolls-sideways ? root.scrollbar-size : 0px);
     property <length> rows-height: root.rows.length * root.row-height;
     property <length> scroll-x;
@@ -124,6 +245,9 @@ export component TrackTable inherits Rectangle {
     }
 
     changed scrolling-width => {
+        root.clamp-scroll();
+    }
+    changed scrolling-content-width => {
         root.clamp-scroll();
     }
     changed list-height => {
@@ -169,13 +293,45 @@ export component TrackTable inherits Rectangle {
                 x: root.scroll-x;
                 width: root.scrolling-content-width;
                 height: parent.height;
+                alignment: start;
 
-                HeaderCell {
-                    width: root.file-width;
+                if root.columns.artist: HeaderCell {
+                    width: root.widths.artist;
+                    text: @tr("Artist");
+                }
+                if root.columns.album: HeaderCell {
+                    width: root.widths.album;
+                    text: @tr("Album");
+                }
+                if root.columns.year: HeaderCell {
+                    width: root.widths.year;
+                    text: @tr("Year");
+                    text-alignment: right;
+                }
+                if root.columns.genre: HeaderCell {
+                    width: root.widths.genre;
+                    text: @tr("Genre");
+                }
+                if root.columns.time: HeaderCell {
+                    width: root.widths.time;
+                    text: @tr("Time");
+                    text-alignment: right;
+                }
+                if root.columns.bitrate: HeaderCell {
+                    width: root.widths.bitrate;
+                    text: @tr("Bitrate");
+                    text-alignment: right;
+                }
+                if root.columns.tags: HeaderCell {
+                    width: root.widths.tags;
+                    text: @tr("Tags");
+                }
+                if root.columns.file: HeaderCell {
+                    width: root.widths.file;
                     text: @tr("File");
                 }
-
-                HeaderCell {
+                if root.columns.folder: HeaderCell {
+                    width: root.widths.folder;
                     text: @tr("Folder");
                 }
             }
@@ -218,7 +374,7 @@ export component TrackTable inherits Rectangle {
         for row in root.rows: ScrollingRow {
             width: root.scrolling-content-width;
             track: row;
-            file-width: root.file-width;
+            widths: root.widths;
         }
     }
 

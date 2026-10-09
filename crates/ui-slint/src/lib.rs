@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::time::Duration;
 
-use colophon_engine::{Command, Engine, Library, ScanStatus, ViewState};
+use colophon_engine::{Command, Engine, Library, ScanStatus, Track, ViewState};
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
 mod generated {
@@ -15,7 +15,7 @@ mod generated {
     slint::include_modules!();
 }
 
-pub use generated::{AppWindow, ScanState, Theme, TrackRow};
+pub use generated::{AppWindow, ScanState, Theme, TrackColumns, TrackRow, TrackStatus};
 pub use slint::{ComponentHandle, PlatformError};
 
 /// How often the window takes in what a running scan found: often enough to look live, rarely
@@ -117,7 +117,7 @@ impl Bridge {
             .get(self.tracks.row_count()..)
             .unwrap_or_default();
         self.tracks
-            .extend(found.iter().map(|track| track_row(folder, &track.path)));
+            .extend(found.iter().map(|track| track_row(folder, track)));
     }
 }
 
@@ -147,20 +147,67 @@ fn show_library(window: &AppWindow, library: &Library) {
     window.set_unreadable_count(count(library.unreadable.len()));
 }
 
-/// A track as the table shows it. Until its tags are read, its title is its file name.
-fn track_row(folder: &Path, path: &Path) -> TrackRow {
-    let text = |part: Option<&OsStr>| -> SharedString {
+/// A track as the table shows it. A file without a title tag, or whose tags cannot be read, is
+/// titled after its file name.
+fn track_row(folder: &Path, track: &Track) -> TrackRow {
+    let path = &track.path;
+    let name = |part: Option<&OsStr>| -> SharedString {
         part.map(|part| part.to_string_lossy().as_ref().into())
             .unwrap_or_default()
     };
-    TrackRow {
-        title: text(path.file_stem()),
-        file: text(path.file_name()),
+    let row = TrackRow {
+        title: name(path.file_stem()),
+        file: name(path.file_name()),
         folder: path
             .parent()
             .and_then(|parent| parent.strip_prefix(folder).ok())
             .map(|relative| relative.display().to_string().into())
             .unwrap_or_default(),
+        ..TrackRow::default()
+    };
+    let Ok(metadata) = &track.metadata else {
+        return TrackRow {
+            status: TrackStatus::Unreadable,
+            ..row
+        };
+    };
+    let tags = &metadata.tags;
+    let audio = &metadata.audio;
+    let text =
+        |value: &Option<String>| -> SharedString { value.as_deref().unwrap_or_default().into() };
+    let number = |value: Option<String>| -> SharedString { value.unwrap_or_default().into() };
+    TrackRow {
+        number: number(tags.track.map(|track| format!("{track:02}"))),
+        title: tags
+            .title
+            .as_deref()
+            .map_or(row.title.clone(), SharedString::from),
+        untitled: tags.title.is_none(),
+        artist: text(&tags.artist),
+        album: text(&tags.album),
+        year: number(tags.year.map(|year| year.to_string())),
+        genre: text(&tags.genre),
+        time: number(audio.duration.map(duration_text)),
+        bitrate: number(audio.bitrate.map(|bitrate| bitrate.to_string())),
+        tags: metadata
+            .formats
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", ")
+            .into(),
+        ..row
+    }
+}
+
+/// A duration as players show it: minutes and seconds, with hours from an hour on.
+fn duration_text(duration: Duration) -> String {
+    let seconds = duration.as_secs();
+    let (hours, minutes, seconds) = (seconds / 3600, seconds / 60 % 60, seconds % 60);
+    if hours > 0 {
+        format!("{hours}:{minutes:02}:{seconds:02}")
+    } else {
+        format!("{minutes}:{seconds:02}")
     }
 }
 
@@ -191,28 +238,103 @@ mod tests {
             .unwrap_or_default()
     }
 
+    use colophon_engine::tags::{
+        AudioProperties, Id3v1Version, Id3v2Version, Metadata, ReadError, TagFormat, Tags,
+    };
+
+    fn track(path: &Path, metadata: Result<Metadata, ReadError>) -> Track {
+        Track {
+            path: path.to_path_buf(),
+            size: 0,
+            modified: None,
+            metadata,
+        }
+    }
+
+    fn paper_satellites() -> Metadata {
+        Metadata {
+            tags: Tags {
+                title: Some("Paper Satellites".into()),
+                artist: Some("Marlowe Kite".into()),
+                album: Some("Small Hours".into()),
+                year: Some(2019),
+                track: Some(3),
+                track_total: Some(12),
+                genre: Some("Folk".into()),
+                ..Tags::default()
+            },
+            audio: AudioProperties {
+                duration: Some(Duration::from_millis(221_700)),
+                bitrate: Some(320),
+                ..AudioProperties::default()
+            },
+            formats: vec![
+                TagFormat::Id3v2(Id3v2Version::V2_3),
+                TagFormat::Id3v1(Id3v1Version::V1_1),
+            ],
+        }
+    }
+
     #[test]
-    fn a_track_is_titled_after_its_file_name() {
-        let row = track_row(
-            Path::new("/music"),
-            Path::new("/music/07 Paper Satellites.mp3"),
-        );
+    fn a_track_shows_its_tags() {
+        let path = Path::new("/music/07.mp3");
+        let row = track_row(Path::new("/music"), &track(path, Ok(paper_satellites())));
+
+        assert_eq!(row.status, TrackStatus::Normal);
+        assert_eq!(row.number, "03");
+        assert_eq!(row.title, "Paper Satellites");
+        assert!(!row.untitled);
+        assert_eq!(row.artist, "Marlowe Kite");
+        assert_eq!(row.album, "Small Hours");
+        assert_eq!(row.year, "2019");
+        assert_eq!(row.genre, "Folk");
+        assert_eq!(row.time, "3:41");
+        assert_eq!(row.bitrate, "320");
+        assert_eq!(row.tags, "ID3v2.3, ID3v1.1");
+        assert_eq!(row.file, "07.mp3");
+    }
+
+    #[test]
+    fn a_track_without_a_title_is_titled_after_its_file_name() {
+        let path = Path::new("/music/07 Paper Satellites.mp3");
+        let row = track_row(Path::new("/music"), &track(path, Ok(Metadata::default())));
 
         assert_eq!(row.title, "07 Paper Satellites");
-        assert_eq!(row.file, "07 Paper Satellites.mp3");
-        assert_eq!(row.folder, "");
+        assert!(row.untitled);
+        assert_eq!(row.number, "");
+        assert_eq!(row.time, "");
+    }
+
+    #[test]
+    fn an_unreadable_track_is_titled_after_its_file_name() {
+        let path = Path::new("/music/07 Paper Satellites.mp3");
+        let row = track_row(
+            Path::new("/music"),
+            &track(path, Err(ReadError::ReaderPanicked)),
+        );
+
+        assert_eq!(row.status, TrackStatus::Unreadable);
+        assert_eq!(row.title, "07 Paper Satellites");
+        assert_eq!(row.artist, "");
+    }
+
+    #[test]
+    fn durations_read_as_in_a_player() {
+        let text = |seconds| duration_text(Duration::from_secs(seconds));
+
+        assert_eq!(text(5), "0:05");
+        assert_eq!(text(221), "3:41");
+        assert_eq!(text(3723), "1:02:03");
     }
 
     #[test]
     fn a_track_in_a_subfolder_shows_the_path_from_the_opened_folder() {
         let folder = Path::new("/music");
-        let row = track_row(
-            folder,
-            &folder
-                .join("Marlowe Kite")
-                .join("Small Hours")
-                .join("07.mp3"),
-        );
+        let path = folder
+            .join("Marlowe Kite")
+            .join("Small Hours")
+            .join("07.mp3");
+        let row = track_row(folder, &track(&path, Ok(Metadata::default())));
 
         assert_eq!(
             row.folder,
