@@ -8,6 +8,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+colophon-engine.workspace = true
 slint.workspace = true
 
 [build-dependencies]
