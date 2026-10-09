@@ -731,6 +731,14 @@ name = "colophon-engine"
 version = "0.1.0"
 
 [[package]]
+name = "colophon-library"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "walkdir",
+]
+
+[[package]]
 name = "colophon-ui"
 version = "0.1.0"
 dependencies = [
