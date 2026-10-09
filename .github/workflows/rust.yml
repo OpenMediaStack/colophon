@@ -23,6 +23,8 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # File and line in backtraces, without the full debug info: faster builds, smaller caches.
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
 
 jobs:
   fmt:
@@ -46,7 +48,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
+      - uses: rui314/setup-mold@v1
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Pull request caches are only visible to their pull request; main's serve every branch.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
@@ -61,6 +67,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
+      - uses: rui314/setup-mold@v1
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Pull request caches are only visible to their pull request; main's serve every branch.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Test
         run: cargo test --workspace --locked
