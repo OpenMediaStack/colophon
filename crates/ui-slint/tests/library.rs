@@ -1,5 +1,6 @@
 mod common;
 
+use std::cell::RefCell;
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
@@ -15,17 +16,35 @@ use common::{TestResult, find, shows};
 
 /// The main window, in English at 1440 by 900, whose folder dialog answers `chosen`.
 fn open_main_window(chosen: Option<PathBuf>) -> Result<AppWindow, Box<dyn Error>> {
+    open_main_window_choosing(chosen.into_iter().collect())
+}
+
+/// The main window, whose folder dialog answers each folder of `chosen` in turn, then nothing.
+fn open_main_window_choosing(chosen: Vec<PathBuf>) -> Result<AppWindow, Box<dyn Error>> {
     common::use_testing_backend()?;
-    let window = colophon_ui::main_window(Engine::new(), move || chosen.clone())?;
+    let chosen = RefCell::new(chosen.into_iter());
+    let window = colophon_ui::main_window(Engine::new(), move || chosen.borrow_mut().next())?;
     common::prepare(&window, 1440.0, 900.0)?;
     window.show()?;
     Ok(window)
 }
 
 fn folder_with_mp3s(count: usize) -> Result<TempDir, Box<dyn Error>> {
+    folder_with_files(
+        &(0..count)
+            .map(|index| format!("{index:02}.mp3"))
+            .collect::<Vec<_>>(),
+    )
+}
+
+fn folder_with_files(names: &[impl AsRef<str>]) -> Result<TempDir, Box<dyn Error>> {
     let folder = tempfile::tempdir()?;
-    for index in 0..count {
-        fs::write(folder.path().join(format!("{index:02}.mp3")), b"ID3")?;
+    for name in names {
+        let path = folder.path().join(name.as_ref());
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(path, b"ID3")?;
     }
     Ok(folder)
 }
@@ -61,7 +80,42 @@ fn opening_a_folder_reads_its_tracks() -> TestResult {
     wait_until_shown(&window, "3 tracks")?;
 
     assert!(!shows(&window, "Open your music folder"));
-    assert!(shows(&window, "Tracks"));
+    for file in ["00.mp3", "01.mp3", "02.mp3"] {
+        assert!(shows(&window, file), "{file} is missing");
+    }
+    Ok(())
+}
+
+#[test]
+fn a_track_shows_its_title_and_its_folder() -> TestResult {
+    let folder = folder_with_files(&["Small Hours/07 Paper Satellites.mp3"])?;
+    let window = open_main_window(Some(folder.path().to_path_buf()))?;
+
+    find(&window, "Open folder")?.invoke_accessible_default_action();
+    wait_until_shown(&window, "1 track")?;
+
+    assert!(shows(&window, "07 Paper Satellites"));
+    assert!(shows(&window, "07 Paper Satellites.mp3"));
+    assert!(shows(&window, "Small Hours"));
+    Ok(())
+}
+
+#[test]
+fn opening_another_folder_replaces_the_tracks() -> TestResult {
+    let first = folder_with_files(&["first.mp3"])?;
+    let second = folder_with_files(&["second.mp3"])?;
+    let window = open_main_window_choosing(vec![
+        first.path().to_path_buf(),
+        second.path().to_path_buf(),
+    ])?;
+
+    find(&window, "Open folder")?.invoke_accessible_default_action();
+    wait_until_shown(&window, "first.mp3")?;
+    find(&window, "Open folder")?.invoke_accessible_default_action();
+    wait_until_shown(&window, "second.mp3")?;
+
+    assert!(!shows(&window, "first.mp3"));
+    assert!(shows(&window, "1 track"));
     Ok(())
 }
 

@@ -1,0 +1,270 @@
+import { Theme } from "theme.slint";
+import { ListView, ScrollBar } from "widgets.slint";
+
+// One file of the opened folder, as the table shows it.
+export struct TrackRow {
+    title: string,
+    file: string,
+    folder: string,
+}
+
+component Cell inherits HorizontalLayout {
+    in property <string> text;
+    in property <color> color: Theme.text-secondary;
+    in property <TextHorizontalAlignment> text-alignment: left;
+    in property <length> size: 13px;
+    in property <int> weight: 400;
+
+    padding-left: 8px;
+    padding-right: 8px;
+
+    Text {
+        vertical-alignment: center;
+        horizontal-alignment: root.text-alignment;
+        overflow: elide;
+        text: root.text;
+        font-size: root.size;
+        font-weight: root.weight;
+        color: root.color;
+    }
+}
+
+component HeaderCell inherits Cell {
+    size: 12px;
+    weight: 500;
+}
+
+component RowDivider inherits Rectangle {
+    height: 1px;
+    background: Theme.border-row;
+}
+
+component PinnedRow inherits Rectangle {
+    in property <TrackRow> track;
+    in property <length> status-width;
+    in property <length> number-width;
+
+    height: 26px;
+
+    HorizontalLayout {
+        Rectangle {
+            width: root.status-width;
+        }
+
+        Rectangle {
+            width: root.number-width;
+        }
+
+        Cell {
+            text: root.track.title;
+            color: Theme.text-primary;
+        }
+    }
+
+    RowDivider {
+        y: root.height - 1px;
+    }
+}
+
+component ScrollingRow inherits Rectangle {
+    in property <TrackRow> track;
+    in property <length> file-width;
+
+    height: 26px;
+
+    HorizontalLayout {
+        Cell {
+            width: root.file-width;
+            text: root.track.file;
+        }
+
+        Cell {
+            text: root.track.folder;
+        }
+    }
+
+    RowDivider {
+        y: root.height - 1px;
+    }
+}
+
+// The tracks of the opened folder. Status, number and title stay pinned on the left while the other
+// columns scroll sideways: the two sides are two lists that share their vertical position.
+export component TrackTable inherits Rectangle {
+    in property <[TrackRow]> rows;
+
+    property <length> header-height: 28px;
+    property <length> row-height: 26px;
+    property <length> scrollbar-size: 10px;
+    property <length> status-width: 24px;
+    property <length> number-width: 36px;
+    property <length> title-min-width: 220px;
+    property <length> file-min-width: 200px;
+    property <length> folder-min-width: 200px;
+    property <length> columns-min-width: root.status-width + root.number-width + root.title-min-width + root.file-min-width + root.folder-min-width;
+    // The 1px line between the two sides is always there, drawn only while the table scrolls sideways.
+    property <bool> scrolls-sideways: root.width - 1px < root.columns-min-width;
+    // Once every column has its minimum width, the room left goes to the title, the file and the folder.
+    property <length> spare-width: max(0px, root.width - 1px - root.columns-min-width);
+    property <length> title-width: root.title-min-width + root.spare-width * 0.4;
+    property <length> file-width: root.file-min-width + root.spare-width * 0.3;
+    property <length> pinned-width: root.status-width + root.number-width + root.title-width;
+    property <length> scrolling-x: root.pinned-width + 1px;
+    property <length> scrolling-width: root.width - root.scrolling-x;
+    property <length> scrolling-content-width: root.scrolls-sideways ? root.file-min-width + root.folder-min-width : root.scrolling-width;
+    property <length> list-height: root.height - root.header-height - (root.scrolls-sideways ? root.scrollbar-size : 0px);
+    property <length> rows-height: root.rows.length * root.row-height;
+    property <length> scroll-x;
+    property <length> scroll-y;
+
+    // Keeps the lists in bounds when the window grows or a new folder empties the table.
+    function clamp-scroll() {
+        root.scroll-x = max(root.scroll-x, min(0px, root.scrolling-width - root.scrolling-content-width));
+        root.scroll-y = max(root.scroll-y, min(0px, root.list-height - root.rows-height));
+    }
+
+    changed scrolling-width => {
+        root.clamp-scroll();
+    }
+    changed list-height => {
+        root.clamp-scroll();
+    }
+    changed rows-height => {
+        root.clamp-scroll();
+    }
+
+    background: Theme.surface-1;
+
+    Rectangle {
+        height: root.header-height;
+        y: 0;
+        background: Theme.surface-2;
+
+        HorizontalLayout {
+            x: 0;
+            width: root.pinned-width;
+            height: parent.height;
+
+            Rectangle {
+                width: root.status-width;
+            }
+
+            HeaderCell {
+                width: root.number-width;
+                text: "#";
+                text-alignment: right;
+            }
+
+            HeaderCell {
+                text: @tr("Title");
+            }
+        }
+
+        Rectangle {
+            x: root.scrolling-x;
+            width: root.scrolling-width;
+            clip: true;
+
+            HorizontalLayout {
+                x: root.scroll-x;
+                width: root.scrolling-content-width;
+                height: parent.height;
+
+                HeaderCell {
+                    width: root.file-width;
+                    text: @tr("File");
+                }
+
+                HeaderCell {
+                    text: @tr("Folder");
+                }
+            }
+        }
+
+        Rectangle {
+            y: parent.height - 1px;
+            height: 1px;
+            background: Theme.border-subtle;
+        }
+    }
+
+    ListView {
+        x: 0;
+        y: root.header-height;
+        width: root.pinned-width;
+        height: root.list-height;
+        content-width: self.width;
+        content-y <=> root.scroll-y;
+
+        for row in root.rows: PinnedRow {
+            width: root.pinned-width;
+            track: row;
+            status-width: root.status-width;
+            number-width: root.number-width;
+        }
+    }
+
+    scrolling-list := ListView {
+        x: root.scrolling-x;
+        y: root.header-height;
+        width: root.scrolling-width;
+        height: root.list-height;
+        content-width: root.scrolling-content-width;
+        content-x <=> root.scroll-x;
+        content-y <=> root.scroll-y;
+        accessible-role: list;
+        accessible-label: @tr("Tracks");
+
+        for row in root.rows: ScrollingRow {
+            width: root.scrolling-content-width;
+            track: row;
+            file-width: root.file-width;
+        }
+    }
+
+    if root.scrolls-sideways: Rectangle {
+        x: root.pinned-width;
+        y: 0;
+        width: 1px;
+        background: Theme.border-subtle;
+    }
+
+    if root.scroll-x < 0px: Rectangle {
+        x: root.scrolling-x;
+        y: 0;
+        width: 10px;
+        background: @linear-gradient(90deg, Theme.shadow-pinned 0%, transparent 100%);
+    }
+
+    vertical-bar := ScrollBar {
+        x: root.width - root.scrollbar-size;
+        y: root.header-height;
+        width: root.scrollbar-size;
+        height: root.list-height;
+        content-size: root.rows-height;
+        visible-size: scrolling-list.visible-height;
+        position <=> root.scroll-y;
+        accessible-label: @tr("Vertical scroll bar");
+    }
+
+    if root.scrolls-sideways: Rectangle {
+        x: root.scrolling-x;
+        y: root.height - root.scrollbar-size;
+        width: root.scrolling-width;
+        height: root.scrollbar-size;
+
+        Rectangle {
+            y: 0;
+            height: 1px;
+            background: Theme.border-row;
+        }
+
+        ScrollBar {
+            horizontal: true;
+            content-size: root.scrolling-content-width;
+            visible-size: scrolling-list.visible-width;
+            position <=> root.scroll-x;
+            accessible-label: @tr("Horizontal scroll bar");
+        }
+    }
+}
