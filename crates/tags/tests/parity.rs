@@ -9,7 +9,7 @@ use colophon_tags::Metadata;
 
 use common::{TestResult, fixtures_dir};
 
-/// What ffprobe read in a fixture: its `-of flat` output, saved next to the fixture by `make.sh`.
+/// What ffprobe read in a fixture: its `-of flat` output, saved in `testdata/ffprobe/` by `make.sh`.
 fn ffprobe(path: &Path) -> Result<HashMap<String, String>, Box<dyn Error>> {
     let output = String::from_utf8_lossy(&fs::read(path)?).into_owned();
     Ok(output
@@ -83,13 +83,10 @@ fn differences(metadata: &Metadata, probe: &HashMap<String, String>) -> Vec<Stri
 
 #[test]
 fn colophon_reads_what_ffprobe_reads() -> TestResult {
-    let mut probes: Vec<_> = fs::read_dir(fixtures_dir())?
+    let mut probes: Vec<_> = fs::read_dir(fixtures_dir().join("ffprobe"))?
         .map(|entry| entry.map(|entry| entry.path()))
         .collect::<Result<_, _>>()?;
-    probes.retain(|path| {
-        path.extension()
-            .is_some_and(|extension| extension == "ffprobe")
-    });
+    probes.retain(|path| path.extension().is_some_and(|extension| extension == "txt"));
     probes.sort();
     assert!(
         !probes.is_empty(),
@@ -98,7 +95,10 @@ fn colophon_reads_what_ffprobe_reads() -> TestResult {
 
     let mut report = Vec::new();
     for probe in &probes {
-        let metadata = colophon_tags::read(&probe.with_extension("mp3"))?;
+        let name = probe
+            .file_stem()
+            .ok_or("an ffprobe output without a name")?;
+        let metadata = colophon_tags::read(&fixtures_dir().join(name).with_extension("mp3"))?;
         for difference in differences(&metadata, &ffprobe(probe)?) {
             report.push(format!("{}: {difference}", probe.display()));
         }

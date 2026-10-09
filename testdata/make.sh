@@ -3,8 +3,8 @@
 #
 # The tag fixtures hold 0.1 s of generated silence, the audio ones 1 s of a generated sine, so no
 # fixture carries third party content. The bitexact flags keep ffmpeg's version out of the files.
-# Each fixture.mp3 that ffprobe can read gets a fixture.ffprobe next to it (-of flat), which the
-# parity tests compare with what Colophon reads.
+# Each fixture.mp3 that ffprobe can read gets ffprobe/fixture.txt (-of flat), which the parity
+# tests compare with what Colophon reads.
 #
 # ffmpeg writes ID3v1 bytes as given: UTF-8 text stays UTF-8, a raw byte stays raw.
 # With -id3v2_version 0, ffmpeg only fills ID3v1 from ID3v2 frame names
@@ -17,7 +17,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-rm -f ./*.mp3 ./*.ffprobe
+rm -f ./*.mp3 ffprobe/*.txt
+mkdir -p ffprobe
 
 # The bitexact flags go after the input: before it, they would only apply to reading the input.
 silence=(-v error -y -f lavfi -i anullsrc=r=44100:cl=mono -t 0.1
@@ -170,7 +171,7 @@ ffmpeg "${sine[@]}" -ac 1 -ar 48000 -q:a 6 "${no_tags[@]}" vbr_mono.mp3
 printf 'TAG' >tiny_tag.mp3
 
 for fixture in ./*.mp3; do
-	probe="${fixture%.mp3}.ffprobe"
+	probe="ffprobe/$(basename "$fixture" .mp3).txt"
 	if ! ffprobe -v error -show_format -show_streams -of flat "$fixture" >"$probe" 2>/dev/null; then
 		rm -f "$probe"
 	fi
