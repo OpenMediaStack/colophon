@@ -85,17 +85,8 @@ fn the_inspector_shortcut_toggles_the_inspector() -> TestResult {
 #[test]
 fn the_sidebar_shortcut_toggles_the_sidebar() -> TestResult {
     let window = open_main_window()?;
-    // Slint reads macOS's Control key as Meta and its Command key as Control.
-    let modifiers = if cfg!(target_os = "macos") {
-        [Key::Meta, Key::Control]
-    } else {
-        [Key::Control, Key::Alt]
-    };
 
-    press_shortcut(
-        &window,
-        &[modifiers[0].into(), modifiers[1].into(), "s".into()],
-    );
+    press_shortcut(&window, &[Key::Control.into(), Key::Alt.into(), "s".into()]);
 
     assert!(!shows(&window, "Sidebar"));
     Ok(())

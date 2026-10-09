@@ -92,13 +92,13 @@ export component AppWindow inherits Window {
     default-font-size: 13px;
 
     MenuBar {
+        // Slint calls the Command key Control on macOS: these read Option Command S and I there, as in the Finder.
         Menu {
             title: @tr("View");
 
             MenuItem {
                 title: root.sidebar-visible ? @tr("Hide Sidebar") : @tr("Show Sidebar");
-                // Slint calls the Command key Control on macOS, and the Control key Meta.
-                shortcut: Platform.os == OperatingSystemType.macos ? @keys(Meta + Control + S) : @keys(Control + Alt + S);
+                shortcut: @keys(Control + Alt + S);
                 activated => {
                     root.run(Command.toggle-sidebar);
                 }
