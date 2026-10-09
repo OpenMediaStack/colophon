@@ -14,7 +14,7 @@ use crate::Track;
 /// What a scan reports, in order: the files it finds, the entries it cannot read, then how it ended.
 #[derive(Debug)]
 pub enum ScanEvent {
-    Found(Track),
+    Found(Box<Track>),
     Unreadable(ScanError),
     Finished(ScanOutcome),
 }
@@ -50,7 +50,7 @@ impl std::error::Error for ScanError {
 }
 
 /// Walks `root` and its subfolders, sorted by name, and reports every file whose extension is in
-/// `extensions`, ignoring case. Hidden entries are skipped, among them the `._` files macOS leaves on
+/// `extensions`, ignoring case, with its tags. Hidden entries are skipped, among them the `._` files macOS leaves on
 /// external drives. Checks `stop` between entries.
 pub fn scan(
     root: &Path,
@@ -71,7 +71,7 @@ pub fn scan(
         match entry {
             Ok(entry) if entry.file_type().is_file() && has_extension(entry.path(), extensions) => {
                 report(match track(&entry) {
-                    Ok(track) => ScanEvent::Found(track),
+                    Ok(track) => ScanEvent::Found(Box::new(track)),
                     Err(error) => ScanEvent::Unreadable(error),
                 });
             }
@@ -103,14 +103,15 @@ fn has_extension(path: &Path, extensions: &[&str]) -> bool {
 }
 
 fn track(entry: &DirEntry) -> Result<Track, ScanError> {
-    let metadata = entry.metadata().map_err(|error| ScanError {
+    let attributes = entry.metadata().map_err(|error| ScanError {
         path: entry.path().to_path_buf(),
         source: error.into(),
     })?;
     Ok(Track {
         path: entry.path().to_path_buf(),
-        size: metadata.len(),
-        modified: metadata.modified().ok(),
+        size: attributes.len(),
+        modified: attributes.modified().ok(),
+        metadata: colophon_tags::read(entry.path()),
     })
 }
 
