@@ -13,14 +13,17 @@ repository = "https://github.com/florentsorel/colophon"
 [workspace.dependencies]
 colophon-engine = { path = "crates/engine" }
 colophon-library = { path = "crates/library" }
+colophon-tags = { path = "crates/tags" }
 colophon-ui = { path = "crates/ui-slint" }
 slint = "1.18.1"
 slint-build = "1.18.1"
 # The testing backend does not follow semver: it moves with slint, to the exact version.
 i-slint-backend-testing = { version = "=1.18.1", features = ["renderer-software"] }
 image = { version = "0.25.10", default-features = false, features = ["png"] }
+lofty = "0.25.4"
 rfd = "0.17.2"
 tempfile = "3.27.0"
+thiserror = "2.0.21"
 walkdir = "2.5.0"
 
 [workspace.lints.rust]
