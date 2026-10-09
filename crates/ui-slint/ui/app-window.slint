@@ -4,60 +4,26 @@ import "fonts/Inter-SemiBold.ttf";
 import "fonts/JetBrainsMono-Regular.ttf";
 import "fonts/JetBrainsMono-Medium.ttf";
 import { Theme } from "theme.slint";
+import { Region, ToolbarButton } from "widgets.slint";
+import { EmptyState } from "empty-state.slint";
+import { ScanState, StatusBar } from "status-bar.slint";
 
-export { Theme }
+export { Theme, ScanState }
 
 // The user actions the window can ask the engine to run.
-export enum Command { toggle-sidebar, toggle-inspector }
-
-// A placeholder for a part of the window that is not built yet.
-component Region inherits Rectangle {
-    in property <string> label;
-
-    Text {
-        text: root.label;
-        font-size: 12px;
-        color: Theme.text-tertiary;
-    }
-}
-
-// A toolbar button that shows and hides a panel; it looks pressed while the panel is visible.
-component PanelToggle inherits Rectangle {
-    in property <image> icon;
-    in property <string> label;
-    in property <bool> active;
-    callback clicked;
-
-    width: 28px;
-    height: 28px;
-    border-radius: 4px;
-    background: root.active || touch.has-hover ? Theme.surface-3 : transparent;
-    animate background { duration: 100ms; }
-    accessible-role: button;
-    accessible-label: root.label;
-    accessible-checkable: true;
-    accessible-checked: root.active;
-    accessible-action-default => {
-        root.clicked();
-    }
-
-    Image {
-        width: 16px;
-        height: 16px;
-        source: root.icon;
-        colorize: root.active ? Theme.text-primary : Theme.text-secondary;
-    }
-
-    touch := TouchArea {
-        clicked => {
-            root.clicked();
-        }
-    }
-}
+export enum Command { open-folder, stop-scan, toggle-sidebar, toggle-inspector }
 
 export component AppWindow inherits Window {
     in property <bool> sidebar-visible: true;
     in property <bool> inspector-visible: true;
+    in property <bool> folder-open;
+    in property <string> folder;
+    in property <ScanState> scan-state;
+    in property <int> track-count;
+    in property <int> unreadable-count;
+    // How shortcuts are written: Command O on macOS, Ctrl+O elsewhere. Tests set it so that their
+    // reference captures do not depend on the machine.
+    in property <bool> mac-shortcuts: Platform.os == OperatingSystemType.macos;
     callback run(Command);
 
     property <length> sidebar-width: 220px;
@@ -91,8 +57,21 @@ export component AppWindow inherits Window {
     default-font-family: "Inter";
     default-font-size: 13px;
 
+    // Slint calls the Command key Control on macOS: the shortcuts read Command O, and Option Command S
+    // and I as in the Finder, there.
     MenuBar {
-        // Slint calls the Command key Control on macOS: these read Option Command S and I there, as in the Finder.
+        Menu {
+            title: @tr("File");
+
+            MenuItem {
+                title: @tr("Open Folder…");
+                shortcut: @keys(Control + O);
+                activated => {
+                    root.run(Command.open-folder);
+                }
+            }
+        }
+
         Menu {
             title: @tr("View");
 
@@ -122,11 +101,19 @@ export component AppWindow inherits Window {
             background: Theme.surface-2;
 
             HorizontalLayout {
-                padding-left: 12px;
+                padding-left: 8px;
                 padding-right: 8px;
                 padding-top: 6px;
                 padding-bottom: 6px;
                 spacing: 4px;
+
+                ToolbarButton {
+                    icon: @image-url("images/folder.svg");
+                    label: @tr("Open folder");
+                    clicked => {
+                        root.run(Command.open-folder);
+                    }
+                }
 
                 Text {
                     horizontal-stretch: 1;
@@ -136,19 +123,21 @@ export component AppWindow inherits Window {
                     color: Theme.text-tertiary;
                 }
 
-                PanelToggle {
+                ToolbarButton {
                     icon: @image-url("images/panel-left.svg");
                     label: @tr("Toggle sidebar");
-                    active: root.sidebar-visible;
+                    checkable: true;
+                    checked: root.sidebar-visible;
                     clicked => {
                         root.run(Command.toggle-sidebar);
                     }
                 }
 
-                PanelToggle {
+                ToolbarButton {
                     icon: @image-url("images/panel-right.svg");
                     label: @tr("Toggle inspector");
-                    active: root.inspector-visible;
+                    checkable: true;
+                    checked: root.inspector-visible;
                     clicked => {
                         root.run(Command.toggle-inspector);
                     }
@@ -168,7 +157,14 @@ export component AppWindow inherits Window {
             VerticalLayout {
                 spacing: 1px;
 
-                Region {
+                if !root.folder-open: EmptyState {
+                    open-shortcut: root.mac-shortcuts ? "⌘O" : "Ctrl+O";
+                    open-folder => {
+                        root.run(Command.open-folder);
+                    }
+                }
+
+                if root.folder-open: Region {
                     label: @tr("Tracks");
                     background: Theme.surface-1;
                 }
@@ -187,10 +183,14 @@ export component AppWindow inherits Window {
             }
         }
 
-        Region {
-            height: 24px;
-            label: @tr("Status bar");
-            background: Theme.surface-0;
+        StatusBar {
+            scan-state: root.scan-state;
+            track-count: root.track-count;
+            unreadable-count: root.unreadable-count;
+            folder: root.folder;
+            stop-scan => {
+                root.run(Command.stop-scan);
+            }
         }
     }
 }

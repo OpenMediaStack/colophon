@@ -7,13 +7,14 @@ use slint::LogicalSize;
 
 use common::{TestResult, assert_matches_reference, select_language, shows};
 
+/// What a fresh window shows: the regions not built yet, the first launch screen and the status bar.
 const REGIONS: [&str; 6] = [
     "Toolbar",
     "Sidebar",
-    "Tracks",
+    "Open your music folder",
     "Player",
     "Inspector",
-    "Status bar",
+    "No folder open",
 ];
 
 /// A window of the given size, in English, not shown yet so that a test can set it up first.
@@ -41,7 +42,7 @@ fn the_sidebar_gives_way_in_a_small_window() -> TestResult {
     window.show()?;
 
     assert!(!shows(&window, "Sidebar"));
-    assert!(shows(&window, "Tracks"));
+    assert!(shows(&window, "Open your music folder"));
     assert!(shows(&window, "Inspector"));
     Ok(())
 }
@@ -79,7 +80,7 @@ fn hidden_panels_are_not_shown() -> TestResult {
 
     assert!(!shows(&window, "Sidebar"));
     assert!(!shows(&window, "Inspector"));
-    assert!(shows(&window, "Tracks"));
+    assert!(shows(&window, "Open your music folder"));
     Ok(())
 }
 
@@ -89,7 +90,7 @@ fn the_regions_are_named_in_french_when_selected() -> TestResult {
     select_language("fr")?;
     window.show()?;
 
-    assert!(shows(&window, "Morceaux"));
+    assert!(shows(&window, "Ouvrez votre dossier de musique"));
     assert!(shows(&window, "Barre latérale"));
     Ok(())
 }
