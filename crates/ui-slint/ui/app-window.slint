@@ -7,9 +7,9 @@ import { Theme } from "theme.slint";
 import { Region, ToolbarButton } from "widgets.slint";
 import { EmptyState } from "empty-state.slint";
 import { ScanState, StatusBar } from "status-bar.slint";
-import { TrackRow, TrackTable } from "track-table.slint";
+import { TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
 
-export { Theme, ScanState, TrackRow }
+export { Theme, ScanState, TrackColumns, TrackRow, TrackStatus }
 
 // The user actions the window can ask the engine to run.
 export enum Command { open-folder, stop-scan, toggle-sidebar, toggle-inspector }
@@ -23,6 +23,17 @@ export component AppWindow inherits Window {
     in property <int> track-count;
     in property <int> unreadable-count;
     in property <[TrackRow]> tracks;
+    in property <TrackColumns> columns: {
+        artist: true,
+        album: true,
+        year: true,
+        genre: true,
+        time: true,
+        bitrate: true,
+        tags: false,
+        file: false,
+        folder: false,
+    };
     // How shortcuts are written: Command O on macOS, Ctrl+O elsewhere. Tests set it so that their
     // reference captures do not depend on the machine.
     in property <bool> mac-shortcuts: Platform.os == OperatingSystemType.macos;
@@ -168,6 +179,7 @@ export component AppWindow inherits Window {
 
                 if root.folder-open: TrackTable {
                     rows: root.tracks;
+                    columns: root.columns;
                 }
 
                 Region {

@@ -37,6 +37,19 @@ fn folder_with_mp3s(count: usize) -> Result<TempDir, Box<dyn Error>> {
     )
 }
 
+/// A folder holding a copy of `fixture`, a file of `testdata/`, at `name`.
+fn folder_with_fixture(fixture: &str, name: &str) -> Result<TempDir, Box<dyn Error>> {
+    let folder = tempfile::tempdir()?;
+    let path = folder.path().join(name);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata");
+    fs::copy(fixtures.join(fixture), path)?;
+    Ok(folder)
+}
+
+/// A folder of files that only start like an MP3, whose tags cannot be read.
 fn folder_with_files(names: &[impl AsRef<str>]) -> Result<TempDir, Box<dyn Error>> {
     let folder = tempfile::tempdir()?;
     for name in names {
@@ -80,23 +93,44 @@ fn opening_a_folder_reads_its_tracks() -> TestResult {
     wait_until_shown(&window, "3 tracks")?;
 
     assert!(!shows(&window, "Open your music folder"));
-    for file in ["00.mp3", "01.mp3", "02.mp3"] {
-        assert!(shows(&window, file), "{file} is missing");
+    for title in ["00", "01", "02"] {
+        assert!(shows(&window, title), "{title} is missing");
     }
     Ok(())
 }
 
 #[test]
-fn a_track_shows_its_title_and_its_folder() -> TestResult {
-    let folder = folder_with_files(&["Small Hours/07 Paper Satellites.mp3"])?;
+fn a_track_shows_its_tags() -> TestResult {
+    let folder = folder_with_fixture("v23_full.mp3", "Small Hours/07.mp3")?;
     let window = open_main_window(Some(folder.path().to_path_buf()))?;
 
     find(&window, "Open folder")?.invoke_accessible_default_action();
     wait_until_shown(&window, "1 track")?;
 
-    assert!(shows(&window, "07 Paper Satellites"));
-    assert!(shows(&window, "07 Paper Satellites.mp3"));
-    assert!(shows(&window, "Small Hours"));
+    for value in [
+        "03",
+        "Paper Satellites",
+        "Marlowe Kite",
+        "Small Hours",
+        "2019",
+        "Folk",
+    ] {
+        assert!(shows(&window, value), "{value} is missing");
+    }
+    assert!(!shows(&window, "Unreadable"));
+    Ok(())
+}
+
+#[test]
+fn a_file_whose_tags_cannot_be_read_is_marked() -> TestResult {
+    let folder = folder_with_files(&["broken.mp3"])?;
+    let window = open_main_window(Some(folder.path().to_path_buf()))?;
+
+    find(&window, "Open folder")?.invoke_accessible_default_action();
+    wait_until_shown(&window, "1 track")?;
+
+    assert!(shows(&window, "broken"));
+    assert!(shows(&window, "Unreadable"));
     Ok(())
 }
 
@@ -110,11 +144,11 @@ fn opening_another_folder_replaces_the_tracks() -> TestResult {
     ])?;
 
     find(&window, "Open folder")?.invoke_accessible_default_action();
-    wait_until_shown(&window, "first.mp3")?;
+    wait_until_shown(&window, "first")?;
     find(&window, "Open folder")?.invoke_accessible_default_action();
-    wait_until_shown(&window, "second.mp3")?;
+    wait_until_shown(&window, "second")?;
 
-    assert!(!shows(&window, "first.mp3"));
+    assert!(!shows(&window, "first"));
     assert!(shows(&window, "1 track"));
     Ok(())
 }
