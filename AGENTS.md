@@ -1,4 +1,4 @@
-# TagForge
+# Colophon
 
 A native audio tag editor written in Rust. It reads and rewrites the tags of MP3 files (ID3v2 and ID3v1), plays tracks, draws their waveform and spectrum, and edits whole albums at once. The interface is a dense, fast tool UI, dark and light, built with Slint, in the spirit of Blick. It also aims to be a workbench for people who implement ID3 in other languages: in developer mode it writes any tag version on demand (ID3v2.2, 2.3, 2.4, ID3v1.0, 1.1) to produce test files. Open source under the MIT license.
 
@@ -62,13 +62,13 @@ A Cargo workspace, in the style of PhotoCraft (`github.com/storytold/photocraft`
 
 | Crate | Role |
 | --- | --- |
-| `crates/tags` | Read and write metadata through `lofty` (https://docs.rs/lofty), which covers every format TagForge targets (MP3, FLAC, WAV, AIFF, M4A, Ogg, APE…), writes ID3v2.3 or 2.4 (`WriteOptions::use_id3v23`) with a chosen padding (`preferred_padding`), writes ID3v1, and gives the audio properties (bitrate, sample rate, duration). TagForge adds validation and safe writing. For the few developer-mode writes `lofty` does not do (ID3v2.2, unsynchronisation, compression, forcing ID3v1.0 rather than 1.1), check first, then use the `id3` crate's `Encoder` behind developer mode only. |
+| `crates/tags` | Read and write metadata through `lofty` (https://docs.rs/lofty), which covers every format Colophon targets (MP3, FLAC, WAV, AIFF, M4A, Ogg, APE…), writes ID3v2.3 or 2.4 (`WriteOptions::use_id3v23`) with a chosen padding (`preferred_padding`), writes ID3v1, and gives the audio properties (bitrate, sample rate, duration). Colophon adds validation and safe writing. For the few developer-mode writes `lofty` does not do (ID3v2.2, unsynchronisation, compression, forcing ID3v1.0 rather than 1.1), check first, then use the `id3` crate's `Encoder` behind developer mode only. |
 | `crates/audio` | Decoding with `symphonia`, playback with `cpal`, the min/max waveform pyramid, the FFT (`realfft`). |
 | `crates/library` | Scanning folders, the track model, caching tag reads. |
 | `crates/engine` | Application state: open library, selection, pending edits, undo and redo, the command registry (a stable id and JSON parameters for each command). No UI types. |
-| `crates/ui-slint` | The Slint frontend: the `.slint` files (the `global Theme`, TagForge's own components, the panels), compiled by `slint-build` in its `build.rs`, and the Rust bridge that turns engine state into Slint properties and models, and Slint callbacks into engine commands. It reads engine state and issues commands, nothing else. |
-| `apps/tagforge` | The desktop app: the Slint application, which wires `ui-slint` to the engine. |
-| `apps/tagforge-cli` | Headless use: print and edit tags, batch edits, run any command. Later: an MCP server so agents can drive TagForge. |
+| `crates/ui-slint` | The Slint frontend: the `.slint` files (the `global Theme`, Colophon's own components, the panels), compiled by `slint-build` in its `build.rs`, and the Rust bridge that turns engine state into Slint properties and models, and Slint callbacks into engine commands. It reads engine state and issues commands, nothing else. |
+| `apps/colophon` | The desktop app: the Slint application, which wires `ui-slint` to the engine. |
+| `apps/colophon-cli` | Headless use: print and edit tags, batch edits, run any command. Later: an MCP server so agents can drive Colophon. |
 
 Add a crate only when a real boundary appears, never upfront.
 
@@ -97,8 +97,8 @@ Rules that keep the door open while v1 ships MP3 only:
 ## Stack
 
 - Rust 1.99, pinned in `rust-toolchain.toml` and set as the workspace's `rust-version`; edition 2024. Workspace-wide versions and lints in the root `Cargo.toml`.
-- `slint` for the UI (1.18 at the time of writing), with `slint-build` to compile the `.slint` files at build time. TagForge draws its own components rather than using the std-widgets styles (see the design brief).
-- **Slint's license.** TagForge's own code is under the MIT license. Slint is used under its Royalty-free License 2.0, which allows that for a desktop application on one condition: show the `AboutSlint` widget in an About dialog reachable from the app's top-level menu, or show the "Made with Slint" badge on the public page where TagForge is downloaded. The About dialog must exist before the first build anyone else downloads. The same license forbids distributing an application that exposes Slint's own APIs, so Slint's debugging MCP server (`slint/mcp`) never ships in a release build.
+- `slint` for the UI (1.18 at the time of writing), with `slint-build` to compile the `.slint` files at build time. Colophon draws its own components rather than using the std-widgets styles (see the design brief).
+- **Slint's license.** Colophon's own code is under the MIT license. Slint is used under its Royalty-free License 2.0, which allows that for a desktop application on one condition: show the `AboutSlint` widget in an About dialog reachable from the app's top-level menu, or show the "Made with Slint" badge on the public page where Colophon is downloaded. The About dialog must exist before the first build anyone else downloads. The same license forbids distributing an application that exposes Slint's own APIs, so Slint's debugging MCP server (`slint/mcp`) never ships in a release build.
 - `lofty` for tags and audio properties (`id3` only for the developer-mode writes `lofty` lacks), `symphonia` for decoding, `cpal` for output, `realfft` for spectra, `rfd` for native file dialogs.
 - Check crates.io for the current version before adding a dependency, and say in the plan why it is needed.
 
@@ -121,12 +121,12 @@ Rules that keep the door open while v1 ships MP3 only:
 
 ## Translations
 
-TagForge is translatable from the first screen. v1 ships English and French.
+Colophon is translatable from the first screen. v1 ships English and French.
 
 - Every user-facing text is written in English in the `.slint` files with `@tr("...")`, plurals included (`@tr("{n} track" | "{n} tracks" % count)`).
 - Translations are gettext `.po` files in `crates/ui-slint/translations/<lang>/LC_MESSAGES/`, bundled into the binary by `slint-build` (`with_bundled_translations`). `slint-tr-extractor` extracts the strings, `msgmerge` updates each `.po`.
 - At startup Slint picks the system language (the exact locale, then the language alone) and falls back to English.
-- The engine never returns sentences for the user: it returns typed values and errors, and the UI turns them into translated text. Numbers and dates are formatted for the user's language by TagForge, since `@tr` does not do it.
+- The engine never returns sentences for the user: it returns typed values and errors, and the UI turns them into translated text. Numbers and dates are formatted for the user's language by Colophon, since `@tr` does not do it.
 - Layouts leave room for longer translations: a column, a button or a label sized for the English text cuts the French one.
 
 ## Roadmap
@@ -143,7 +143,7 @@ Each step ends on something Florent can run. Cut a step into slices before start
      - a test with Slint's testing backend that finds an element by its accessible label and activates it, and a reference capture of one panel rendered with the software renderer (`Window::take_snapshot()`), compared with a stored PNG.
 
      If a point blocks, stop and discuss it with Florent before going further.
-   - Then the skeleton itself: the workspace, the Slint window with the `global Theme` (dark and light), the English and French translations, and the layout chosen in the design brief in grey boxes, the collapsible sidebar and inspector with their buttons and shortcuts, `tagforge-cli --version`.
+   - Then the skeleton itself: the workspace, the Slint window with the `global Theme` (dark and light), the English and French translations, and the layout chosen in the design brief in grey boxes, the collapsible sidebar and inspector with their buttons and shortcuts, `colophon-cli --version`.
 2. **Library.** Open a folder with the native dialog, scan MP3 files in the background, a virtualised track list that stays smooth with 10 000 entries and scrolls horizontally when its columns do not fit, with status, number and title pinned on the left.
 3. **Read tags.** The `tags` crate, fixtures, ffprobe parity, no panic on the corrupted corpus. The edit panel shows the values, read only, the column chooser (right click on the header), and the Tags column, off by default, which shows the tag formats present in each file (`ID3v2.3, ID3v1.1`).
 4. **Edit and save.** Editable fields, pending edits, undo and redo through commands, safe writing, round-trip tests. Writes ID3v2.4 by default. ID3v1 is kept where it exists and rewritten from the new values, with a warning when a value does not fit its 30 Latin-1 characters. Removing an ID3v1 tag always goes through a confirmation dialog.
@@ -158,5 +158,5 @@ Each step ends on something Florent can run. Cut a step into slices before start
 Later versions:
 
 - **Other formats**, all through `lofty`: FLAC and Ogg, M4A, WAV, AIFF. Mostly scanning, the inspector fields each format supports, the conversions that lose information, and fixtures. The Tags column shows `Vorbis`, `MP4` or `RIFF INFO, ID3v2.4`.
-- The MCP server in `tagforge-cli`, a web build.
+- The MCP server in `colophon-cli`, a web build.
 

@@ -6,7 +6,7 @@ exclude = ["spikes"]
 edition = "2024"
 rust-version = "1.99"
 license = "MIT"
-repository = "https://github.com/florentsorel/tagforge"
+repository = "https://github.com/florentsorel/colophon"
 
 [workspace.lints.rust]
 unsafe_code = "deny"
