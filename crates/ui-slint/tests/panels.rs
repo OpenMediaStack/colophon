@@ -11,7 +11,7 @@ use common::{TestResult, find, shows};
 /// The main window, driven by a fresh engine, shown in English at 1440 by 900.
 fn open_main_window() -> Result<AppWindow, Box<dyn Error>> {
     common::use_testing_backend()?;
-    let window = colophon_ui::main_window(Engine::new())?;
+    let window = colophon_ui::main_window(Engine::new(), || None)?;
     common::prepare(&window, 1440.0, 900.0)?;
     window.show()?;
     Ok(window)

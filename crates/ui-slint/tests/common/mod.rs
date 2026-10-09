@@ -24,9 +24,10 @@ pub fn use_testing_backend() -> TestResult {
     }
 }
 
-/// Sets a window in English at the given size, before it is shown.
+/// Sets a window in English, with macOS shortcuts, at the given size, before it is shown.
 pub fn prepare(window: &AppWindow, width: f32, height: f32) -> TestResult {
     select_language("")?;
+    window.set_mac_shortcuts(true);
     window.window().set_size(LogicalSize::new(width, height));
     Ok(())
 }

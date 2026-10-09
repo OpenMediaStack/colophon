@@ -1,0 +1,68 @@
+import { Theme } from "theme.slint";
+import { PrimaryButton } from "widgets.slint";
+
+// What the centre of the window shows before any folder is open.
+export component EmptyState inherits Rectangle {
+    in property <string> open-shortcut;
+    callback open-folder;
+
+    background: Theme.surface-1;
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 16px;
+        padding: 24px;
+
+        HorizontalLayout {
+            alignment: center;
+
+            Rectangle {
+                width: 72px;
+                height: 72px;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: Theme.border-subtle;
+                background: Theme.surface-2;
+
+                Image {
+                    width: 32px;
+                    height: 32px;
+                    source: @image-url("images/folder.svg");
+                    colorize: Theme.text-tertiary;
+                }
+            }
+        }
+
+        Text {
+            horizontal-alignment: center;
+            text: @tr("Open your music folder");
+            font-size: 18px;
+            font-weight: 600;
+            color: Theme.text-primary;
+        }
+
+        HorizontalLayout {
+            alignment: center;
+
+            Text {
+                max-width: 400px;
+                horizontal-alignment: center;
+                wrap: word-wrap;
+                text: @tr("Colophon reads the tags of every MP3 in a folder and its subfolders. Nothing is written to your files until you save.");
+                color: Theme.text-secondary;
+            }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+
+            PrimaryButton {
+                text: @tr("Open folder…");
+                shortcut: root.open-shortcut;
+                clicked => {
+                    root.open-folder();
+                }
+            }
+        }
+    }
+}

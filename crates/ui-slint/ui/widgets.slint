@@ -1,0 +1,126 @@
+import { Theme } from "theme.slint";
+
+// A placeholder for a part of the window that is not built yet.
+export component Region inherits Rectangle {
+    in property <string> label;
+
+    Text {
+        text: root.label;
+        font-size: 12px;
+        color: Theme.text-tertiary;
+    }
+}
+
+// A square toolbar button with an icon. As a toggle, it looks pressed while checked.
+export component ToolbarButton inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    in property <bool> checkable;
+    in property <bool> checked;
+    callback clicked;
+
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    background: root.checked || touch.has-hover ? Theme.surface-3 : transparent;
+    animate background { duration: 100ms; }
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-checkable: root.checkable;
+    accessible-checked: root.checked;
+    accessible-action-default => {
+        root.clicked();
+    }
+
+    Image {
+        width: 16px;
+        height: 16px;
+        source: root.icon;
+        colorize: root.checked ? Theme.text-primary : Theme.text-secondary;
+    }
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// The main action of a screen, in the accent colour, with its shortcut.
+export component PrimaryButton inherits Rectangle {
+    in property <string> text;
+    in property <string> shortcut;
+    callback clicked;
+
+    height: 32px;
+    border-radius: 4px;
+    background: touch.has-hover ? Theme.accent-hover : Theme.accent;
+    animate background { duration: 100ms; }
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-action-default => {
+        root.clicked();
+    }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 10px;
+
+        Text {
+            vertical-alignment: center;
+            text: root.text;
+            font-weight: 500;
+            color: Theme.on-accent;
+        }
+
+        if root.shortcut != "": Text {
+            vertical-alignment: center;
+            text: root.shortcut;
+            font-size: 12px;
+            color: Theme.on-accent;
+            opacity: 0.75;
+        }
+    }
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+// A small bordered button for secondary actions in tight places, such as the status bar.
+export component SmallButton inherits Rectangle {
+    in property <string> text;
+    callback clicked;
+
+    height: 18px;
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: Theme.border-strong;
+    background: touch.has-hover ? Theme.surface-3 : transparent;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-action-default => {
+        root.clicked();
+    }
+
+    HorizontalLayout {
+        padding-left: 6px;
+        padding-right: 6px;
+
+        Text {
+            vertical-alignment: center;
+            text: root.text;
+            font-size: 11px;
+            color: Theme.text-primary;
+        }
+    }
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}

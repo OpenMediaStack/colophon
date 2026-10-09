@@ -19,6 +19,7 @@ slint-build = "1.18.1"
 # The testing backend does not follow semver: it moves with slint, to the exact version.
 i-slint-backend-testing = { version = "=1.18.1", features = ["renderer-software"] }
 image = { version = "0.25.10", default-features = false, features = ["png"] }
+rfd = "0.17.2"
 tempfile = "3.27.0"
 walkdir = "2.5.0"
 
