@@ -7,39 +7,96 @@ import { Theme } from "theme.slint";
 
 export { Theme }
 
+// A placeholder for a part of the window that is not built yet.
+component Region inherits Rectangle {
+    in property <string> label;
+
+    Text {
+        text: root.label;
+        font-size: 12px;
+        color: Theme.text-tertiary;
+    }
+}
+
 export component AppWindow inherits Window {
+    in property <bool> sidebar-visible: true;
+    in property <bool> inspector-visible: true;
+
+    property <length> sidebar-width: 220px;
+    property <length> inspector-width: 320px;
+    property <length> centre-min-width: 560px;
+    property <bool> sidebar-fits: true;
+    property <bool> sidebar-shown: root.sidebar-visible && root.sidebar-fits;
+
+    // The sidebar gives way when the centre column would get too narrow. This is a changed
+    // handler rather than a binding because the window's width itself depends on the sidebar.
+    function update-sidebar-fit() {
+        root.sidebar-fits = root.width - root.sidebar-width - (root.inspector-visible ? root.inspector-width : 0px) >= root.centre-min-width;
+    }
+
+    init => {
+        root.update-sidebar-fit();
+    }
+    changed width => {
+        root.update-sidebar-fit();
+    }
+    changed inspector-visible => {
+        root.update-sidebar-fit();
+    }
+
     title: "Colophon";
     preferred-width: 1280px;
     preferred-height: 800px;
     min-width: 960px;
     min-height: 600px;
-    background: Theme.surface-0;
+    background: Theme.border-subtle;
     default-font-family: "Inter";
     default-font-size: 13px;
 
     VerticalLayout {
-        alignment: center;
-        spacing: 12px;
-        padding: 24px;
+        spacing: 1px;
 
-        Text {
-            text: @tr("Open your music folder");
-            horizontal-alignment: center;
-            font-size: 18px;
-            font-weight: 600;
-            color: Theme.text-primary;
+        Region {
+            height: 40px;
+            label: @tr("Toolbar");
+            background: Theme.surface-2;
         }
 
         HorizontalLayout {
-            alignment: center;
+            spacing: 1px;
 
-            Text {
-                max-width: 400px;
-                text: @tr("Colophon reads the tags of every MP3 in a folder and its subfolders. Nothing is written to your files until you save.");
-                horizontal-alignment: center;
-                wrap: word-wrap;
-                color: Theme.text-secondary;
+            if root.sidebar-shown: Region {
+                width: root.sidebar-width;
+                label: @tr("Sidebar");
+                background: Theme.surface-0;
             }
+
+            VerticalLayout {
+                spacing: 1px;
+
+                Region {
+                    label: @tr("Tracks");
+                    background: Theme.surface-1;
+                }
+
+                Region {
+                    height: 56px;
+                    label: @tr("Player");
+                    background: Theme.surface-2;
+                }
+            }
+
+            if root.inspector-visible: Region {
+                width: root.inspector-width;
+                label: @tr("Inspector");
+                background: Theme.surface-1;
+            }
+        }
+
+        Region {
+            height: 24px;
+            label: @tr("Status bar");
+            background: Theme.surface-0;
         }
     }
 }

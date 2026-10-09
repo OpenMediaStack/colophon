@@ -1,16 +1,39 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
+"POT-Creation-Date: 2026-10-09 13:44+0000\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
+#: ui/app-window.slint:46
 msgctxt "AppWindow"
-msgid "Open your music folder"
-msgstr "Ouvrez votre dossier de musique"
+msgid "Toolbar"
+msgstr "Barre d’outils"
 
+#: ui/app-window.slint:55
 msgctxt "AppWindow"
-msgid "Colophon reads the tags of every MP3 in a folder and its subfolders. Nothing is written to your files until you save."
-msgstr "Colophon lit les tags de chaque MP3 d’un dossier et de ses sous-dossiers. Rien n’est écrit dans vos fichiers tant que vous n’enregistrez pas."
+msgid "Sidebar"
+msgstr "Barre latérale"
+
+#: ui/app-window.slint:63
+msgctxt "AppWindow"
+msgid "Tracks"
+msgstr "Morceaux"
+
+#: ui/app-window.slint:69
+msgctxt "AppWindow"
+msgid "Player"
+msgstr "Lecteur"
+
+#: ui/app-window.slint:76
+msgctxt "AppWindow"
+msgid "Inspector"
+msgstr "Inspecteur"
+
+#: ui/app-window.slint:83
+msgctxt "AppWindow"
+msgid "Status bar"
+msgstr "Barre d’état"
