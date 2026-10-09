@@ -12,9 +12,11 @@ Florent decides, the agents build.
 - **The agents** plan, implement, test and verify. They propose; they never decide product questions alone. When a choice is genuinely Florent's (a behaviour, a dependency, a file format trade-off), ask.
 - **Small slices.** One change does one thing and can be reviewed in a few minutes. A larger feature is cut into slices first, and the plan is shown before any code.
 - **Plan first** for anything that touches more than one crate, adds a dependency, or changes a file format: a short plan with the files involved, the approach, and how it will be verified.
-- **Commit only when Florent approves.** Commit messages follow Conventional Commits, in English.
+- **One branch and one pull request per change.** Branches are named after the Conventional Commits type and the change, in English (`feat/engine-view-commands`, `fix/...`, `docs/...`, `chore/...`). `main` only takes squash merges, so the pull request title, a Conventional Commit, becomes the commit on `main`. Nothing is pushed to `main` directly.
+- **Florent merges.** A pull request is merged once Florent approves it and the CI passes.
 - **Florent keeps learning.** When a change relies on a concept that is not obvious (a wgpu bind group, how Slint re-evaluates a property binding when a value it reads changes, ID3 unsynchronisation, a lock-free ring buffer), the summary explains it in two or three sentences with a link to the reference. No lectures, just enough to review with understanding.
 - Talk to Florent in French. Code, comments, docs, commit messages and pull requests (title, description, review comments) are in English.
+- No em dashes or en dashes anywhere: code, comments, docs, commits, pull requests. Use a comma, a colon, parentheses or a new sentence.
 
 ## Code style
 
@@ -45,6 +47,7 @@ A change is done when all of this holds, and the summary says which checks ran:
 - `cargo clippy --workspace --all-targets -- -D warnings` passes.
 - `cargo test --workspace` passes, with new tests for the new behaviour.
 - UI changes: the app was run, and the summary includes a screenshot (`screencapture`) or a Slint reference capture of the result (see [Testing](#testing)).
+- The CI passes on the pull request: format, Clippy and tests on Linux, plus YAML lint.
 - Anything not verified is named as such. Never claim a check that did not run.
 
 ## Rules that are never bent
