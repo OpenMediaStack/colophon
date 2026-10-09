@@ -1,0 +1,16 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Colophon\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgctxt "AppWindow"
+msgid "Open your music folder"
+msgstr "Ouvrez votre dossier de musique"
+
+msgctxt "AppWindow"
+msgid "Colophon reads the tags of every MP3 in a folder and its subfolders. Nothing is written to your files until you save."
+msgstr "Colophon lit les tags de chaque MP3 d’un dossier et de ses sous-dossiers. Rien n’est écrit dans vos fichiers tant que vous n’enregistrez pas."
