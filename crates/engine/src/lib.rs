@@ -104,7 +104,7 @@ impl Engine {
         let mut changed = false;
         loop {
             match scan.events().try_recv() {
-                Ok(ScanEvent::Found(track)) => self.library.tracks.push(track),
+                Ok(ScanEvent::Found(track)) => self.library.tracks.push(*track),
                 Ok(ScanEvent::Unreadable(error)) => self.library.unreadable.push(error),
                 Ok(ScanEvent::Finished(outcome)) => {
                     self.library.status = match outcome {

@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::{self, BufReader};
+use std::panic::{self, UnwindSafe};
 use std::path::Path;
 use std::time::Duration;
 
@@ -21,11 +22,26 @@ pub enum ReadError {
     /// The file is not an MP3, or it is too damaged to make sense of.
     #[error("could not make sense of the file")]
     Damaged(#[source] FileParseError),
+    /// The reader panicked on this file, which is a bug in lofty.
+    #[error("the reader failed on this file")]
+    ReaderPanicked,
 }
 
 /// Reads the tags and the audio properties of an MP3 file. A damaged file gives what can be read
 /// of it, or an error.
 pub fn read(path: &Path) -> Result<Metadata, ReadError> {
+    guarded(|| read_mpeg(path))
+}
+
+/// lofty means never to panic on a damaged file. Should it panic all the same, only this file
+/// fails, not the scan reading a whole folder.
+fn guarded(
+    read: impl FnOnce() -> Result<Metadata, ReadError> + UnwindSafe,
+) -> Result<Metadata, ReadError> {
+    panic::catch_unwind(read).unwrap_or(Err(ReadError::ReaderPanicked))
+}
+
+fn read_mpeg(path: &Path) -> Result<Metadata, ReadError> {
     let mut reader = BufReader::new(File::open(path).map_err(ReadError::Open)?);
     let options = ParseOptions::new().read_cover_art(false);
     let mpeg = MpegFile::read_from(&mut reader, options).map_err(ReadError::Damaged)?;
@@ -144,6 +160,16 @@ fn audio_properties(properties: &MpegProperties) -> AudioProperties {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_panic_while_reading_fails_only_this_file() {
+        let result = guarded(|| panic!("a bug in the reader"));
+
+        assert!(
+            matches!(result, Err(ReadError::ReaderPanicked)),
+            "{result:?}"
+        );
+    }
 
     #[test]
     fn latin1_text_stays_latin1() {

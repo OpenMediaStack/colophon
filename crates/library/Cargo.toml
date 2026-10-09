@@ -8,6 +8,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+colophon-tags.workspace = true
 walkdir.workspace = true
 
 [dev-dependencies]
