@@ -1,0 +1,45 @@
+import "fonts/Inter-Regular.ttf";
+import "fonts/Inter-Medium.ttf";
+import "fonts/Inter-SemiBold.ttf";
+import "fonts/JetBrainsMono-Regular.ttf";
+import "fonts/JetBrainsMono-Medium.ttf";
+import { Theme } from "theme.slint";
+
+export { Theme }
+
+export component AppWindow inherits Window {
+    title: "Colophon";
+    preferred-width: 1280px;
+    preferred-height: 800px;
+    min-width: 960px;
+    min-height: 600px;
+    background: Theme.surface-0;
+    default-font-family: "Inter";
+    default-font-size: 13px;
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 12px;
+        padding: 24px;
+
+        Text {
+            text: @tr("Open your music folder");
+            horizontal-alignment: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: Theme.text-primary;
+        }
+
+        HorizontalLayout {
+            alignment: center;
+
+            Text {
+                max-width: 400px;
+                text: @tr("Colophon reads the tags of every MP3 in a folder and its subfolders. Nothing is written to your files until you save.");
+                horizontal-alignment: center;
+                wrap: word-wrap;
+                color: Theme.text-secondary;
+            }
+        }
+    }
+}

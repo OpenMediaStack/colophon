@@ -1,0 +1,30 @@
+import { Palette } from "std-widgets.slint";
+
+// The colour tokens of the design brief, for the dark and the light theme.
+export global Theme {
+    in-out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+
+    out property <color> surface-0: self.dark ? #121214 : #F2F2F4;
+    out property <color> surface-1: self.dark ? #18181B : #FFFFFF;
+    out property <color> surface-2: self.dark ? #202024 : #F7F7F8;
+    out property <color> surface-3: self.dark ? #2A2A2F : #E8E8EB;
+    out property <color> border-subtle: self.dark ? #2C2C31 : #E4E4E7;
+    out property <color> border-row: self.dark ? #1F1F23 : #F1F1F3;
+    out property <color> border-strong: self.dark ? #3A3A40 : #D4D4D8;
+    out property <color> text-primary: self.dark ? #ECECEE : #18181B;
+    out property <color> text-secondary: self.dark ? #A1A1AA : #52525B;
+    out property <color> text-tertiary: self.dark ? #8A8A93 : #6B6B74;
+    out property <color> text-disabled: self.dark ? #52525B : #A1A1AA;
+    out property <color> accent: #EAB308;
+    out property <color> accent-hover: #FACC15;
+    out property <color> accent-text: self.dark ? #EAB308 : #8F5A06;
+    out property <color> accent-selection: self.dark ? #3A3118 : #FCF0C8;
+    out property <color> on-accent: #1A1405;
+    out property <color> focus-ring: self.dark ? #EAB30899 : #CA8A04B3;
+    out property <color> modified-border: self.dark ? #EAB3088C : #CA8A04B3;
+    out property <color> error: self.dark ? #F87171 : #C62828;
+    out property <color> on-error: self.dark ? #2A0A0A : #FFFFFF;
+    out property <color> warning: self.dark ? #FB923C : #C2410C;
+    out property <color> scrim: self.dark ? #00000073 : #18181B2E;
+    out property <color> menu-bar: self.dark ? #1C1C1F : #F0F0F2;
+}
