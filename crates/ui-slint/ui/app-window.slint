@@ -7,12 +7,12 @@ import { Theme } from "theme.slint";
 import { Region, ToolbarButton } from "widgets.slint";
 import { EmptyState } from "empty-state.slint";
 import { ScanState, StatusBar } from "status-bar.slint";
-import { TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
+import { TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
 
-export { Theme, ScanState, TrackColumns, TrackRow, TrackStatus }
+export { Theme, ScanState, TrackColumn, TrackColumns, TrackRow, TrackStatus }
 
 // The user actions the window can ask the engine to run.
-export enum Command { open-folder, stop-scan, toggle-sidebar, toggle-inspector }
+export enum Command { open-folder, stop-scan, toggle-sidebar, toggle-inspector, reset-columns }
 
 export component AppWindow inherits Window {
     in property <bool> sidebar-visible: true;
@@ -38,6 +38,7 @@ export component AppWindow inherits Window {
     // reference captures do not depend on the machine.
     in property <bool> mac-shortcuts: Platform.os == OperatingSystemType.macos;
     callback run(Command);
+    callback toggle-column(TrackColumn);
 
     property <length> sidebar-width: 220px;
     property <length> inspector-width: 320px;
@@ -180,6 +181,12 @@ export component AppWindow inherits Window {
                 if root.folder-open: TrackTable {
                     rows: root.tracks;
                     columns: root.columns;
+                    toggle-column(column) => {
+                        root.toggle-column(column);
+                    }
+                    reset-columns => {
+                        root.run(Command.reset-columns);
+                    }
                 }
 
                 Region {

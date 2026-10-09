@@ -4,15 +4,13 @@ use std::cell::RefCell;
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
-use std::thread;
-use std::time::{Duration, Instant};
 
 use colophon_engine::Engine;
 use colophon_ui::{AppWindow, ComponentHandle};
 use slint::platform::{Key, PointerEventButton, WindowEvent};
 use tempfile::TempDir;
 
-use common::{TestResult, find, shows};
+use common::{TestResult, find, folder_with_fixture, shows, wait_until_shown};
 
 /// The main window, in English at 1440 by 900, whose folder dialog answers `chosen`.
 fn open_main_window(chosen: Option<PathBuf>) -> Result<AppWindow, Box<dyn Error>> {
@@ -37,18 +35,6 @@ fn folder_with_mp3s(count: usize) -> Result<TempDir, Box<dyn Error>> {
     )
 }
 
-/// A folder holding a copy of `fixture`, a file of `testdata/`, at `name`.
-fn folder_with_fixture(fixture: &str, name: &str) -> Result<TempDir, Box<dyn Error>> {
-    let folder = tempfile::tempdir()?;
-    let path = folder.path().join(name);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata");
-    fs::copy(fixtures.join(fixture), path)?;
-    Ok(folder)
-}
-
 /// A folder of files that only start like an MP3, whose tags cannot be read.
 fn folder_with_files(names: &[impl AsRef<str>]) -> Result<TempDir, Box<dyn Error>> {
     let folder = tempfile::tempdir()?;
@@ -60,19 +46,6 @@ fn folder_with_files(names: &[impl AsRef<str>]) -> Result<TempDir, Box<dyn Error
         fs::write(path, b"ID3")?;
     }
     Ok(folder)
-}
-
-/// Lets the scan thread work and the window's timers fire, until `label` shows or a few seconds pass.
-fn wait_until_shown(window: &AppWindow, label: &str) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(5);
-    while !shows(window, label) {
-        if Instant::now() > deadline {
-            return Err(format!("{label:?} never showed").into());
-        }
-        thread::sleep(Duration::from_millis(2));
-        i_slint_backend_testing::mock_elapsed_time(Duration::from_millis(60));
-    }
-    Ok(())
 }
 
 #[test]

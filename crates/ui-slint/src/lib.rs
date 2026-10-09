@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::time::Duration;
 
-use colophon_engine::{Command, Engine, Library, ScanStatus, Track, ViewState};
+use colophon_engine::{Column, Command, Engine, Library, ScanStatus, Track, ViewState};
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
 mod generated {
@@ -15,7 +15,9 @@ mod generated {
     slint::include_modules!();
 }
 
-pub use generated::{AppWindow, ScanState, Theme, TrackColumns, TrackRow, TrackStatus};
+pub use generated::{
+    AppWindow, ScanState, Theme, TrackColumn, TrackColumns, TrackRow, TrackStatus,
+};
 pub use slint::{ComponentHandle, PlatformError};
 
 /// How often the window takes in what a running scan found: often enough to look live, rarely
@@ -43,6 +45,10 @@ pub fn main_window(
         let bridge = Rc::clone(&bridge);
         move |command| run(&bridge, command)
     });
+    window.on_toggle_column({
+        let bridge = Rc::clone(&bridge);
+        move |column| execute(&bridge, Command::ToggleColumn(engine_column(column)))
+    });
     Ok(window)
 }
 
@@ -59,11 +65,16 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         generated::Command::ToggleSidebar => Command::ToggleSidebar,
         generated::Command::ToggleInspector => Command::ToggleInspector,
         generated::Command::StopScan => Command::StopScan,
+        generated::Command::ResetColumns => Command::ResetColumns,
         generated::Command::OpenFolder => match (bridge.pick_folder)() {
             Some(folder) => Command::OpenFolder(folder),
             None => return,
         },
     };
+    execute(bridge, command);
+}
+
+fn execute(bridge: &Rc<Bridge>, command: Command) {
     bridge.engine.borrow_mut().execute(command);
     bridge.show();
     if bridge.engine.borrow().library().status == ScanStatus::Scanning {
@@ -111,19 +122,43 @@ impl Bridge {
         if library.tracks.len() < self.tracks.row_count() {
             self.tracks.clear();
         }
-        let folder = library.folder.as_deref().unwrap_or(Path::new(""));
         let found = library
             .tracks
             .get(self.tracks.row_count()..)
             .unwrap_or_default();
-        self.tracks
-            .extend(found.iter().map(|track| track_row(folder, track)));
+        self.tracks.extend(found.iter().map(track_row));
     }
 }
 
 fn show_view(window: &AppWindow, view: &ViewState) {
     window.set_sidebar_visible(view.sidebar_visible);
     window.set_inspector_visible(view.inspector_visible);
+    let shown = |column| view.columns.contains(column);
+    window.set_columns(TrackColumns {
+        artist: shown(Column::Artist),
+        album: shown(Column::Album),
+        year: shown(Column::Year),
+        genre: shown(Column::Genre),
+        time: shown(Column::Time),
+        bitrate: shown(Column::Bitrate),
+        tags: shown(Column::Tags),
+        file: shown(Column::File),
+        folder: shown(Column::Folder),
+    });
+}
+
+fn engine_column(column: TrackColumn) -> Column {
+    match column {
+        TrackColumn::Artist => Column::Artist,
+        TrackColumn::Album => Column::Album,
+        TrackColumn::Year => Column::Year,
+        TrackColumn::Genre => Column::Genre,
+        TrackColumn::Time => Column::Time,
+        TrackColumn::Bitrate => Column::Bitrate,
+        TrackColumn::Tags => Column::Tags,
+        TrackColumn::File => Column::File,
+        TrackColumn::Folder => Column::Folder,
+    }
 }
 
 fn show_library(window: &AppWindow, library: &Library) {
@@ -149,7 +184,7 @@ fn show_library(window: &AppWindow, library: &Library) {
 
 /// A track as the table shows it. A file without a title tag, or whose tags cannot be read, is
 /// titled after its file name.
-fn track_row(folder: &Path, track: &Track) -> TrackRow {
+fn track_row(track: &Track) -> TrackRow {
     let path = &track.path;
     let name = |part: Option<&OsStr>| -> SharedString {
         part.map(|part| part.to_string_lossy().as_ref().into())
@@ -158,11 +193,7 @@ fn track_row(folder: &Path, track: &Track) -> TrackRow {
     let row = TrackRow {
         title: name(path.file_stem()),
         file: name(path.file_name()),
-        folder: path
-            .parent()
-            .and_then(|parent| parent.strip_prefix(folder).ok())
-            .map(|relative| relative.display().to_string().into())
-            .unwrap_or_default(),
+        folder: path.parent().map(display_folder).unwrap_or_default().into(),
         ..TrackRow::default()
     };
     let Ok(metadata) = &track.metadata else {
@@ -278,7 +309,7 @@ mod tests {
     #[test]
     fn a_track_shows_its_tags() {
         let path = Path::new("/music/07.mp3");
-        let row = track_row(Path::new("/music"), &track(path, Ok(paper_satellites())));
+        let row = track_row(&track(path, Ok(paper_satellites())));
 
         assert_eq!(row.status, TrackStatus::Normal);
         assert_eq!(row.number, "03");
@@ -297,7 +328,7 @@ mod tests {
     #[test]
     fn a_track_without_a_title_is_titled_after_its_file_name() {
         let path = Path::new("/music/07 Paper Satellites.mp3");
-        let row = track_row(Path::new("/music"), &track(path, Ok(Metadata::default())));
+        let row = track_row(&track(path, Ok(Metadata::default())));
 
         assert_eq!(row.title, "07 Paper Satellites");
         assert!(row.untitled);
@@ -308,10 +339,7 @@ mod tests {
     #[test]
     fn an_unreadable_track_is_titled_after_its_file_name() {
         let path = Path::new("/music/07 Paper Satellites.mp3");
-        let row = track_row(
-            Path::new("/music"),
-            &track(path, Err(ReadError::ReaderPanicked)),
-        );
+        let row = track_row(&track(path, Err(ReadError::ReaderPanicked)));
 
         assert_eq!(row.status, TrackStatus::Unreadable);
         assert_eq!(row.title, "07 Paper Satellites");
@@ -328,21 +356,19 @@ mod tests {
     }
 
     #[test]
-    fn a_track_in_a_subfolder_shows_the_path_from_the_opened_folder() {
-        let folder = Path::new("/music");
-        let path = folder
-            .join("Marlowe Kite")
-            .join("Small Hours")
-            .join("07.mp3");
-        let row = track_row(folder, &track(&path, Ok(Metadata::default())));
+    fn a_track_shows_the_full_path_of_its_folder() {
+        let path = Path::new("/Volumes/Music/Marlowe Kite/Small Hours/07.mp3");
+        let row = track_row(&track(path, Ok(Metadata::default())));
 
-        assert_eq!(
-            row.folder,
-            Path::new("Marlowe Kite")
-                .join("Small Hours")
-                .display()
-                .to_string()
-        );
+        assert_eq!(row.folder, "/Volumes/Music/Marlowe Kite/Small Hours");
+    }
+
+    #[test]
+    fn a_track_in_the_home_folder_shows_its_folder_with_a_tilde() {
+        let path = home().join("Music").join("07.mp3");
+        let row = track_row(&track(&path, Ok(Metadata::default())));
+
+        assert_eq!(row.folder, "~/Music");
     }
 
     #[test]
