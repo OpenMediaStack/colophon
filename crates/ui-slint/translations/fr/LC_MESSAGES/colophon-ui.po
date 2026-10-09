@@ -1,101 +1,94 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
-"POT-Creation-Date: 2026-10-09 15:37+0000\n"
+"POT-Creation-Date: 2026-10-09 16:21+0000\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: ui/app-window.slint:61
+#: ui/app-window.slint:66
 msgctxt "AppWindow"
 msgid "File"
 msgstr "Fichier"
 
-#: ui/app-window.slint:64
+#: ui/app-window.slint:69
 msgctxt "AppWindow"
 msgid "Open Folder…"
 msgstr "Ouvrir un dossier…"
 
-#: ui/app-window.slint:73
+#: ui/app-window.slint:78
 msgctxt "AppWindow"
 msgid "View"
 msgstr "Présentation"
 
-#: ui/app-window.slint:76
+#: ui/app-window.slint:81
 msgctxt "AppWindow"
 msgid "Hide Sidebar"
 msgstr "Masquer la barre latérale"
 
-#: ui/app-window.slint:76
+#: ui/app-window.slint:81
 msgctxt "AppWindow"
 msgid "Show Sidebar"
 msgstr "Afficher la barre latérale"
 
-#: ui/app-window.slint:84
+#: ui/app-window.slint:89
 msgctxt "AppWindow"
 msgid "Hide Inspector"
 msgstr "Masquer l’inspecteur"
 
-#: ui/app-window.slint:84
+#: ui/app-window.slint:89
 msgctxt "AppWindow"
 msgid "Show Inspector"
 msgstr "Afficher l’inspecteur"
 
-#: ui/app-window.slint:109
+#: ui/app-window.slint:114
 msgctxt "AppWindow"
 msgid "Open folder"
 msgstr "Ouvrir un dossier"
 
-#: ui/app-window.slint:118
+#: ui/app-window.slint:123
 msgctxt "AppWindow"
 msgid "Toolbar"
 msgstr "Barre d’outils"
 
-#: ui/app-window.slint:125
+#: ui/app-window.slint:130
 msgctxt "AppWindow"
 msgid "Toggle sidebar"
 msgstr "Afficher ou masquer la barre latérale"
 
-#: ui/app-window.slint:135
+#: ui/app-window.slint:140
 msgctxt "AppWindow"
 msgid "Toggle inspector"
 msgstr "Afficher ou masquer l’inspecteur"
 
-#: ui/app-window.slint:150
+#: ui/app-window.slint:155
 msgctxt "AppWindow"
 msgid "Sidebar"
 msgstr "Barre latérale"
 
-#: ui/app-window.slint:164
-msgctxt "AppWindow"
-msgid "Tracks"
-msgstr "Morceaux"
-
-#: ui/app-window.slint:170
+#: ui/app-window.slint:175
 msgctxt "AppWindow"
 msgid "Player"
 msgstr "Lecteur"
 
-#: ui/app-window.slint:177
+#: ui/app-window.slint:182
 msgctxt "AppWindow"
 msgid "Inspector"
 msgstr "Inspecteur"
 
-#: ui/empty-state.slint:37
+#: ui/empty-state.slint:38
 msgctxt "EmptyState"
 msgid "Open your music folder"
 msgstr "Ouvrez votre dossier de musique"
 
-#: ui/empty-state.slint:50
+#: ui/empty-state.slint:51
 msgctxt "EmptyState"
-msgid ""
-"Colophon reads the tags of every MP3 in a folder and its subfolders. Nothing "
-"is written to your files until you save."
+msgid "Colophon reads the tags of every MP3 in a folder and its subfolders. Nothing is written to your files until you save."
 msgstr "Colophon lit les tags de chaque MP3 d’un dossier et de ses sous-dossiers. Rien n’est écrit dans vos fichiers tant que vous n’enregistrez pas."
 
-#: ui/empty-state.slint:59
+#: ui/empty-state.slint:60
 msgctxt "EmptyState"
 msgid "Open folder…"
 msgstr "Ouvrir un dossier…"
@@ -140,6 +133,35 @@ msgstr "Arrêter"
 msgctxt "StatusBar"
 msgid "{n} file could not be read"
 msgid_plural "{n} files could not be read"
-
 msgstr[0] "{n} fichier illisible"
 msgstr[1] "{n} fichiers illisibles"
+
+#: ui/track-table.slint:159
+msgctxt "TrackTable"
+msgid "Title"
+msgstr "Titre"
+
+#: ui/track-table.slint:175
+msgctxt "TrackTable"
+msgid "File"
+msgstr "Fichier"
+
+#: ui/track-table.slint:179
+msgctxt "TrackTable"
+msgid "Folder"
+msgstr "Dossier"
+
+#: ui/track-table.slint:216
+msgctxt "TrackTable"
+msgid "Tracks"
+msgstr "Morceaux"
+
+#: ui/track-table.slint:247
+msgctxt "TrackTable"
+msgid "Vertical scroll bar"
+msgstr "Barre de défilement verticale"
+
+#: ui/track-table.slint:267
+msgctxt "TrackTable"
+msgid "Horizontal scroll bar"
+msgstr "Barre de défilement horizontale"

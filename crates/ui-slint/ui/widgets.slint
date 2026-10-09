@@ -124,3 +124,68 @@ export component SmallButton inherits Rectangle {
         }
     }
 }
+
+// A list that creates only the rows in view. Slint virtualises a `for` placed directly in an element
+// named ListView with these properties. Dragging inside it selects, as in a desktop app, so it does not pan.
+export component ListView inherits Flickable {
+    out property <length> visible-width: self.width;
+    out property <length> visible-height: self.height;
+    mouse-drag-pan-enabled: false;
+}
+
+// A thin scroll bar drawn over the edge of the content it scrolls. `position` is the content's offset,
+// zero or negative as in a Flickable.
+export component ScrollBar inherits Rectangle {
+    in property <bool> horizontal;
+    in property <length> content-size;
+    in property <length> visible-size;
+    in-out property <length> position;
+
+    property <length> track-length: root.horizontal ? root.width : root.height;
+    property <length> max-scroll: max(0px, root.content-size - root.visible-size);
+    property <length> thumb-length: root.content-size > 0px ? max(24px, root.visible-size / root.content-size * root.track-length) : root.track-length;
+    property <length> travel: max(1px, root.track-length - root.thumb-length);
+    property <length> thumb-offset: root.max-scroll > 0px ? -root.position / root.max-scroll * root.travel : 0px;
+    property <length> pressed-position;
+
+    visible: root.max-scroll > 0px;
+    accessible-role: slider;
+
+    function clamped(position: length) -> length {
+        return max(-root.max-scroll, min(0px, position));
+    }
+
+    function center-thumb-on(pointer: length) {
+        root.position = root.clamped(-(pointer - root.thumb-length / 2) / root.travel * root.max-scroll);
+    }
+
+    Rectangle {
+        x: root.horizontal ? root.thumb-offset : 2px;
+        y: root.horizontal ? 2px : root.thumb-offset;
+        width: root.horizontal ? root.thumb-length : root.width - 4px;
+        height: root.horizontal ? root.height - 4px : root.thumb-length;
+        border-radius: 3px;
+        background: touch.pressed || touch.has-hover ? Theme.text-tertiary : Theme.border-strong;
+        animate background { duration: 120ms; }
+    }
+
+    touch := TouchArea {
+        property <length> pointer: root.horizontal ? self.mouse-x : self.mouse-y;
+        property <length> pressed-pointer: root.horizontal ? self.pressed-x : self.pressed-y;
+
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down && event.button == PointerEventButton.left {
+                if self.pointer < root.thumb-offset || self.pointer > root.thumb-offset + root.thumb-length {
+                    root.center-thumb-on(self.pointer);
+                }
+                root.pressed-position = root.position;
+            }
+        }
+
+        moved => {
+            if self.pressed {
+                root.position = root.clamped(root.pressed-position - (self.pointer - self.pressed-pointer) / root.travel * root.max-scroll);
+            }
+        }
+    }
+}

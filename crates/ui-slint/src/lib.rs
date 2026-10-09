@@ -1,12 +1,13 @@
 //! Colophon's user interface, written in Slint, and its bridge to the engine.
 
 use std::cell::RefCell;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::time::Duration;
 
 use colophon_engine::{Command, Engine, Library, ScanStatus, ViewState};
-use slint::{Timer, TimerMode};
+use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
 mod generated {
     // Slint's generated code unwraps internally; the lints stay on for our own code.
@@ -14,7 +15,7 @@ mod generated {
     slint::include_modules!();
 }
 
-pub use generated::{AppWindow, Theme};
+pub use generated::{AppWindow, ScanState, Theme, TrackRow};
 pub use slint::{ComponentHandle, PlatformError};
 
 /// How often the window takes in what a running scan found: often enough to look live, rarely
@@ -28,9 +29,12 @@ pub fn main_window(
     pick_folder: impl Fn() -> Option<PathBuf> + 'static,
 ) -> Result<AppWindow, PlatformError> {
     let window = AppWindow::new()?;
+    let tracks = Rc::new(VecModel::default());
+    window.set_tracks(ModelRc::from(Rc::clone(&tracks)));
     let bridge = Rc::new(Bridge {
         engine: RefCell::new(engine),
         window: window.as_weak(),
+        tracks,
         scan_timer: Timer::default(),
         pick_folder: Box::new(pick_folder),
     });
@@ -45,6 +49,7 @@ pub fn main_window(
 struct Bridge {
     engine: RefCell<Engine>,
     window: slint::Weak<AppWindow>,
+    tracks: Rc<VecModel<TrackRow>>,
     scan_timer: Timer,
     pick_folder: Box<dyn Fn() -> Option<PathBuf>>,
 }
@@ -97,6 +102,22 @@ impl Bridge {
         let engine = self.engine.borrow();
         show_view(&window, engine.view());
         show_library(&window, engine.library());
+        self.show_tracks(engine.library());
+    }
+
+    /// Adds the tracks found since the last call. A newly opened folder has fewer tracks than the
+    /// table, which empties it first.
+    fn show_tracks(&self, library: &Library) {
+        if library.tracks.len() < self.tracks.row_count() {
+            self.tracks.clear();
+        }
+        let folder = library.folder.as_deref().unwrap_or(Path::new(""));
+        let found = library
+            .tracks
+            .get(self.tracks.row_count()..)
+            .unwrap_or_default();
+        self.tracks
+            .extend(found.iter().map(|track| track_row(folder, &track.path)));
     }
 }
 
@@ -126,6 +147,23 @@ fn show_library(window: &AppWindow, library: &Library) {
     window.set_unreadable_count(count(library.unreadable.len()));
 }
 
+/// A track as the table shows it. Until its tags are read, its title is its file name.
+fn track_row(folder: &Path, path: &Path) -> TrackRow {
+    let text = |part: Option<&OsStr>| -> SharedString {
+        part.map(|part| part.to_string_lossy().as_ref().into())
+            .unwrap_or_default()
+    };
+    TrackRow {
+        title: text(path.file_stem()),
+        file: text(path.file_name()),
+        folder: path
+            .parent()
+            .and_then(|parent| parent.strip_prefix(folder).ok())
+            .map(|relative| relative.display().to_string().into())
+            .unwrap_or_default(),
+    }
+}
+
 fn count(length: usize) -> i32 {
     i32::try_from(length).unwrap_or(i32::MAX)
 }
@@ -151,6 +189,38 @@ mod tests {
         std::env::var_os("HOME")
             .map(PathBuf::from)
             .unwrap_or_default()
+    }
+
+    #[test]
+    fn a_track_is_titled_after_its_file_name() {
+        let row = track_row(
+            Path::new("/music"),
+            Path::new("/music/07 Paper Satellites.mp3"),
+        );
+
+        assert_eq!(row.title, "07 Paper Satellites");
+        assert_eq!(row.file, "07 Paper Satellites.mp3");
+        assert_eq!(row.folder, "");
+    }
+
+    #[test]
+    fn a_track_in_a_subfolder_shows_the_path_from_the_opened_folder() {
+        let folder = Path::new("/music");
+        let row = track_row(
+            folder,
+            &folder
+                .join("Marlowe Kite")
+                .join("Small Hours")
+                .join("07.mp3"),
+        );
+
+        assert_eq!(
+            row.folder,
+            Path::new("Marlowe Kite")
+                .join("Small Hours")
+                .display()
+                .to_string()
+        );
     }
 
     #[test]
