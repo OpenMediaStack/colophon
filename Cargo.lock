@@ -729,6 +729,10 @@ dependencies = [
 [[package]]
 name = "colophon-engine"
 version = "0.1.0"
+dependencies = [
+ "colophon-library",
+ "tempfile",
+]
 
 [[package]]
 name = "colophon-library"
