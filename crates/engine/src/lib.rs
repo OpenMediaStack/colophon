@@ -1,5 +1,7 @@
 //! Colophon's application state and the commands that change it. No UI types.
 
+mod columns;
+
 use std::path::PathBuf;
 use std::sync::mpsc::TryRecvError;
 
@@ -8,6 +10,7 @@ use colophon_library::{
 };
 
 pub use colophon_library::{Track, tags};
+pub use columns::{Column, Columns};
 
 /// A user action. The UI turns buttons, menu items and shortcuts into commands.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -16,6 +19,8 @@ pub enum Command {
     ToggleInspector,
     OpenFolder(PathBuf),
     StopScan,
+    ToggleColumn(Column),
+    ResetColumns,
 }
 
 impl Command {
@@ -26,15 +31,19 @@ impl Command {
             Command::ToggleInspector => "view.toggle_inspector",
             Command::OpenFolder(_) => "library.open_folder",
             Command::StopScan => "library.stop_scan",
+            Command::ToggleColumn(_) => "view.toggle_column",
+            Command::ResetColumns => "view.reset_columns",
         }
     }
 }
 
-/// Which panels the user wants to see. The UI may still hide the sidebar when the window is too narrow.
+/// Which panels and columns the user wants to see. The UI may still hide the sidebar when the
+/// window is too narrow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ViewState {
     pub sidebar_visible: bool,
     pub inspector_visible: bool,
+    pub columns: Columns,
 }
 
 impl Default for ViewState {
@@ -42,6 +51,7 @@ impl Default for ViewState {
         Self {
             sidebar_visible: true,
             inspector_visible: true,
+            columns: Columns::default(),
         }
     }
 }
@@ -94,6 +104,8 @@ impl Engine {
             Command::ToggleInspector => self.view.inspector_visible = !self.view.inspector_visible,
             Command::OpenFolder(folder) => self.open_folder(folder),
             Command::StopScan => self.stop_scan(),
+            Command::ToggleColumn(column) => self.view.columns.toggle(column),
+            Command::ResetColumns => self.view.columns = Columns::default(),
         }
     }
 

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use colophon_engine::{Command, Engine, ViewState};
+use colophon_engine::{Column, Command, Engine, ViewState};
 
 #[test]
 fn both_panels_are_visible_at_start() {
@@ -42,12 +42,61 @@ fn toggling_twice_restores_the_panel() {
 }
 
 #[test]
+fn the_table_shows_the_columns_of_the_mockup_at_start() {
+    let engine = Engine::new();
+
+    let shown: Vec<Column> = Column::ALL
+        .into_iter()
+        .filter(|column| engine.view().columns.contains(*column))
+        .collect();
+
+    assert_eq!(
+        shown,
+        [
+            Column::Artist,
+            Column::Album,
+            Column::Year,
+            Column::Genre,
+            Column::Time,
+            Column::Bitrate
+        ]
+    );
+}
+
+#[test]
+fn toggling_a_column_shows_or_hides_it_alone() {
+    let mut engine = Engine::new();
+
+    engine.execute(Command::ToggleColumn(Column::Tags));
+    engine.execute(Command::ToggleColumn(Column::Genre));
+
+    let columns = engine.view().columns;
+    assert!(columns.contains(Column::Tags));
+    assert!(!columns.contains(Column::Genre));
+    assert!(columns.contains(Column::Year));
+    assert!(!columns.contains(Column::File));
+}
+
+#[test]
+fn resetting_the_columns_brings_back_those_of_the_mockup() {
+    let mut engine = Engine::new();
+    engine.execute(Command::ToggleColumn(Column::Tags));
+    engine.execute(Command::ToggleColumn(Column::Artist));
+
+    engine.execute(Command::ResetColumns);
+
+    assert_eq!(*engine.view(), ViewState::default());
+}
+
+#[test]
 fn command_ids_are_unique() {
     let commands = [
         Command::ToggleSidebar,
         Command::ToggleInspector,
         Command::OpenFolder(PathBuf::new()),
         Command::StopScan,
+        Command::ToggleColumn(Column::Tags),
+        Command::ResetColumns,
     ];
 
     let ids: HashSet<_> = commands.iter().map(Command::id).collect();

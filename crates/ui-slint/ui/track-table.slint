@@ -1,7 +1,9 @@
 import { Theme } from "theme.slint";
-import { ListView, ScrollBar } from "widgets.slint";
+import { ListView, ScrollBar, ToolbarButton } from "widgets.slint";
 
 export enum TrackStatus { normal, unreadable }
+
+export enum TrackColumn { artist, album, year, genre, time, bitrate, tags, file, folder }
 
 // One file of the opened folder, as the table shows it.
 export struct TrackRow {
@@ -183,6 +185,8 @@ component ScrollingRow inherits Rectangle {
 export component TrackTable inherits Rectangle {
     in property <[TrackRow]> rows;
     in property <TrackColumns> columns;
+    callback toggle-column(TrackColumn);
+    callback reset-columns;
 
     property <length> header-height: 28px;
     property <length> row-height: 26px;
@@ -259,88 +263,209 @@ export component TrackTable inherits Rectangle {
 
     background: Theme.surface-1;
 
-    Rectangle {
-        height: root.header-height;
+    // A right click on the header, or the button at its right end, opens the column chooser.
+    header-menu := ContextMenuArea {
         y: 0;
-        background: Theme.surface-2;
+        height: root.header-height;
 
-        HorizontalLayout {
-            x: 0;
-            width: root.pinned-width;
-            height: parent.height;
-
-            Rectangle {
-                width: root.status-width;
+        Menu {
+            MenuItem {
+                title: @tr("Title");
+                checkable: true;
+                checked: true;
+                enabled: false;
             }
 
-            HeaderCell {
-                width: root.number-width;
-                text: "#";
-                text-alignment: right;
+            MenuItem {
+                title: @tr("Artist");
+                checkable: true;
+                checked: root.columns.artist;
+                activated => {
+                    root.toggle-column(TrackColumn.artist);
+                }
             }
 
-            HeaderCell {
-                text: @tr("Title");
+            MenuItem {
+                title: @tr("Album");
+                checkable: true;
+                checked: root.columns.album;
+                activated => {
+                    root.toggle-column(TrackColumn.album);
+                }
+            }
+
+            MenuItem {
+                title: @tr("Year");
+                checkable: true;
+                checked: root.columns.year;
+                activated => {
+                    root.toggle-column(TrackColumn.year);
+                }
+            }
+
+            MenuItem {
+                title: @tr("Genre");
+                checkable: true;
+                checked: root.columns.genre;
+                activated => {
+                    root.toggle-column(TrackColumn.genre);
+                }
+            }
+
+            MenuItem {
+                title: @tr("Time");
+                checkable: true;
+                checked: root.columns.time;
+                activated => {
+                    root.toggle-column(TrackColumn.time);
+                }
+            }
+
+            MenuItem {
+                title: @tr("Bitrate");
+                checkable: true;
+                checked: root.columns.bitrate;
+                activated => {
+                    root.toggle-column(TrackColumn.bitrate);
+                }
+            }
+
+            MenuItem {
+                title: @tr("Tags");
+                checkable: true;
+                checked: root.columns.tags;
+                activated => {
+                    root.toggle-column(TrackColumn.tags);
+                }
+            }
+
+            MenuItem {
+                title: @tr("File");
+                checkable: true;
+                checked: root.columns.file;
+                activated => {
+                    root.toggle-column(TrackColumn.file);
+                }
+            }
+
+            MenuItem {
+                title: @tr("Folder");
+                checkable: true;
+                checked: root.columns.folder;
+                activated => {
+                    root.toggle-column(TrackColumn.folder);
+                }
+            }
+
+            MenuSeparator { }
+
+            MenuItem {
+                title: @tr("Reset to default columns");
+                activated => {
+                    root.reset-columns();
+                }
             }
         }
 
         Rectangle {
-            x: root.scrolling-x;
-            width: root.scrolling-width;
-            clip: true;
+            background: Theme.surface-2;
 
             HorizontalLayout {
-                x: root.scroll-x;
-                width: root.scrolling-content-width;
+                x: 0;
+                width: root.pinned-width;
                 height: parent.height;
-                alignment: start;
 
-                if root.columns.artist: HeaderCell {
-                    width: root.widths.artist;
-                    text: @tr("Artist");
+                Rectangle {
+                    width: root.status-width;
                 }
-                if root.columns.album: HeaderCell {
-                    width: root.widths.album;
-                    text: @tr("Album");
-                }
-                if root.columns.year: HeaderCell {
-                    width: root.widths.year;
-                    text: @tr("Year");
+
+                HeaderCell {
+                    width: root.number-width;
+                    text: "#";
                     text-alignment: right;
                 }
-                if root.columns.genre: HeaderCell {
-                    width: root.widths.genre;
-                    text: @tr("Genre");
-                }
-                if root.columns.time: HeaderCell {
-                    width: root.widths.time;
-                    text: @tr("Time");
-                    text-alignment: right;
-                }
-                if root.columns.bitrate: HeaderCell {
-                    width: root.widths.bitrate;
-                    text: @tr("Bitrate");
-                    text-alignment: right;
-                }
-                if root.columns.tags: HeaderCell {
-                    width: root.widths.tags;
-                    text: @tr("Tags");
-                }
-                if root.columns.file: HeaderCell {
-                    width: root.widths.file;
-                    text: @tr("File");
-                }
-                if root.columns.folder: HeaderCell {
-                    width: root.widths.folder;
-                    text: @tr("Folder");
+
+                HeaderCell {
+                    text: @tr("Title");
                 }
             }
-        }
 
-        Rectangle {
-            y: parent.height - 1px;
-            height: 1px;
-            background: Theme.border-subtle;
+            Rectangle {
+                x: root.scrolling-x;
+                width: root.scrolling-width;
+                clip: true;
+
+                HorizontalLayout {
+                    x: root.scroll-x;
+                    width: root.scrolling-content-width;
+                    height: parent.height;
+                    alignment: start;
+
+                    if root.columns.artist: HeaderCell {
+                        width: root.widths.artist;
+                        text: @tr("Artist");
+                    }
+                    if root.columns.album: HeaderCell {
+                        width: root.widths.album;
+                        text: @tr("Album");
+                    }
+                    if root.columns.year: HeaderCell {
+                        width: root.widths.year;
+                        text: @tr("Year");
+                        text-alignment: right;
+                    }
+                    if root.columns.genre: HeaderCell {
+                        width: root.widths.genre;
+                        text: @tr("Genre");
+                    }
+                    if root.columns.time: HeaderCell {
+                        width: root.widths.time;
+                        text: @tr("Time");
+                        text-alignment: right;
+                    }
+                    if root.columns.bitrate: HeaderCell {
+                        width: root.widths.bitrate;
+                        text: @tr("Bitrate");
+                        text-alignment: right;
+                    }
+                    if root.columns.tags: HeaderCell {
+                        width: root.widths.tags;
+                        text: @tr("Tags");
+                    }
+                    if root.columns.file: HeaderCell {
+                        width: root.widths.file;
+                        text: @tr("File");
+                    }
+                    if root.columns.folder: HeaderCell {
+                        width: root.widths.folder;
+                        text: @tr("Folder");
+                    }
+                }
+            }
+
+            Rectangle {
+                y: parent.height - 1px;
+                height: 1px;
+                background: Theme.border-subtle;
+            }
+
+            Rectangle {
+                x: parent.width - root.end-width;
+                width: root.end-width;
+                height: parent.height - 1px;
+                background: Theme.surface-2;
+
+                ToolbarButton {
+                    width: 24px;
+                    height: 24px;
+                    icon: @image-url("images/columns.svg");
+                    icon-size: 14px;
+                    label: @tr("Choose columns");
+                    clicked => {
+                        header-menu.show({ x: header-menu.width - root.end-width, y: root.header-height });
+                    }
+                }
+            }
         }
     }
 

@@ -2,12 +2,16 @@
 #![allow(dead_code)]
 
 use std::error::Error;
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use colophon_ui::{AppWindow, ComponentHandle};
 use i_slint_backend_testing::{ElementHandle, TestingBackend, TestingBackendOptions};
 use slint::LogicalSize;
 use slint::platform::SetPlatformError;
+use tempfile::TempDir;
 
 pub type TestResult = Result<(), Box<dyn Error>>;
 
@@ -85,4 +89,37 @@ pub fn assert_matches_reference(window: &AppWindow, name: &str) -> TestResult {
         .into());
     }
     Ok(())
+}
+
+/// A folder holding a copy of `fixture`, a file of `testdata/`, at `name`.
+pub fn folder_with_fixture(fixture: &str, name: &str) -> Result<TempDir, Box<dyn Error>> {
+    let folder = tempfile::tempdir()?;
+    let path = folder.path().join(name);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata");
+    fs::copy(fixtures.join(fixture), path)?;
+    Ok(folder)
+}
+
+/// Lets the scan thread work and the window's timers fire, until `label` shows or a few seconds pass.
+pub fn wait_until_shown(window: &AppWindow, label: &str) -> TestResult {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !shows(window, label) {
+        if Instant::now() > deadline {
+            return Err(format!("{label:?} never showed").into());
+        }
+        thread::sleep(Duration::from_millis(2));
+        i_slint_backend_testing::mock_elapsed_time(Duration::from_millis(60));
+    }
+    Ok(())
+}
+
+/// An item of the open menu. Its label is a Text, like the header cell of the same name; Slint
+/// names the menu's own `MenuItemBase::label`.
+pub fn menu_item(window: &AppWindow, label: &str) -> Result<ElementHandle, String> {
+    ElementHandle::find_by_accessible_label(window, label)
+        .find(|element| element.id().is_some_and(|id| id == "MenuItemBase::label"))
+        .ok_or_else(|| format!("no menu item labelled {label:?}"))
 }

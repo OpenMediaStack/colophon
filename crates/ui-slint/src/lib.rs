@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::time::Duration;
 
-use colophon_engine::{Command, Engine, Library, ScanStatus, Track, ViewState};
+use colophon_engine::{Column, Command, Engine, Library, ScanStatus, Track, ViewState};
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
 mod generated {
@@ -15,7 +15,9 @@ mod generated {
     slint::include_modules!();
 }
 
-pub use generated::{AppWindow, ScanState, Theme, TrackColumns, TrackRow, TrackStatus};
+pub use generated::{
+    AppWindow, ScanState, Theme, TrackColumn, TrackColumns, TrackRow, TrackStatus,
+};
 pub use slint::{ComponentHandle, PlatformError};
 
 /// How often the window takes in what a running scan found: often enough to look live, rarely
@@ -43,6 +45,10 @@ pub fn main_window(
         let bridge = Rc::clone(&bridge);
         move |command| run(&bridge, command)
     });
+    window.on_toggle_column({
+        let bridge = Rc::clone(&bridge);
+        move |column| execute(&bridge, Command::ToggleColumn(engine_column(column)))
+    });
     Ok(window)
 }
 
@@ -59,11 +65,16 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         generated::Command::ToggleSidebar => Command::ToggleSidebar,
         generated::Command::ToggleInspector => Command::ToggleInspector,
         generated::Command::StopScan => Command::StopScan,
+        generated::Command::ResetColumns => Command::ResetColumns,
         generated::Command::OpenFolder => match (bridge.pick_folder)() {
             Some(folder) => Command::OpenFolder(folder),
             None => return,
         },
     };
+    execute(bridge, command);
+}
+
+fn execute(bridge: &Rc<Bridge>, command: Command) {
     bridge.engine.borrow_mut().execute(command);
     bridge.show();
     if bridge.engine.borrow().library().status == ScanStatus::Scanning {
@@ -124,6 +135,32 @@ impl Bridge {
 fn show_view(window: &AppWindow, view: &ViewState) {
     window.set_sidebar_visible(view.sidebar_visible);
     window.set_inspector_visible(view.inspector_visible);
+    let shown = |column| view.columns.contains(column);
+    window.set_columns(TrackColumns {
+        artist: shown(Column::Artist),
+        album: shown(Column::Album),
+        year: shown(Column::Year),
+        genre: shown(Column::Genre),
+        time: shown(Column::Time),
+        bitrate: shown(Column::Bitrate),
+        tags: shown(Column::Tags),
+        file: shown(Column::File),
+        folder: shown(Column::Folder),
+    });
+}
+
+fn engine_column(column: TrackColumn) -> Column {
+    match column {
+        TrackColumn::Artist => Column::Artist,
+        TrackColumn::Album => Column::Album,
+        TrackColumn::Year => Column::Year,
+        TrackColumn::Genre => Column::Genre,
+        TrackColumn::Time => Column::Time,
+        TrackColumn::Bitrate => Column::Bitrate,
+        TrackColumn::Tags => Column::Tags,
+        TrackColumn::File => Column::File,
+        TrackColumn::Folder => Column::Folder,
+    }
 }
 
 fn show_library(window: &AppWindow, library: &Library) {
