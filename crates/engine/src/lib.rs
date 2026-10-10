@@ -61,6 +61,8 @@ pub enum Command {
     Redo,
     /// Brings the selected tracks back to their files' tags.
     Revert,
+    /// Numbers the selected tracks in the table's order, from 1 on each disc.
+    NumberTracks,
     /// The version to write one tag of the selected tracks in, or none to remove it.
     ChooseVersion(VersionChoice),
     /// Writes every pending change to its file, in the background.
@@ -109,6 +111,7 @@ impl Command {
             Command::Undo => "edit.undo",
             Command::Redo => "edit.redo",
             Command::Revert => "tags.revert",
+            Command::NumberTracks => "tags.number_tracks",
             Command::ChooseVersion(_) => "tags.choose_version",
             Command::Save => "tags.save",
             Command::ShowSource(_) => "view.show_source",
@@ -395,6 +398,14 @@ impl Engine {
             Command::Revert => self
                 .edits
                 .revert(&self.library.tracks, self.selection.iter()),
+            Command::NumberTracks => {
+                let ordered = self
+                    .listed
+                    .iter()
+                    .copied()
+                    .filter(|track| self.selection.contains(*track));
+                self.edits.number(&self.library.tracks, ordered);
+            }
             Command::ChooseVersion(choice) => {
                 self.edits
                     .choose_versions(&self.library.tracks, self.selection.iter(), choice);

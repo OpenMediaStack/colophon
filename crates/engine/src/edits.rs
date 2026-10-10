@@ -225,6 +225,34 @@ impl Edits {
         self.record(tracks, Some(edit.field()), changes);
     }
 
+    /// Numbers these tracks in this order from 1, disc by disc, each with the number of tracks
+    /// of its disc as the total. A track without a disc number counts as on the first disc.
+    pub(crate) fn number(&mut self, tracks: &[Track], ordered: impl IntoIterator<Item = usize>) {
+        let mut discs: BTreeMap<u32, Vec<usize>> = BTreeMap::new();
+        for track in ordered {
+            if let Some(wanted) = self.wanted(tracks, track) {
+                discs
+                    .entry(wanted.tags.disc.unwrap_or(1))
+                    .or_default()
+                    .push(track);
+            }
+        }
+        let edits = &*self;
+        let changes = discs
+            .into_values()
+            .flat_map(|disc| {
+                let total = u32::try_from(disc.len()).ok();
+                disc.into_iter().zip(1..).flat_map(move |(track, number)| {
+                    edits.changes(tracks, [track], |wanted, _, _| {
+                        wanted.tags.track = Some(number);
+                        wanted.tags.track_total = total;
+                    })
+                })
+            })
+            .collect();
+        self.record(tracks, None, changes);
+    }
+
     /// Writes these tracks in the version chosen for one tag, the other tag keeping its own.
     pub(crate) fn choose_versions(
         &mut self,

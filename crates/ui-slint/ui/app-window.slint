@@ -36,6 +36,7 @@ export enum Command {
     undo,
     redo,
     revert,
+    number-tracks,
     play-pause,
     play-next,
     play-previous,
@@ -243,6 +244,16 @@ export component AppWindow inherits Window {
                 enabled: root.folder-open && !root.modal;
                 activated => {
                     filter.focus-field();
+                }
+            }
+
+            MenuSeparator { }
+
+            MenuItem {
+                title: @tr("Number Tracks");
+                enabled: root.selected-count > 0 && !root.modal;
+                activated => {
+                    root.run(Command.number-tracks);
                 }
             }
         }

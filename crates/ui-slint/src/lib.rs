@@ -449,6 +449,7 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         generated::Command::Undo => Command::Undo,
         generated::Command::Redo => Command::Redo,
         generated::Command::Revert => Command::Revert,
+        generated::Command::NumberTracks => Command::NumberTracks,
         generated::Command::PlayPause => Command::PlayPause,
         generated::Command::PlayNext => Command::PlayNext,
         generated::Command::PlayPrevious => Command::PlayPrevious,

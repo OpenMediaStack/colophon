@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use colophon_engine::Engine;
-use colophon_ui::{AppWindow, ComponentHandle};
+use colophon_ui::{AppWindow, ComponentHandle, WindowCommand};
 use slint::platform::{Key, PointerEventButton};
 use tempfile::TempDir;
 
@@ -141,5 +141,20 @@ fn unsaved_changes_are_counted_in_french() -> TestResult {
         &window,
         "1 fichier avec des modifications non enregistrées"
     ));
+    Ok(())
+}
+
+#[test]
+fn numbering_the_selection_numbers_every_track_of_it() -> TestResult {
+    let (window, _folder) =
+        window_with(&[("v23_full.mp3", "1.mp3"), ("v24_unicode.mp3", "2.mp3")])?;
+    press(&window, &[Key::Control], "a");
+
+    window.invoke_run(WindowCommand::NumberTracks);
+
+    let tracks = window.get_inspected_tracks();
+    assert!(tracks.track.mixed && tracks.track.modified);
+    assert_eq!(value(&window, "Track total")?, "2");
+    assert!(shows(&window, "2 files with unsaved changes"));
     Ok(())
 }
