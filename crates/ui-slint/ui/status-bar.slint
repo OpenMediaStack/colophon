@@ -8,6 +8,7 @@ export component StatusBar inherits Rectangle {
     in property <ScanState> scan-state;
     in property <int> track-count;
     in property <int> unreadable-count;
+    in property <int> selected-count;
     in property <string> folder;
     callback stop-scan;
 
@@ -23,11 +24,12 @@ export component StatusBar inherits Rectangle {
             vertical-alignment: center;
             font-size: 12px;
             color: Theme.text-secondary;
-            text: root.scan-state == ScanState.idle ? @tr("No folder open")
+            text: (root.scan-state == ScanState.idle ? @tr("No folder open")
                 : root.scan-state == ScanState.scanning ? @tr("Reading… {n} track found" | "Reading… {n} tracks found" % root.track-count)
                 : root.scan-state == ScanState.stopped ? @tr("Reading stopped, {n} track" | "Reading stopped, {n} tracks" % root.track-count)
                 : root.scan-state == ScanState.failed ? @tr("Could not read this folder")
-                : @tr("{n} track" | "{n} tracks" % root.track-count);
+                : @tr("{n} track" | "{n} tracks" % root.track-count))
+                + (root.selected-count > 0 ? " · " + @tr("{n} selected" | "{n} selected" % root.selected-count) : "");
         }
 
         if root.scan-state == ScanState.scanning: VerticalLayout {

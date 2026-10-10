@@ -1,6 +1,7 @@
 //! Colophon's application state and the commands that change it. No UI types.
 
 mod columns;
+mod selection;
 
 use std::path::PathBuf;
 use std::sync::mpsc::TryRecvError;
@@ -11,6 +12,7 @@ use colophon_library::{
 
 pub use colophon_library::{Track, tags};
 pub use columns::{Column, ColumnWidths, Columns};
+pub use selection::{Selection, Step};
 
 /// A user action. The UI turns buttons, menu items and shortcuts into commands.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -22,6 +24,17 @@ pub enum Command {
     ToggleColumn(Column),
     ResizeColumns(ColumnWidths),
     ResetColumns,
+    /// A click on a track, by its place in the library: it alone becomes the selection.
+    Select(usize),
+    /// A Command click: the track joins the selection or leaves it.
+    ToggleSelected(usize),
+    /// A Shift click: the tracks from the last one clicked to this one become the selection.
+    SelectRange(usize),
+    SelectAll,
+    /// An arrow key: the selection moves to the previous or next track.
+    MoveSelection(Step),
+    /// A Shift arrow: the selection grows or shrinks by one track.
+    ExtendSelection(Step),
 }
 
 impl Command {
@@ -35,6 +48,12 @@ impl Command {
             Command::ToggleColumn(_) => "view.toggle_column",
             Command::ResizeColumns(_) => "view.resize_columns",
             Command::ResetColumns => "view.reset_columns",
+            Command::Select(_) => "selection.select",
+            Command::ToggleSelected(_) => "selection.toggle",
+            Command::SelectRange(_) => "selection.select_range",
+            Command::SelectAll => "selection.select_all",
+            Command::MoveSelection(_) => "selection.move",
+            Command::ExtendSelection(_) => "selection.extend",
         }
     }
 }
@@ -87,6 +106,7 @@ pub struct Library {
 pub struct Engine {
     view: ViewState,
     library: Library,
+    selection: Selection,
     scan: Option<ScanHandle>,
 }
 
@@ -103,6 +123,10 @@ impl Engine {
         &self.library
     }
 
+    pub fn selection(&self) -> &Selection {
+        &self.selection
+    }
+
     pub fn execute(&mut self, command: Command) {
         match command {
             Command::ToggleSidebar => self.view.sidebar_visible = !self.view.sidebar_visible,
@@ -114,6 +138,21 @@ impl Engine {
             Command::ResetColumns => {
                 self.view.columns = Columns::default();
                 self.view.column_widths = None;
+            }
+            Command::Select(track) if self.has_track(track) => self.selection.select(track),
+            Command::ToggleSelected(track) if self.has_track(track) => {
+                self.selection.toggle(track);
+            }
+            Command::SelectRange(track) if self.has_track(track) => {
+                self.selection.select_range(track);
+            }
+            Command::Select(_) | Command::ToggleSelected(_) | Command::SelectRange(_) => {}
+            Command::SelectAll => self.selection.select_all(self.library.tracks.len()),
+            Command::MoveSelection(step) => {
+                self.selection.step(step, self.library.tracks.len(), false);
+            }
+            Command::ExtendSelection(step) => {
+                self.selection.step(step, self.library.tracks.len(), true);
             }
         }
     }
@@ -151,8 +190,13 @@ impl Engine {
         changed
     }
 
+    fn has_track(&self, track: usize) -> bool {
+        track < self.library.tracks.len()
+    }
+
     fn open_folder(&mut self, folder: PathBuf) {
         self.scan = None;
+        self.selection = Selection::default();
         self.library = Library {
             folder: Some(folder.clone()),
             ..Library::default()
