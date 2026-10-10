@@ -55,3 +55,16 @@ pub fn engine_reading(folder: &TempDir) -> Result<Engine, Box<dyn Error>> {
     poll_until_done(&mut engine)?;
     Ok(engine)
 }
+
+/// Polls the engine as the UI does, until its save ends or a few seconds pass.
+pub fn poll_until_saved(engine: &mut Engine) -> Result<(), String> {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while engine.saving().is_some() {
+        if Instant::now() > deadline {
+            return Err("the save did not finish in time".to_string());
+        }
+        engine.poll();
+        thread::sleep(Duration::from_millis(1));
+    }
+    Ok(())
+}
