@@ -14,6 +14,8 @@ colophon-player.workspace = true
 colophon-ui.workspace = true
 dirs.workspace = true
 rfd.workspace = true
+# Files dropped from the system reach the window through winit, which Slint does not wrap yet.
+slint = { workspace = true, features = ["unstable-winit-030"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.5"

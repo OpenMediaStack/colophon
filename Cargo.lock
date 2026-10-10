@@ -763,6 +763,7 @@ dependencies = [
  "dirs",
  "objc2 0.6.5",
  "rfd",
+ "slint",
 ]
 
 [[package]]
@@ -4438,6 +4439,7 @@ dependencies = [
  "const-field-offset",
  "i-slint-backend-linuxkms",
  "i-slint-backend-selector",
+ "i-slint-backend-winit",
  "i-slint-common",
  "i-slint-core",
  "i-slint-core-macros",
