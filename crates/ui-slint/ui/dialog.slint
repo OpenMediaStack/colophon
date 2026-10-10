@@ -2,12 +2,15 @@ import { Theme } from "theme.slint";
 import { Button } from "widgets.slint";
 
 // A modal dialog over the window: a scrim that takes the clicks meant for the window, and a box
-// with a title, a message and its buttons in the platform's order. Escape cancels, Return picks
-// the primary button.
+// with a title, a message, what the dialog puts under it, and its buttons in the platform's order.
+// Escape cancels, Return picks the primary button unless it destroys something.
 export component Dialog inherits Rectangle {
     in property <string> title;
     in property <string> message;
     in property <string> primary-text;
+    // The primary button removes or loses something, in the error colour.
+    in property <bool> destructive;
+    in property <string> cancel-text: @tr("Cancel");
     // A choice that loses something, such as not saving; none when empty.
     in property <string> discard-text;
     // Windows puts the primary button first and Cancel last; macOS and Linux end on the primary one.
@@ -29,7 +32,7 @@ export component Dialog inherits Rectangle {
                 root.cancel();
                 return accept;
             }
-            if event.text == Key.Return {
+            if event.text == Key.Return && !root.destructive {
                 root.primary();
                 return accept;
             }
@@ -70,6 +73,8 @@ export component Dialog inherits Rectangle {
                 color: Theme.text-secondary;
             }
 
+            @children
+
             HorizontalLayout {
                 padding-top: 10px;
                 spacing: 8px;
@@ -90,6 +95,7 @@ export component Dialog inherits Rectangle {
                     horizontal-stretch: 0;
                     text: root.primary-text;
                     primary: true;
+                    destructive: root.destructive;
                     clicked => {
                         root.primary();
                     }
@@ -105,7 +111,7 @@ export component Dialog inherits Rectangle {
 
                 Button {
                     horizontal-stretch: 0;
-                    text: @tr("Cancel");
+                    text: root.cancel-text;
                     clicked => {
                         root.cancel();
                     }
@@ -115,6 +121,7 @@ export component Dialog inherits Rectangle {
                     horizontal-stretch: 0;
                     text: root.primary-text;
                     primary: true;
+                    destructive: root.destructive;
                     clicked => {
                         root.primary();
                     }
