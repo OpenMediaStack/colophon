@@ -1,7 +1,11 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fs::File;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{self, BufReader};
 use std::panic::{self, UnwindSafe};
 use std::path::Path;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use lofty::config::ParseOptions;
@@ -10,9 +14,12 @@ use lofty::file::AudioFile;
 use lofty::id3::v1::{GENRES, Id3v1Tag};
 use lofty::id3::v2::{self, Frame, Id3v2Tag};
 use lofty::mpeg::{MpegFile, MpegProperties};
+use lofty::picture::{Picture, PictureType};
 use lofty::tag::{Accessor, ItemKey, Tag};
 
-use crate::{AudioProperties, Id3v1Version, Id3v2Version, Metadata, TagFormat, Tags, bitrate_mode};
+use crate::{
+    AudioProperties, Cover, Id3v1Version, Id3v2Version, Metadata, TagFormat, Tags, bitrate_mode,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ReadError {
@@ -43,7 +50,7 @@ fn guarded(
 
 fn read_mpeg(path: &Path) -> Result<Metadata, ReadError> {
     let mut reader = BufReader::new(File::open(path).map_err(ReadError::Open)?);
-    let options = ParseOptions::new().read_cover_art(false);
+    let options = ParseOptions::new();
     let mpeg = MpegFile::read_from(&mut reader, options).map_err(ReadError::Damaged)?;
     Ok(Metadata {
         tags: primary_tags(&mpeg),
@@ -79,6 +86,10 @@ fn primary_tags(mpeg: &MpegFile) -> Tags {
     if let Some(id3v2) = mpeg.id3v2() {
         let mut tags = tags_from(&Tag::from(id3v2.clone()));
         tags.comment = tags.comment.or_else(|| ffmpeg_comment(id3v2));
+        tags.cover = cover_picture(id3v2).map(|picture| Cover {
+            mime: picture.mime_type().map(|mime| mime.as_str().to_owned()),
+            data: shared(picture.data()),
+        });
         tags
     } else if let Some(id3v1) = mpeg.id3v1() {
         id3v1_tags(id3v1)
@@ -102,7 +113,50 @@ fn tags_from(tag: &Tag) -> Tags {
         disc_total: tag.disk_total(),
         genre: text(tag.genre().as_deref()),
         comment: text(tag.comment().as_deref()),
+        cover: None,
     }
+}
+
+/// The picture Colophon calls the cover: the front cover, or else the first picture.
+pub(crate) fn cover_picture(tag: &Id3v2Tag) -> Option<&Picture> {
+    let mut pictures = tag.into_iter().filter_map(|frame| match frame {
+        Frame::Picture(frame) => Some(&*frame.picture),
+        _ => None,
+    });
+    let first = pictures.next()?;
+    if first.pic_type() == PictureType::CoverFront {
+        return Some(first);
+    }
+    pictures
+        .find(|picture| picture.pic_type() == PictureType::CoverFront)
+        .or(Some(first))
+}
+
+thread_local! {
+    /// The covers read on this thread, by the hash of their bytes, for as long as a track holds them.
+    static COVERS: RefCell<HashMap<u64, Weak<[u8]>>> = RefCell::default();
+}
+
+/// The bytes of a cover, shared with a track read before on this thread that has the same.
+fn shared(data: &[u8]) -> Arc<[u8]> {
+    let mut hasher = DefaultHasher::new();
+    data.hash(&mut hasher);
+    let key = hasher.finish();
+    COVERS.with_borrow_mut(|covers| {
+        if let Some(found) = covers
+            .get(&key)
+            .and_then(Weak::upgrade)
+            .filter(|found| **found == *data)
+        {
+            return found;
+        }
+        if covers.len() >= 4096 {
+            covers.retain(|_, cover| cover.strong_count() > 0);
+        }
+        let cover: Arc<[u8]> = Arc::from(data);
+        covers.insert(key, Arc::downgrade(&cover));
+        cover
+    })
 }
 
 /// ffmpeg writes its comment in a TXXX frame described "comment" rather than in a COMM frame, and

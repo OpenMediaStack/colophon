@@ -5,6 +5,7 @@ mod read;
 mod write;
 
 use std::fmt;
+use std::sync::Arc;
 use std::time::Duration;
 
 pub use read::{ReadError, read};
@@ -39,6 +40,16 @@ pub struct Tags {
     pub disc_total: Option<u32>,
     pub genre: Option<String>,
     pub comment: Option<String>,
+    pub cover: Option<Cover>,
+}
+
+/// The picture of the release: the file's front cover, or else its first picture. Files of the same
+/// album often hold the same bytes, which reading shares rather than copies.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct Cover {
+    /// Its type, such as `image/jpeg`, when the file says.
+    pub mime: Option<String>,
+    pub data: Arc<[u8]>,
 }
 
 /// What the audio stream says about itself. A value the file does not give is `None`.

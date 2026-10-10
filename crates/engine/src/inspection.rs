@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use colophon_library::Track;
 use colophon_library::tags::{
-    BitrateMode, Id3v1Loss, ReadError, TagFormat, TagVersions, Tags, formats_after_write,
+    BitrateMode, Cover, Id3v1Loss, ReadError, TagFormat, TagVersions, Tags, formats_after_write,
     id3v1_losses,
 };
 
@@ -74,6 +74,7 @@ pub struct Summary {
     pub track_total: Shared<u32>,
     pub genre: Shared<String>,
     pub comment: Shared<String>,
+    pub cover: Shared<Cover>,
     pub audio: Shared<AudioLine>,
     pub formats: Shared<Vec<TagFormat>>,
     /// The tag versions saving writes the selected tracks in.
@@ -157,6 +158,7 @@ fn summarise(tracks: &[Track], selected: &[(usize, &Track)], edits: &Edits) -> S
         track_total: Shared::of(tags().map(|tags| tags.track_total)),
         genre: text(|tags| &tags.genre),
         comment: text(|tags| &tags.comment),
+        cover: Shared::of(tags().map(|tags| tags.cover.clone())),
         audio: Shared::of(read.iter().map(|(_, metadata)| {
             let audio = &metadata.audio;
             audio

@@ -20,6 +20,7 @@ fn every_field() -> Tags {
         disc_total: Some(2),
         genre: Some("Folk".into()),
         comment: Some("Recorded in one take.".into()),
+        cover: None,
     }
 }
 
@@ -292,4 +293,15 @@ fn tag_formats_are_named_as_in_the_tags_column() {
         names,
         ["ID3v2.2", "ID3v2.3", "ID3v2.4", "ID3v1.0", "ID3v1.1", "APE"]
     );
+}
+
+#[test]
+fn the_cover_is_read_and_shared_between_files_that_hold_the_same() -> TestResult {
+    let one = read(&fixture("v23_cover.mp3"))?.tags.cover;
+    let other = read(&fixture("v23_cover.mp3"))?.tags.cover;
+
+    let (one, other) = one.zip(other).ok_or("the fixture has a cover")?;
+    assert_eq!(one.mime.as_deref(), Some("image/png"));
+    assert!(std::sync::Arc::ptr_eq(&one.data, &other.data));
+    Ok(())
 }
