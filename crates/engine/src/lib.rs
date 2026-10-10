@@ -43,6 +43,9 @@ pub enum Command {
     ExtendSelection(Step),
     /// A new value for one field of every selected track.
     Edit(Edit),
+    /// The same, typed on: it goes on with the latest step of the history when that step edited
+    /// the same field of the same tracks.
+    ContinueEdit(Edit),
     Undo,
     Redo,
     /// Brings the selected tracks back to their files' tags.
@@ -69,6 +72,7 @@ impl Command {
             Command::MoveSelection(_) => "selection.move",
             Command::ExtendSelection(_) => "selection.extend",
             Command::Edit(_) => "tags.edit",
+            Command::ContinueEdit(_) => "tags.continue_edit",
             Command::Undo => "edit.undo",
             Command::Redo => "edit.redo",
             Command::Revert => "tags.revert",
@@ -226,7 +230,11 @@ impl Engine {
             }
             Command::Edit(edit) => {
                 self.edits
-                    .edit(&self.library.tracks, self.selection.iter(), &edit);
+                    .edit(&self.library.tracks, self.selection.iter(), &edit, false);
+            }
+            Command::ContinueEdit(edit) => {
+                self.edits
+                    .edit(&self.library.tracks, self.selection.iter(), &edit, true);
             }
             Command::Undo => self.edits.undo(&self.library.tracks),
             Command::Redo => self.edits.redo(&self.library.tracks),

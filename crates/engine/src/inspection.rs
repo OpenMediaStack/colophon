@@ -1,7 +1,9 @@
 use std::collections::BTreeSet;
 
 use colophon_library::Track;
-use colophon_library::tags::{BitrateMode, ReadError, TagFormat, Tags};
+use colophon_library::tags::{
+    BitrateMode, Id3v1Loss, ReadError, TagFormat, Tags, formats_after_write, id3v1_losses,
+};
 
 use crate::{Edits, Field, Selection};
 
@@ -77,6 +79,10 @@ pub struct Summary {
     pub size: u64,
     /// The fields with a value waiting to be saved, in at least one selected track.
     pub modified: BTreeSet<Field>,
+    /// The tags the selected tracks with pending changes will hold once saved.
+    pub saved_as: Shared<Vec<TagFormat>>,
+    /// What the ID3v1 tags of the selected tracks with pending changes will lose of them.
+    pub id3v1_losses: BTreeSet<Id3v1Loss>,
 }
 
 pub(crate) fn inspect<'a>(
@@ -108,6 +114,11 @@ fn summarise(tracks: &[Track], selected: &[(usize, &Track)], edits: &Edits) -> S
         })
         .collect();
     let tags = || read.iter().map(|(tags, _)| *tags);
+    // The selected tracks with changes waiting to be saved, and their files' tags.
+    let pending: Vec<_> = selected
+        .iter()
+        .filter_map(|(index, track)| Some((edits.pending(*index)?, track.metadata.as_ref().ok()?)))
+        .collect();
     let text = |field: fn(&colophon_library::tags::Tags) -> &Option<String>| {
         Shared::of(tags().map(|tags| field(tags).clone()))
     };
@@ -150,6 +161,21 @@ fn summarise(tracks: &[Track], selected: &[(usize, &Track)], edits: &Edits) -> S
         ),
         size: selected.iter().map(|(_, track)| track.size).sum(),
         modified: edits.modified_fields(tracks, selected.iter().map(|(index, _)| *index)),
+        saved_as: Shared::of(
+            pending
+                .iter()
+                .map(|(tags, metadata)| Some(formats_after_write(&metadata.formats, tags))),
+        ),
+        id3v1_losses: pending
+            .iter()
+            .filter(|(_, metadata)| {
+                metadata
+                    .formats
+                    .iter()
+                    .any(|format| matches!(format, TagFormat::Id3v1(_)))
+            })
+            .flat_map(|(tags, _)| id3v1_losses(tags))
+            .collect(),
     }
 }
 

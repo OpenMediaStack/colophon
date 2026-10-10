@@ -161,6 +161,7 @@ fn window_inspecting(
     window.set_folder("~/Music".into());
     window.set_scan_state(ScanState::Completed);
     window.set_inspector_state(state);
+    window.set_modified_count(3);
     window.set_inspected_tracks(tracks);
     window.set_unreadable_file(unreadable);
     Ok(window)
@@ -190,6 +191,8 @@ fn the_inspector_matches_its_references() -> TestResult {
             tenth: 4,
             unit: SizeUnit::Megabytes,
         },
+        has_changes: true,
+        saved_as: text("ID3v2.4, ID3v1.1"),
         ..InspectedTracks::default()
     };
     let unreadable = UnreadableFile {

@@ -190,3 +190,47 @@ export component ScrollBar inherits Rectangle {
         }
     }
 }
+
+// A button of the inspector's actions: the main one in the accent colour, the others bordered.
+export component Button inherits Rectangle {
+    in property <string> text;
+    in property <bool> primary;
+    in property <bool> enabled: true;
+    callback clicked;
+
+    height: 28px;
+    border-radius: 4px;
+    border-width: root.primary ? 0px : 1px;
+    border-color: Theme.border-strong;
+    background: !root.primary ? (touch.has-hover && root.enabled ? Theme.surface-3 : transparent) : touch.has-hover && root.enabled ? Theme.accent-hover : Theme.accent;
+    opacity: root.enabled ? 1 : 0.5;
+    animate background { duration: 100ms; }
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if root.enabled {
+            root.clicked();
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+
+        Text {
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            text: root.text;
+            font-weight: root.primary ? 500 : 400;
+            color: root.primary ? Theme.on-accent : Theme.text-primary;
+        }
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.clicked();
+        }
+    }
+}

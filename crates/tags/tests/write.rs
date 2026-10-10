@@ -5,7 +5,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use colophon_tags::{
-    Id3v1Version, Id3v2Version, TagFormat, Tags, WriteError, id3v1_losses, read, write,
+    Id3v1Version, Id3v2Version, TagFormat, Tags, WriteError, formats_after_write, id3v1_losses,
+    read, write,
 };
 use lofty::config::ParseOptions;
 use lofty::file::AudioFile;
@@ -80,10 +81,16 @@ fn every_fixture_reads_back_what_was_written_with_its_audio_untouched() -> TestR
     for name in fixtures {
         let (_folder, path) = copy_of(&name)?;
         let before = fs::read(&path)?;
+        let formats = read(&path)?.formats;
 
         let written = write(&path, &new_tags())?;
 
         assert_eq!(written.tags, new_tags(), "{name}");
+        assert_eq!(
+            written.formats,
+            formats_after_write(&formats, &new_tags()),
+            "{name}"
+        );
         assert_eq!(read(&path)?, written, "{name}");
         assert_eq!(
             written.formats.first(),

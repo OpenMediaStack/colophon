@@ -121,6 +121,7 @@ fn command_ids_are_unique() {
         Command::MoveSelection(Step::Down),
         Command::ExtendSelection(Step::Down),
         Command::Edit(Edit::Title(None)),
+        Command::ContinueEdit(Edit::Title(None)),
         Command::Undo,
         Command::Redo,
         Command::Revert,
