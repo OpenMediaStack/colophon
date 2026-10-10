@@ -13,10 +13,10 @@ import { SortColumn, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, Tra
 import { UnsavedChanges, UnsavedChoice } from "unsaved-changes.slint";
 import { ConfirmTagRemoval, RemovedTag, TagRemoval } from "tag-removal.slint";
 import { Sidebar, SidebarItem, SourceKind } from "sidebar.slint";
-import { BitrateMode, ByteSize, CoverState, Id3v1Losses, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
+import { BitrateMode, ByteSize, CoverState, Id3v1Losses, Kilohertz, TrackSpectrum, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
 
-export { Theme, CoverState, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, CoverState, Kilohertz, TrackSpectrum, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
@@ -83,6 +83,8 @@ export component AppWindow inherits Window {
     in property <int> save-failures;
     in property <InspectorState> inspector-state;
     in property <InspectedTracks> inspected-tracks;
+    in property <bool> has-spectrum;
+    in property <TrackSpectrum> spectrum;
     in property <UnreadableFile> unreadable-file;
     // Set while the window asks what to do with the pending changes before quitting.
     in property <bool> asking-to-save;
@@ -504,6 +506,8 @@ export component AppWindow inherits Window {
                 modified-count: root.modified-count;
                 saving: root.saving;
                 developer-mode: root.developer-mode;
+                has-spectrum: root.has-spectrum;
+                spectrum: root.spectrum;
                 choose-id3v2(index) => {
                     root.choose-id3v2(index);
                 }

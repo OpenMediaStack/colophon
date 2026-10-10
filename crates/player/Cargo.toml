@@ -10,6 +10,7 @@ publish = false
 [dependencies]
 colophon-engine.workspace = true
 rodio.workspace = true
+rustfft.workspace = true
 
 [lints]
 workspace = true
