@@ -19,6 +19,8 @@ export struct TrackRow {
     untitled: bool,
     // The track the player plays.
     playing: bool,
+    // Its tags look wrong beside the rest of its album.
+    suspicious: bool,
     artist: string,
     album: string,
     year: string,
@@ -390,6 +392,15 @@ component TableRow inherits Rectangle {
                 background: Theme.accent;
                 accessible-role: image;
                 accessible-label: @tr("Unsaved changes");
+            }
+
+            if root.track.suspicious && root.track.status == TrackStatus.normal && !root.track.playing: Image {
+                width: 14px;
+                height: 14px;
+                source: @image-url("images/triangle-alert.svg");
+                colorize: Theme.warning;
+                accessible-role: image;
+                accessible-label: @tr("Unlike the rest of its album");
             }
 
             if root.track.playing: Image {

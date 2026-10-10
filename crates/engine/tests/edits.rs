@@ -249,3 +249,24 @@ fn selecting_the_album_selects_every_listed_track_of_it() -> TestResult {
     assert_eq!(selected, expected);
     Ok(())
 }
+
+#[test]
+fn a_track_unlike_the_rest_of_its_album_is_warned_about() -> TestResult {
+    let folder = folder_with_fixtures(&[("v23_full.mp3", "1.mp3"), ("v23_full.mp3", "2.mp3")])?;
+    let mut engine = engine_reading(&folder)?;
+    assert!(engine.warnings().is_empty());
+    let one = track_named(&engine, "1.mp3")?;
+
+    engine.execute(Command::Select(one));
+    engine.execute(Command::Edit(Edit::AlbumArtist(Some(
+        "Marlowe Kite".into(),
+    ))));
+    engine.execute(Command::Edit(Edit::Track(None)));
+
+    let warnings = engine.warnings();
+    assert_eq!(warnings.keys().copied().collect::<Vec<_>>(), [one]);
+    assert!(warnings[&one].missing_number);
+    // One album artist each: neither is the usual one.
+    assert!(!warnings[&one].odd_album_artist);
+    Ok(())
+}

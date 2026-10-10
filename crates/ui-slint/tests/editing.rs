@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use colophon_engine::Engine;
 use colophon_ui::{AppWindow, ComponentHandle, WindowCommand};
+use slint::Model;
 use slint::platform::{Key, PointerEventButton};
 use tempfile::TempDir;
 
@@ -183,5 +184,27 @@ fn a_right_click_on_a_selected_row_keeps_the_selection() -> TestResult {
 
     assert_eq!(window.get_selected_count(), 2);
     assert!(common::menu_item(&window, "Select Album").is_ok());
+    Ok(())
+}
+
+#[test]
+fn a_track_unlike_the_rest_of_its_album_is_marked() -> TestResult {
+    let (window, _folder) = window_with(&[("v23_full.mp3", "1.mp3"), ("v23_full.mp3", "2.mp3")])?;
+    find(&window, "Marlowe Kite")?.mock_single_click(PointerEventButton::Left);
+    assert!(find(&window, "Unlike the rest of its album").is_err());
+
+    retype(&window, "Track", "")?;
+    press(&window, &[], Key::Backspace);
+    press(&window, &[], Key::Return);
+
+    assert!(shows(
+        &window,
+        "This track has no number, unlike the rest of its album."
+    ));
+    let suspicious: Vec<bool> = (0..2)
+        .filter_map(|row| window.get_tracks().row_data(row))
+        .map(|row| row.suspicious)
+        .collect();
+    assert_eq!(suspicious, [true, false]);
     Ok(())
 }

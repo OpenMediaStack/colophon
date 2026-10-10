@@ -1,7 +1,7 @@
 //! Colophon's user interface, written in Slint, and its bridge to the engine.
 
 use std::cell::{Cell, RefCell};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
@@ -13,7 +13,7 @@ use colophon_engine::tags::{self, Id3v1Loss, Id3v1Version, Id3v2Version, ReadErr
 use colophon_engine::{
     AlbumKey, AudioLine, Column, ColumnWidths, Command, Edit, Engine, Field, Inspection, Library,
     Preferences, ScanStatus, Selection, Shared, Sort, SortColumn, Source, Step, Summary, Track,
-    VersionChoice, ViewState, WindowSize,
+    VersionChoice, ViewState, Warnings, WindowSize,
 };
 use slint::{
     CloseRequestResponse, Image, LogicalSize, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer,
@@ -132,6 +132,7 @@ pub fn main_window_keeping(
         tracks,
         longest: RefCell::default(),
         shown_modified: RefCell::default(),
+        shown_suspicious: RefCell::default(),
         listed: RefCell::default(),
         row_of: RefCell::default(),
         poll_timer: Timer::default(),
@@ -465,6 +466,8 @@ struct Bridge {
     longest: RefCell<TrackRow>,
     /// The tracks shown with pending changes, whose rows change again when the changes go.
     shown_modified: RefCell<BTreeSet<usize>>,
+    /// The tracks shown as looking wrong beside the rest of their albums.
+    shown_suspicious: RefCell<BTreeSet<usize>>,
     /// The tracks the table lists, row by row, and the row of each track listed.
     listed: RefCell<Vec<usize>>,
     row_of: RefCell<HashMap<usize, usize>>,
@@ -999,11 +1002,21 @@ impl Bridge {
         show_writing(&window, engine.preferences().writing);
         show_sort(&window, engine.sort());
         show_library(&window, engine.library());
-        self.show_tracks(&window, &engine);
+        let warnings = engine.warnings();
+        self.show_tracks(&window, &engine, &warnings);
         self.show_selection(&window, engine.selection());
-        show_inspection(&window, engine.library(), engine.inspection(), |cover| {
-            self.cover_image(cover)
-        });
+        let selection_warnings = engine
+            .selection()
+            .iter()
+            .filter_map(|track| warnings.get(&track).copied())
+            .fold(Warnings::default(), |all, one| all | one);
+        show_inspection(
+            &window,
+            engine.library(),
+            engine.inspection(),
+            selection_warnings,
+            |cover| self.cover_image(cover),
+        );
         show_saving(&window, &engine);
         show_playback(&window, &engine);
         self.read_waveform(&window, &engine);
@@ -1551,14 +1564,19 @@ impl Bridge {
 
     /// Lists the tracks the engine lists, adding rows when it only lists more, and redraws those
     /// whose pending changes came or went.
-    fn show_tracks(&self, window: &AppWindow, engine: &Engine) {
+    fn show_tracks(
+        &self,
+        window: &AppWindow,
+        engine: &Engine,
+        warnings: &BTreeMap<usize, Warnings>,
+    ) {
         let library = engine.library();
         let edits = engine.edits();
         let row = |track: usize| {
-            library
-                .tracks
-                .get(track)
-                .map(|listed| track_row(listed, edits.pending(track)))
+            library.tracks.get(track).map(|listed| TrackRow {
+                suspicious: warnings.contains_key(&track),
+                ..track_row(listed, edits.pending(track))
+            })
         };
         let mut listed = self.listed.borrow_mut();
         let mut longest = self.longest.borrow_mut();
@@ -1586,10 +1604,17 @@ impl Bridge {
         }
 
         let modified: BTreeSet<usize> = edits.modified().map(|(track, _)| track).collect();
-        let changed = self.shown_modified.replace(modified.clone());
+        let was_modified = self.shown_modified.replace(modified.clone());
+        let suspicious: BTreeSet<usize> = warnings.keys().copied().collect();
+        let was_suspicious = self.shown_suspicious.replace(suspicious.clone());
+        let changed: BTreeSet<usize> = was_modified
+            .union(&modified)
+            .chain(was_suspicious.symmetric_difference(&suspicious))
+            .copied()
+            .collect();
         let row_of = self.row_of.borrow();
-        for track in changed.union(&modified) {
-            let (Some(place), Some(new)) = (row_of.get(track).copied(), row(*track)) else {
+        for track in changed {
+            let (Some(place), Some(new)) = (row_of.get(&track).copied(), row(track)) else {
                 continue;
             };
             let Some(old) = self.tracks.row_data(place) else {
@@ -1677,6 +1702,7 @@ fn show_inspection(
     window: &AppWindow,
     library: &Library,
     inspection: Inspection<'_>,
+    warnings: Warnings,
     cover_image: impl Fn(&tags::Cover) -> Image,
 ) {
     let state = match inspection {
@@ -1697,6 +1723,8 @@ fn show_inspection(
             };
             window.set_inspected_tracks(InspectedTracks {
                 cover,
+                missing_number: warnings.missing_number,
+                odd_album_artist: warnings.odd_album_artist,
                 ..inspected_tracks(&summary)
             });
             InspectorState::Tracks
@@ -1738,6 +1766,9 @@ fn inspected_tracks(summary: &Summary) -> InspectedTracks {
         },
         cover_modified: modified(Field::Cover),
         cover: Image::default(),
+        // The bridge knows the albums; the summary only knows the selection.
+        missing_number: false,
+        odd_album_artist: false,
         count: count(summary.count),
         unreadable: count(summary.unreadable),
         heading: summary.heading.clone().unwrap_or_default().into(),
