@@ -5,8 +5,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use colophon_tags::{
-    Id3v1Version, Id3v2Version, TagFormat, Tags, WriteError, formats_after_write, id3v1_losses,
-    read, write,
+    Id3v1Version, Id3v2Version, Metadata, TagFormat, TagVersions, Tags, WriteError,
+    formats_after_write, id3v1_losses, read,
 };
 use lofty::config::ParseOptions;
 use lofty::file::AudioFile;
@@ -22,6 +22,14 @@ fn copy_of(name: &str) -> Result<(TempDir, PathBuf), Box<dyn Error>> {
     let path = folder.path().join(name);
     fs::copy(fixture(name), &path)?;
     Ok((folder, path))
+}
+
+/// Writes `tags` in the versions Colophon writes by default.
+fn write(path: &Path, tags: &Tags) -> Result<Metadata, WriteError> {
+    let formats = read(path)
+        .map(|metadata| metadata.formats)
+        .unwrap_or_default();
+    colophon_tags::write(path, tags, TagVersions::default_for(&formats))
 }
 
 fn new_tags() -> Tags {
@@ -88,7 +96,7 @@ fn every_fixture_reads_back_what_was_written_with_its_audio_untouched() -> TestR
         assert_eq!(written.tags, new_tags(), "{name}");
         assert_eq!(
             written.formats,
-            formats_after_write(&formats, &new_tags()),
+            formats_after_write(&formats, &new_tags(), TagVersions::default_for(&formats)),
             "{name}"
         );
         assert_eq!(read(&path)?, written, "{name}");
@@ -179,7 +187,7 @@ fn an_id3v1_tag_is_rewritten_from_the_new_values() -> TestResult {
         Some("A brand new title, well over t")
     );
     assert_eq!(id3v1.track_number, Some(4));
-    assert!(!id3v1_losses(&tags).is_empty());
+    assert!(!id3v1_losses(&tags, Id3v1Version::V1_1).is_empty());
     Ok(())
 }
 

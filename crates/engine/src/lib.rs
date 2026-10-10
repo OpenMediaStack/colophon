@@ -310,10 +310,13 @@ impl Engine {
             .edits
             .modified()
             .filter_map(|(track, tags)| {
+                let saved = self.library.tracks.get(track)?;
+                let formats = saved.metadata.as_ref().ok()?.formats.as_slice();
                 Some(SaveJob {
                     track,
-                    path: self.library.tracks.get(track)?.path.clone(),
+                    path: saved.path.clone(),
                     tags: tags.clone(),
+                    versions: tags::TagVersions::default_for(formats),
                 })
             })
             .collect();

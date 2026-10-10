@@ -82,6 +82,27 @@ pub enum Id3v1Version {
     V1_1,
 }
 
+/// The tags `write` leaves in a file, each in a version or not at all: a tag left out is removed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TagVersions {
+    pub id3v2: Option<Id3v2Version>,
+    pub id3v1: Option<Id3v1Version>,
+}
+
+impl TagVersions {
+    /// What Colophon writes unless asked otherwise: ID3v2.4, and ID3v1.1 where the file has an
+    /// ID3v1 tag.
+    pub fn default_for(formats: &[TagFormat]) -> Self {
+        let has_id3v1 = formats
+            .iter()
+            .any(|format| matches!(format, TagFormat::Id3v1(_)));
+        Self {
+            id3v2: Some(Id3v2Version::V2_4),
+            id3v1: has_id3v1.then_some(Id3v1Version::V1_1),
+        }
+    }
+}
+
 impl fmt::Display for TagFormat {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {

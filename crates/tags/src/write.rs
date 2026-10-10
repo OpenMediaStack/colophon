@@ -9,16 +9,17 @@ use lofty::config::{ParseOptions, WriteOptions};
 use lofty::error::{FileEncodingError, FileParseError};
 use lofty::file::AudioFile;
 use lofty::id3::v1::{GENRES, Id3v1Tag};
-use lofty::id3::v2::{Frame, FrameId, Id3v2Tag, TextInformationFrame};
+use lofty::id3::v2::{Frame, FrameId, Id3v2Tag, TextInformationFrame, TimestampFrame};
 use lofty::mpeg::MpegFile;
-use lofty::tag::Accessor;
 use lofty::tag::items::Timestamp;
+use lofty::tag::{Accessor, TagType};
 
-use crate::{Id3v1Version, Id3v2Version, Metadata, ReadError, TagFormat, Tags, read};
+use crate::{Id3v1Version, Id3v2Version, Metadata, ReadError, TagFormat, TagVersions, Tags, read};
 
 const ALBUM_ARTIST: FrameId<'static> = FrameId::Valid(Cow::Borrowed("TPE2"));
+const RECORDING_TIME: FrameId<'static> = FrameId::Valid(Cow::Borrowed("TDRC"));
 /// Every frame that holds a date, in ID3v2.4 (TDRC) or as ID3v2.2 and 2.3 kept it. lofty may
-/// turn an old one into a TDRC of its own, which `set_date` adds to rather than replaces.
+/// turn an old one into a TDRC of its own, which a new one would add to rather than replace.
 const DATE_FRAMES: [&str; 7] = ["TDRC", "TYER", "TDAT", "TIME", "TYE", "TDA", "TIM"];
 
 #[derive(Debug, thiserror::Error)]
@@ -36,18 +37,26 @@ pub enum WriteError {
     /// The tags were written, but the file could not be read back.
     #[error("could not read the file back")]
     ReadBack(#[source] ReadError),
+    #[error("Colophon cannot write {0}")]
+    Unsupported(TagFormat),
 }
 
-/// Writes `tags` into an MP3: in ID3v2.4, and in ID3v1 too when the file has one. Every other frame
-/// and the audio stay as they are. The tags go into a copy of the file in the same folder, which
-/// replaces the original only once complete on disk: a failed write leaves the original untouched.
-/// Gives back what the written file holds.
-pub fn write(path: &Path, tags: &Tags) -> Result<Metadata, WriteError> {
+/// Writes `tags` into an MP3, in the tags and versions of `versions`, and removes the ID3 tags it
+/// leaves out. Every other frame, the APE tag and the audio stay as they are. The tags go into a
+/// copy of the file in the same folder, which replaces the original only once complete on disk: a
+/// failed write leaves the original untouched. Gives back what the written file holds.
+pub fn write(path: &Path, tags: &Tags, versions: TagVersions) -> Result<Metadata, WriteError> {
+    if versions.id3v2 == Some(Id3v2Version::V2_2) {
+        return Err(WriteError::Unsupported(TagFormat::Id3v2(
+            Id3v2Version::V2_2,
+        )));
+    }
     if fs::metadata(path)?.permissions().readonly() {
         return Err(WriteError::ReadOnly);
     }
     let copy = copy_path(path);
-    let written = write_copy(path, &copy, tags).and_then(|()| Ok(fs::rename(&copy, path)?));
+    let written =
+        write_copy(path, &copy, tags, versions).and_then(|()| Ok(fs::rename(&copy, path)?));
     if written.is_err() {
         // The original is untouched; the copy is all there is to clean up, if it was made at all.
         let _ = fs::remove_file(&copy);
@@ -64,23 +73,41 @@ fn copy_path(path: &Path) -> PathBuf {
     path.with_file_name(name)
 }
 
-fn write_copy(path: &Path, copy: &Path, tags: &Tags) -> Result<(), WriteError> {
+fn write_copy(
+    path: &Path,
+    copy: &Path,
+    tags: &Tags,
+    versions: TagVersions,
+) -> Result<(), WriteError> {
     fs::copy(path, copy)?;
     let mut file = OpenOptions::new().read(true).write(true).open(copy)?;
     let mut mpeg =
         MpegFile::read_from(&mut file, ParseOptions::new()).map_err(WriteError::Damaged)?;
-    if mpeg.id3v2().is_none() {
-        mpeg.set_id3v2(Id3v2Tag::new());
+    let mut removed = Vec::new();
+
+    match versions.id3v2 {
+        Some(_) => {
+            let mut id3v2 = mpeg.remove_id3v2().unwrap_or_default();
+            set_id3v2(&mut id3v2, tags);
+            drop(mpeg.set_id3v2(id3v2));
+        }
+        None => removed.extend(mpeg.remove_id3v2().map(|_| TagType::Id3v2)),
     }
-    if let Some(id3v2) = mpeg.id3v2_mut() {
-        set_id3v2(id3v2, tags);
+    match versions.id3v1 {
+        Some(version) => drop(mpeg.set_id3v1(id3v1_from(tags, version))),
+        None => removed.extend(mpeg.remove_id3v1().map(|_| TagType::Id3v1)),
     }
-    if let Some(id3v1) = mpeg.id3v1_mut() {
-        *id3v1 = id3v1_from(tags);
-    }
+
+    let options = WriteOptions::new().use_id3v23(versions.id3v2 == Some(Id3v2Version::V2_3));
     file.rewind()?;
-    mpeg.save_to(&mut file, WriteOptions::new())
+    mpeg.save_to(&mut file, options)
         .map_err(WriteError::Encode)?;
+    // Saving writes the tags the file still holds; those it no longer holds stay until removed.
+    for tag in removed {
+        file.rewind()?;
+        tag.remove_from(&mut file, options)
+            .map_err(WriteError::Encode)?;
+    }
     file.sync_all()?;
     Ok(())
 }
@@ -138,12 +165,18 @@ fn set_id3v2(tag: &mut Id3v2Tag, tags: &Tags) {
         )));
     }
 
+    // A timestamp frame rather than `set_date`'s text: lofty turns only the former into the
+    // TYER of ID3v2.3.
     tag.retain(|frame| !DATE_FRAMES.contains(&frame.id_str()));
     if let Some(year) = tags.year {
-        tag.set_date(Timestamp {
-            year,
-            ..Timestamp::default()
-        });
+        tag.insert(Frame::Timestamp(TimestampFrame::new(
+            RECORDING_TIME,
+            TextEncoding::UTF8,
+            Timestamp {
+                year,
+                ..Timestamp::default()
+            },
+        )));
     }
 
     // The number and the total share one frame, so both go before either comes back.
@@ -163,16 +196,25 @@ fn set_id3v2(tag: &mut Id3v2Tag, tags: &Tags) {
     }
 }
 
-/// An ID3v1.1 tag with what it can hold of `tags`; lofty cuts the text to its 30 Latin-1 bytes.
-fn id3v1_from(tags: &Tags) -> Id3v1Tag {
+/// An ID3v1 tag with what it can hold of `tags`; lofty cuts the text to its 30 Latin-1 bytes. An
+/// ID3v1.0 tag has no track number.
+fn id3v1_from(tags: &Tags, version: Id3v1Version) -> Id3v1Tag {
     Id3v1Tag {
         title: tags.title.clone(),
         artist: tags.artist.clone(),
         album: tags.album.clone(),
         year: tags.year,
         comment: tags.comment.clone(),
-        track_number: tags.track.and_then(|track| u8::try_from(track).ok()),
+        track_number: id3v1_track(tags, version),
         genre: tags.genre.as_deref().and_then(id3v1_genre),
+    }
+}
+
+/// The track number an ID3v1 tag of `version` holds: one up to 255, in ID3v1.1 only.
+fn id3v1_track(tags: &Tags, version: Id3v1Version) -> Option<u8> {
+    match version {
+        Id3v1Version::V1_0 => None,
+        Id3v1Version::V1_1 => tags.track.and_then(|track| u8::try_from(track).ok()),
     }
 }
 
@@ -183,21 +225,23 @@ fn id3v1_genre(name: &str) -> Option<u8> {
         .and_then(|index| u8::try_from(index).ok())
 }
 
-/// The tags a file with these `formats` will hold once `write` puts `tags` into it: ID3v2.4, then
-/// its ID3v1 rewritten (1.1 when it can hold the track number), then its APE tag, left as it is.
-pub fn formats_after_write(formats: &[TagFormat], tags: &Tags) -> Vec<TagFormat> {
-    let has = |wanted: fn(&TagFormat) -> bool| formats.iter().any(wanted);
-    let id3v1 = has(|format| matches!(format, TagFormat::Id3v1(_))).then(|| {
-        match tags.track.and_then(|track| u8::try_from(track).ok()) {
+/// The tags a file with these `formats` will hold once `write` puts `tags` into it in `versions`:
+/// its ID3v2 tag, its ID3v1 tag (an ID3v1.1 tag without a track number reads as ID3v1.0), then
+/// its APE tag, left as it is.
+pub fn formats_after_write(
+    formats: &[TagFormat],
+    tags: &Tags,
+    versions: TagVersions,
+) -> Vec<TagFormat> {
+    let id3v2 = versions.id3v2.map(TagFormat::Id3v2);
+    let id3v1 = versions
+        .id3v1
+        .map(|version| match id3v1_track(tags, version) {
             Some(_) => TagFormat::Id3v1(Id3v1Version::V1_1),
             None => TagFormat::Id3v1(Id3v1Version::V1_0),
-        }
-    });
-    let ape = has(|format| *format == TagFormat::Ape).then_some(TagFormat::Ape);
-    [Some(TagFormat::Id3v2(Id3v2Version::V2_4)), id3v1, ape]
-        .into_iter()
-        .flatten()
-        .collect()
+        });
+    let ape = formats.contains(&TagFormat::Ape).then_some(TagFormat::Ape);
+    [id3v2, id3v1, ape].into_iter().flatten().collect()
 }
 
 /// A field whose value an ID3v1 tag cannot hold whole.
@@ -212,20 +256,18 @@ pub enum Id3v1Loss {
     Genre,
 }
 
-/// What an ID3v1 tag would lose of `tags`. It keeps 30 Latin-1 characters of text, 28 of the
-/// comment next to a track number, a track up to 255, a four digit year, and the genres of its list.
-pub fn id3v1_losses(tags: &Tags) -> Vec<Id3v1Loss> {
+/// What an ID3v1 tag of `version` would lose of `tags`. It keeps 30 Latin-1 characters of text,
+/// 28 of the comment next to a track number, a track up to 255 in ID3v1.1 only, a four digit
+/// year, and the genres of its list.
+pub fn id3v1_losses(tags: &Tags, version: Id3v1Version) -> Vec<Id3v1Loss> {
     let fits = |value: &Option<String>, length: usize| {
         value.as_deref().is_none_or(|value| {
             value.chars().count() <= length && value.chars().all(|c| u32::from(c) <= 0xff)
         })
     };
-    let track_fits = tags.track.is_none_or(|track| track <= 255);
-    let comment_length = if tags.track.is_some() && track_fits {
-        28
-    } else {
-        30
-    };
+    let track = id3v1_track(tags, version);
+    let track_fits = tags.track.is_none() || track.is_some();
+    let comment_length = if track.is_some() { 28 } else { 30 };
     [
         (Id3v1Loss::Title, fits(&tags.title, 30)),
         (Id3v1Loss::Artist, fits(&tags.artist, 30)),
@@ -273,7 +315,7 @@ mod tests {
             ..Tags::default()
         };
 
-        assert_eq!(id3v1_losses(&tags), []);
+        assert_eq!(id3v1_losses(&tags, Id3v1Version::V1_1), []);
     }
 
     #[test]
@@ -288,7 +330,7 @@ mod tests {
         };
 
         assert_eq!(
-            id3v1_losses(&tags),
+            id3v1_losses(&tags, Id3v1Version::V1_1),
             [
                 Id3v1Loss::Title,
                 Id3v1Loss::Artist,
@@ -311,7 +353,21 @@ mod tests {
             ..Tags::default()
         };
 
-        assert_eq!(id3v1_losses(&with_track), [Id3v1Loss::Comment]);
-        assert_eq!(id3v1_losses(&without), []);
+        assert_eq!(
+            id3v1_losses(&with_track, Id3v1Version::V1_1),
+            [Id3v1Loss::Comment]
+        );
+        assert_eq!(id3v1_losses(&without, Id3v1Version::V1_1), []);
+    }
+
+    #[test]
+    fn id3v1_0_loses_the_track_and_keeps_30_characters_of_comment() {
+        let tags = Tags {
+            comment: Some("Thirty bytes, the whole field.".into()),
+            track: Some(1),
+            ..Tags::default()
+        };
+
+        assert_eq!(id3v1_losses(&tags, Id3v1Version::V1_0), [Id3v1Loss::Track]);
     }
 }
