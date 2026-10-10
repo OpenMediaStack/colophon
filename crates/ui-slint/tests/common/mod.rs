@@ -83,12 +83,36 @@ pub fn assert_matches_reference(window: &AppWindow, name: &str) -> TestResult {
         let actual_path = std::env::temp_dir().join(name);
         actual.save(&actual_path)?;
         return Err(format!(
-            "{name} differs from its reference, see {}",
+            "{name} differs from its reference {}, see {}",
+            differing_area(&expected, &actual),
             actual_path.display()
         )
         .into());
     }
     Ok(())
+}
+
+/// Where two images differ, to find out from a log what changed.
+fn differing_area(expected: &image::RgbaImage, actual: &image::RgbaImage) -> String {
+    if expected.dimensions() != actual.dimensions() {
+        return format!(
+            "in size, {:?} instead of {:?}",
+            actual.dimensions(),
+            expected.dimensions()
+        );
+    }
+    let differing = expected
+        .enumerate_pixels()
+        .filter(|(x, y, pixel)| actual.get_pixel(*x, *y) != *pixel);
+    let (mut left, mut top, mut right, mut bottom, mut count) = (u32::MAX, u32::MAX, 0, 0, 0);
+    for (x, y, _) in differing {
+        left = left.min(x);
+        top = top.min(y);
+        right = right.max(x);
+        bottom = bottom.max(y);
+        count += 1;
+    }
+    format!("in {count} pixels from ({left}, {top}) to ({right}, {bottom})")
 }
 
 /// A folder holding a copy of `fixture`, a file of `testdata/`, at `name`.

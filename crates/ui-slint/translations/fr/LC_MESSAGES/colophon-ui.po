@@ -1,157 +1,358 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
-"POT-Creation-Date: 2026-10-10 19:50+0000\n"
+"POT-Creation-Date: 2026-10-10 19:59+0000\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#. The application's name, then the source the table lists.
+#: ui/app-window.slint:119 ui/app-window.slint:252
+msgctxt "AppWindow"
+msgid "Open Folder…"
+msgstr "Ouvrir un dossier…"
+
+#: ui/app-window.slint:119 ui/app-window.slint:120 ui/app-window.slint:121
+#: ui/app-window.slint:249
+msgctxt "AppWindow"
+msgid "File"
+msgstr "Fichier"
+
+#: ui/app-window.slint:120 ui/app-window.slint:261
+msgctxt "AppWindow"
+msgid "Open Files…"
+msgstr "Ouvrir des fichiers…"
+
+#: ui/app-window.slint:121 ui/app-window.slint:272
+msgctxt "AppWindow"
+msgid "Save"
+msgstr "Enregistrer"
+
+#: ui/app-window.slint:122 ui/app-window.slint:347
+msgctxt "AppWindow"
+msgid "Preferences…"
+msgstr "Préférences…"
+
+#: ui/app-window.slint:122 ui/app-window.slint:285
+msgctxt "AppWindow"
+msgid "Options…"
+msgstr "Options…"
+
+#: ui/app-window.slint:122 ui/app-window.slint:285
+msgctxt "AppWindow"
+msgid "Settings…"
+msgstr "Réglages…"
+
+#: ui/app-window.slint:123 ui/app-window.slint:298 ui/app-window.slint:459
+msgctxt "AppWindow"
+msgid "Undo"
+msgstr "Annuler"
+
+#: ui/app-window.slint:123 ui/app-window.slint:124 ui/app-window.slint:125
+#: ui/app-window.slint:127 ui/app-window.slint:128 ui/app-window.slint:295
+msgctxt "AppWindow"
+msgid "Edit"
+msgstr "Édition"
+
+#: ui/app-window.slint:124 ui/app-window.slint:307 ui/app-window.slint:468
+msgctxt "AppWindow"
+msgid "Redo"
+msgstr "Rétablir"
+
+#: ui/app-window.slint:125 ui/app-window.slint:318
+msgctxt "AppWindow"
+msgid "Find"
+msgstr "Rechercher"
+
+#: ui/app-window.slint:126
+msgctxt "AppWindow"
+msgid "Select All"
+msgstr "Tout sélectionner"
+
+#: ui/app-window.slint:127 ui/app-window.slint:329
+msgctxt "AppWindow"
+msgid "Select Album"
+msgstr "Sélectionner l’album"
+
+#: ui/app-window.slint:128 ui/app-window.slint:337
+msgctxt "AppWindow"
+msgid "Number Tracks"
+msgstr "Numéroter les pistes"
+
+#: ui/app-window.slint:129
+msgctxt "AppWindow"
+msgid "Revert"
+msgstr "Rétablir l’original"
+
+#: ui/app-window.slint:130 ui/app-window.slint:360
+msgctxt "AppWindow"
+msgid "Pause"
+msgstr "Pause"
+
+#: ui/app-window.slint:130 ui/app-window.slint:360
+msgctxt "AppWindow"
+msgid "Play"
+msgstr "Lecture"
+
+#: ui/app-window.slint:130 ui/app-window.slint:131 ui/app-window.slint:132
+msgctxt "AppWindow"
+msgid "Controls"
+msgstr "Commandes"
+
+#: ui/app-window.slint:131 ui/app-window.slint:368
+msgctxt "AppWindow"
+msgid "Next Track"
+msgstr "Piste suivante"
+
+#: ui/app-window.slint:132 ui/app-window.slint:376
+msgctxt "AppWindow"
+msgid "Previous Track"
+msgstr "Piste précédente"
+
+#: ui/app-window.slint:133
+msgctxt "AppWindow"
+msgid "Write ID3v2.4 to the selected files"
+msgstr "Écrire l’ID3v2.4 dans les fichiers sélectionnés"
+
+#: ui/app-window.slint:133 ui/app-window.slint:134 ui/app-window.slint:135
+#: ui/app-window.slint:137 ui/app-window.slint:138
+msgctxt "AppWindow"
+msgid "Tags"
+msgstr "Tags"
+
+#: ui/app-window.slint:134
+msgctxt "AppWindow"
+msgid "Write ID3v2.3 to the selected files"
+msgstr "Écrire l’ID3v2.3 dans les fichiers sélectionnés"
+
+#: ui/app-window.slint:135
+msgctxt "AppWindow"
+msgid "Write ID3v2.2 to the selected files"
+msgstr "Écrire l’ID3v2.2 dans les fichiers sélectionnés"
+
+#: ui/app-window.slint:136
+msgctxt "AppWindow"
+msgid "Remove ID3v2 from the selected files…"
+msgstr "Retirer l’ID3v2 des fichiers sélectionnés…"
+
+#: ui/app-window.slint:137
+msgctxt "AppWindow"
+msgid "Write ID3v1.1 to the selected files"
+msgstr "Écrire l’ID3v1.1 dans les fichiers sélectionnés"
+
+#: ui/app-window.slint:138
+msgctxt "AppWindow"
+msgid "Write ID3v1.0 to the selected files"
+msgstr "Écrire l’ID3v1.0 dans les fichiers sélectionnés"
+
+#: ui/app-window.slint:139
+msgctxt "AppWindow"
+msgid "Remove ID3v1 from the selected files…"
+msgstr "Retirer l’ID3v1 des fichiers sélectionnés…"
+
+#: ui/app-window.slint:140 ui/app-window.slint:399
+msgctxt "AppWindow"
+msgid "Hide Sidebar"
+msgstr "Masquer la barre latérale"
+
+#: ui/app-window.slint:140 ui/app-window.slint:399
+msgctxt "AppWindow"
+msgid "Show Sidebar"
+msgstr "Afficher la barre latérale"
+
+#: ui/app-window.slint:140 ui/app-window.slint:141 ui/app-window.slint:142
+#: ui/app-window.slint:144 ui/app-window.slint:145 ui/app-window.slint:147
+#: ui/app-window.slint:148 ui/app-window.slint:150 ui/app-window.slint:151
+msgctxt "AppWindow"
+msgid "View"
+msgstr "Présentation"
+
+#: ui/app-window.slint:141 ui/app-window.slint:407
+msgctxt "AppWindow"
+msgid "Hide Inspector"
+msgstr "Masquer l’inspecteur"
+
+#: ui/app-window.slint:141 ui/app-window.slint:407
+msgctxt "AppWindow"
+msgid "Show Inspector"
+msgstr "Afficher l’inspecteur"
+
+#: ui/app-window.slint:142
+msgctxt "AppWindow"
+msgid "Hide the Artist column"
+msgstr "Masquer la colonne Artiste"
+
+#: ui/app-window.slint:142
+msgctxt "AppWindow"
+msgid "Show the Artist column"
+msgstr "Afficher la colonne Artiste"
+
+#: ui/app-window.slint:143
+msgctxt "AppWindow"
+msgid "Hide the Album column"
+msgstr "Masquer la colonne Album"
+
+#: ui/app-window.slint:143
+msgctxt "AppWindow"
+msgid "Show the Album column"
+msgstr "Afficher la colonne Album"
+
+#: ui/app-window.slint:144
+msgctxt "AppWindow"
+msgid "Hide the Year column"
+msgstr "Masquer la colonne Année"
+
+#: ui/app-window.slint:144
+msgctxt "AppWindow"
+msgid "Show the Year column"
+msgstr "Afficher la colonne Année"
+
+#: ui/app-window.slint:145
+msgctxt "AppWindow"
+msgid "Hide the Genre column"
+msgstr "Masquer la colonne Genre"
+
+#: ui/app-window.slint:145
+msgctxt "AppWindow"
+msgid "Show the Genre column"
+msgstr "Afficher la colonne Genre"
+
+#: ui/app-window.slint:146
+msgctxt "AppWindow"
+msgid "Hide the Time column"
+msgstr "Masquer la colonne Durée"
+
+#: ui/app-window.slint:146
+msgctxt "AppWindow"
+msgid "Show the Time column"
+msgstr "Afficher la colonne Durée"
+
+#: ui/app-window.slint:147
+msgctxt "AppWindow"
+msgid "Hide the Bitrate column"
+msgstr "Masquer la colonne Débit"
+
+#: ui/app-window.slint:147
+msgctxt "AppWindow"
+msgid "Show the Bitrate column"
+msgstr "Afficher la colonne Débit"
+
+#: ui/app-window.slint:148
+msgctxt "AppWindow"
+msgid "Hide the Tags column (ID3 versions)"
+msgstr "Masquer la colonne Tags (versions ID3)"
+
+#: ui/app-window.slint:148
+msgctxt "AppWindow"
+msgid "Show the Tags column (ID3 versions)"
+msgstr "Afficher la colonne Tags (versions ID3)"
+
+#: ui/app-window.slint:149
+msgctxt "AppWindow"
+msgid "Hide the File column"
+msgstr "Masquer la colonne Fichier"
+
+#: ui/app-window.slint:149
+msgctxt "AppWindow"
+msgid "Show the File column"
+msgstr "Afficher la colonne Fichier"
+
+#: ui/app-window.slint:150
+msgctxt "AppWindow"
+msgid "Hide the Folder column"
+msgstr "Masquer la colonne Dossier"
+
+#: ui/app-window.slint:150
+msgctxt "AppWindow"
+msgid "Show the Folder column"
+msgstr "Afficher la colonne Dossier"
+
+#: ui/app-window.slint:151
+msgctxt "AppWindow"
+msgid "Reset to default columns"
+msgstr "Rétablir les colonnes par défaut"
+
+#: ui/app-window.slint:152
+msgctxt "AppWindow"
+msgid "Write ID3v2.4 by default"
+msgstr "Écrire l’ID3v2.4 par défaut"
+
+#: ui/app-window.slint:152 ui/app-window.slint:153 ui/app-window.slint:154
+#: ui/app-window.slint:156 ui/app-window.slint:157
+msgctxt "AppWindow"
+msgid "Settings"
+msgstr "Réglages"
+
+#: ui/app-window.slint:153
+msgctxt "AppWindow"
+msgid "Write ID3v2.3 by default"
+msgstr "Écrire l’ID3v2.3 par défaut"
+
+#: ui/app-window.slint:154
+msgctxt "AppWindow"
+msgid "ID3v1 policy: keep where it exists"
+msgstr "ID3v1 : le garder là où il existe"
+
+#: ui/app-window.slint:155
+msgctxt "AppWindow"
+msgid "ID3v1 policy: always write"
+msgstr "ID3v1 : toujours l’écrire"
+
+#: ui/app-window.slint:156
+msgctxt "AppWindow"
+msgid "ID3v1 policy: never write"
+msgstr "ID3v1 : ne jamais l’écrire"
+
 #: ui/app-window.slint:157
+msgctxt "AppWindow"
+msgid "Turn developer mode off"
+msgstr "Désactiver le mode développeur"
+
+#: ui/app-window.slint:157
+msgctxt "AppWindow"
+msgid "Turn developer mode on"
+msgstr "Activer le mode développeur"
+
+#. The application's name, then the source the table lists.
+#: ui/app-window.slint:209
 msgctxt "AppWindow"
 msgid "All tracks"
 msgstr "Toutes les pistes"
 
 #. The application's name, then the source the table lists.
-#: ui/app-window.slint:157
+#: ui/app-window.slint:209
 msgctxt "AppWindow"
 msgid "Recently changed"
 msgstr "Modifiés récemment"
 
 #. The application's name, then the source the table lists.
-#: ui/app-window.slint:157
+#: ui/app-window.slint:209
 msgctxt "AppWindow"
 msgid "Unreadable files"
 msgstr "Fichiers illisibles"
 
-#: ui/app-window.slint:197
+#: ui/app-window.slint:388
 msgctxt "AppWindow"
-msgid "File"
-msgstr "Fichier"
+msgid "Command Palette…"
+msgstr "Palette de commandes…"
 
-#: ui/app-window.slint:200
-msgctxt "AppWindow"
-msgid "Open Folder…"
-msgstr "Ouvrir un dossier…"
-
-#: ui/app-window.slint:209
-msgctxt "AppWindow"
-msgid "Open Files…"
-msgstr "Ouvrir des fichiers…"
-
-#: ui/app-window.slint:220
-msgctxt "AppWindow"
-msgid "Save"
-msgstr "Enregistrer"
-
-#: ui/app-window.slint:233
-msgctxt "AppWindow"
-msgid "Options…"
-msgstr "Options…"
-
-#: ui/app-window.slint:233
-msgctxt "AppWindow"
-msgid "Settings…"
-msgstr "Réglages…"
-
-#: ui/app-window.slint:243
-msgctxt "AppWindow"
-msgid "Edit"
-msgstr "Édition"
-
-#: ui/app-window.slint:246 ui/app-window.slint:396
-msgctxt "AppWindow"
-msgid "Undo"
-msgstr "Annuler"
-
-#: ui/app-window.slint:255 ui/app-window.slint:405
-msgctxt "AppWindow"
-msgid "Redo"
-msgstr "Rétablir"
-
-#: ui/app-window.slint:266
-msgctxt "AppWindow"
-msgid "Find"
-msgstr "Rechercher"
-
-#: ui/app-window.slint:277
-msgctxt "AppWindow"
-msgid "Select Album"
-msgstr "Sélectionner l’album"
-
-#: ui/app-window.slint:285
-msgctxt "AppWindow"
-msgid "Number Tracks"
-msgstr "Numéroter les pistes"
-
-#: ui/app-window.slint:295
-msgctxt "AppWindow"
-msgid "Preferences…"
-msgstr "Préférences…"
-
-#: ui/app-window.slint:305
-msgctxt "AppWindow"
-msgid "Controls"
-msgstr "Commandes"
-
-#: ui/app-window.slint:308
-msgctxt "AppWindow"
-msgid "Pause"
-msgstr "Pause"
-
-#: ui/app-window.slint:308
-msgctxt "AppWindow"
-msgid "Play"
-msgstr "Lecture"
-
-#: ui/app-window.slint:316
-msgctxt "AppWindow"
-msgid "Next Track"
-msgstr "Piste suivante"
-
-#: ui/app-window.slint:324
-msgctxt "AppWindow"
-msgid "Previous Track"
-msgstr "Piste précédente"
-
-#: ui/app-window.slint:333
-msgctxt "AppWindow"
-msgid "View"
-msgstr "Présentation"
-
-#: ui/app-window.slint:336
-msgctxt "AppWindow"
-msgid "Hide Sidebar"
-msgstr "Masquer la barre latérale"
-
-#: ui/app-window.slint:336
-msgctxt "AppWindow"
-msgid "Show Sidebar"
-msgstr "Afficher la barre latérale"
-
-#: ui/app-window.slint:344
-msgctxt "AppWindow"
-msgid "Hide Inspector"
-msgstr "Masquer l’inspecteur"
-
-#: ui/app-window.slint:344
-msgctxt "AppWindow"
-msgid "Show Inspector"
-msgstr "Afficher l’inspecteur"
-
-#: ui/app-window.slint:370
+#: ui/app-window.slint:433
 msgctxt "AppWindow"
 msgid "Open folder"
 msgstr "Ouvrir un dossier"
 
-#: ui/app-window.slint:431
+#: ui/app-window.slint:502
+msgctxt "AppWindow"
+msgid "Command palette"
+msgstr "Palette de commandes"
+
+#: ui/app-window.slint:526
 msgctxt "AppWindow"
 msgid "Toggle sidebar"
 msgstr "Afficher ou masquer la barre latérale"
 
-#: ui/app-window.slint:441
+#: ui/app-window.slint:536
 msgctxt "AppWindow"
 msgid "Toggle inspector"
 msgstr "Afficher ou masquer l’inspecteur"
@@ -512,6 +713,51 @@ msgstr "Détails"
 msgctxt "Inspector"
 msgid "File size"
 msgstr "Taille du fichier"
+
+#: ui/palette.slint:116
+msgctxt "CommandPalette"
+msgid "Command palette"
+msgstr "Palette de commandes"
+
+#: ui/palette.slint:142
+msgctxt "CommandPalette"
+msgid "Type a command"
+msgstr "Tapez une commande"
+
+#: ui/palette.slint:155
+msgctxt "CommandPalette"
+msgid "Command"
+msgstr "Commande"
+
+#: ui/palette.slint:217 ui/palette.slint:230
+msgctxt "CommandPalette"
+msgid "Commands"
+msgstr "Commandes"
+
+#: ui/palette.slint:217
+msgctxt "CommandPalette"
+msgid "No command holds “{}”"
+msgstr "Aucune commande ne contient « {} »"
+
+#: ui/palette.slint:297
+msgctxt "CommandPalette"
+msgid "Commands scroll bar"
+msgstr "Barre de défilement des commandes"
+
+#: ui/palette.slint:316
+msgctxt "CommandPalette"
+msgid "↑↓ to move"
+msgstr "↑↓ pour se déplacer"
+
+#: ui/palette.slint:323
+msgctxt "CommandPalette"
+msgid "↵ to run"
+msgstr "↵ pour lancer"
+
+#: ui/palette.slint:330
+msgctxt "CommandPalette"
+msgid "esc to close"
+msgstr "esc pour fermer"
 
 #: ui/player.slint:123
 msgctxt "PlayerBar"

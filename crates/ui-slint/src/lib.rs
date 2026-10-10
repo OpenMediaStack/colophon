@@ -20,6 +20,8 @@ use slint::{
     SharedString, Timer, TimerMode, VecModel,
 };
 
+mod palette;
+
 mod generated {
     // Slint's generated code unwraps internally; the lints stay on for our own code.
     #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -30,9 +32,10 @@ mod generated {
 pub use generated::Command as WindowCommand;
 pub use generated::{
     AppWindow, BitrateMode, ByteSize, CoverState, Id3v1Losses, Id3v1Policy, InspectedTracks,
-    InspectorField, InspectorState, Kilohertz, ReadProblem, RemovedTag, ScanState, SidebarItem,
-    SizeUnit, SourceKind, TagEditing, TagField, TagRemoval, Theme, TrackColumn, TrackColumnWidths,
-    TrackColumns, TrackRow, TrackSpectrum, TrackStatus, UnreadableFile, UnsavedChoice,
+    InspectorField, InspectorState, Kilohertz, PaletteAction, PaletteEntry, PaletteMatch,
+    ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit, SourceKind, TagEditing, TagField,
+    TagRemoval, Theme, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow, TrackSpectrum,
+    TrackStatus, UnreadableFile, UnsavedChoice,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -219,32 +222,31 @@ pub fn main_window_keeping(
     window.on_choose_id3v2_3({
         let bridge = Rc::clone(&bridge);
         move |older| {
-            let policy = bridge.engine.borrow().preferences().writing;
             let id3v2 = if older {
                 Id3v2Version::V2_3
             } else {
                 Id3v2Version::V2_4
             };
-            execute(
-                &bridge,
-                Command::SetWritePolicy(WritePolicy { id3v2, ..policy }),
-            );
+            change_policy(&bridge, |policy| policy.id3v2 = id3v2);
         }
     });
     window.on_choose_id3v1_policy({
         let bridge = Rc::clone(&bridge);
         move |id3v1| {
-            let policy = bridge.engine.borrow().preferences().writing;
             let id3v1 = match id3v1 {
                 Id3v1Policy::Keep => tags::Id3v1Policy::Keep,
                 Id3v1Policy::Always => tags::Id3v1Policy::Always,
                 Id3v1Policy::Never => tags::Id3v1Policy::Never,
             };
-            execute(
-                &bridge,
-                Command::SetWritePolicy(WritePolicy { id3v1, ..policy }),
-            );
+            change_policy(&bridge, |policy| policy.id3v1 = id3v1);
         }
+    });
+    window.on_filter_palette(|entries, query| {
+        ModelRc::new(VecModel::from(palette::matches(entries.iter(), &query)))
+    });
+    window.on_palette_chosen({
+        let bridge = Rc::clone(&bridge);
+        move |action| run_palette(&bridge, action)
     });
     window.on_removal_answered({
         let bridge = Rc::clone(&bridge);
@@ -541,6 +543,74 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         }
     };
     execute(bridge, command);
+}
+
+fn change_policy(bridge: &Rc<Bridge>, change: impl FnOnce(&mut WritePolicy)) {
+    let mut policy = bridge.engine.borrow().preferences().writing;
+    change(&mut policy);
+    execute(bridge, Command::SetWritePolicy(policy));
+}
+
+/// Runs the command chosen in the palette, as its menu item or its control would.
+fn run_palette(bridge: &Rc<Bridge>, action: PaletteAction) {
+    use generated::Command as Window;
+    let Some(window) = bridge.window.upgrade() else {
+        return;
+    };
+    let id3v2 = |version| choose_version(bridge, VersionChoice::Id3v2(version));
+    let id3v1 = |version| choose_version(bridge, VersionChoice::Id3v1(version));
+    let column = |column| execute(bridge, Command::ToggleColumn(column));
+    match action {
+        PaletteAction::OpenFolder => run(bridge, Window::OpenFolder),
+        PaletteAction::OpenFiles => run(bridge, Window::OpenFiles),
+        PaletteAction::Save => run(bridge, Window::Save),
+        PaletteAction::Settings => window.set_settings_open(true),
+        PaletteAction::Undo => run(bridge, Window::Undo),
+        PaletteAction::Redo => run(bridge, Window::Redo),
+        PaletteAction::Find => window.invoke_focus_filter(),
+        PaletteAction::SelectAll => run(bridge, Window::SelectAll),
+        PaletteAction::SelectAlbum => run(bridge, Window::SelectAlbum),
+        PaletteAction::NumberTracks => run(bridge, Window::NumberTracks),
+        PaletteAction::Revert => run(bridge, Window::Revert),
+        PaletteAction::PlayPause => run(bridge, Window::PlayPause),
+        PaletteAction::NextTrack => run(bridge, Window::PlayNext),
+        PaletteAction::PreviousTrack => run(bridge, Window::PlayPrevious),
+        PaletteAction::ToggleSidebar => run(bridge, Window::ToggleSidebar),
+        PaletteAction::ToggleInspector => run(bridge, Window::ToggleInspector),
+        PaletteAction::ToggleDeveloperMode => run(bridge, Window::ToggleDeveloperMode),
+        PaletteAction::ResetColumns => run(bridge, Window::ResetColumns),
+        PaletteAction::ToggleArtist => column(Column::Artist),
+        PaletteAction::ToggleAlbum => column(Column::Album),
+        PaletteAction::ToggleYear => column(Column::Year),
+        PaletteAction::ToggleGenre => column(Column::Genre),
+        PaletteAction::ToggleTime => column(Column::Time),
+        PaletteAction::ToggleBitrate => column(Column::Bitrate),
+        PaletteAction::ToggleTags => column(Column::Tags),
+        PaletteAction::ToggleFile => column(Column::File),
+        PaletteAction::ToggleFolder => column(Column::Folder),
+        PaletteAction::WriteId3v24 => id3v2(Some(Id3v2Version::V2_4)),
+        PaletteAction::WriteId3v23 => id3v2(Some(Id3v2Version::V2_3)),
+        PaletteAction::WriteId3v22 => id3v2(Some(Id3v2Version::V2_2)),
+        PaletteAction::RemoveId3v2 => id3v2(None),
+        PaletteAction::WriteId3v11 => id3v1(Some(Id3v1Version::V1_1)),
+        PaletteAction::WriteId3v10 => id3v1(Some(Id3v1Version::V1_0)),
+        PaletteAction::RemoveId3v1 => id3v1(None),
+        PaletteAction::DefaultId3v24 => {
+            change_policy(bridge, |policy| policy.id3v2 = Id3v2Version::V2_4);
+        }
+        PaletteAction::DefaultId3v23 => {
+            change_policy(bridge, |policy| policy.id3v2 = Id3v2Version::V2_3);
+        }
+        PaletteAction::Id3v1Keep => {
+            change_policy(bridge, |policy| policy.id3v1 = tags::Id3v1Policy::Keep);
+        }
+        PaletteAction::Id3v1Always => {
+            change_policy(bridge, |policy| policy.id3v1 = tags::Id3v1Policy::Always);
+        }
+        PaletteAction::Id3v1Never => {
+            change_policy(bridge, |policy| policy.id3v1 = tags::Id3v1Policy::Never);
+        }
+    }
 }
 
 /// Chooses a tag version for the selected tracks, after asking first when the choice removes a

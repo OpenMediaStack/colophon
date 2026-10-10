@@ -1,0 +1,336 @@
+import { Theme } from "theme.slint";
+import { ScrollBar } from "widgets.slint";
+
+// What an entry of the command palette does.
+export enum PaletteAction {
+    open-folder,
+    open-files,
+    save,
+    settings,
+    undo,
+    redo,
+    find,
+    select-all,
+    select-album,
+    number-tracks,
+    revert,
+    play-pause,
+    next-track,
+    previous-track,
+    toggle-sidebar,
+    toggle-inspector,
+    toggle-developer-mode,
+    reset-columns,
+    toggle-artist,
+    toggle-album,
+    toggle-year,
+    toggle-genre,
+    toggle-time,
+    toggle-bitrate,
+    toggle-tags,
+    toggle-file,
+    toggle-folder,
+    write-id3v2-4,
+    write-id3v2-3,
+    write-id3v2-2,
+    remove-id3v2,
+    write-id3v1-1,
+    write-id3v1-0,
+    remove-id3v1,
+    default-id3v2-4,
+    default-id3v2-3,
+    id3v1-keep,
+    id3v1-always,
+    id3v1-never,
+}
+
+// A command of the palette, listed while it can run.
+export struct PaletteEntry {
+    label: string,
+    category: string,
+    enabled: bool,
+    action: PaletteAction,
+}
+
+// An entry that holds the text typed, cut around where it first does.
+export struct PaletteMatch {
+    before: string,
+    matched: string,
+    after: string,
+    category: string,
+    action: PaletteAction,
+}
+
+// Runs a command by its name: what is typed narrows the list, the arrow keys move in it, Return
+// runs the highlighted command and Escape closes the palette.
+export component CommandPalette inherits Rectangle {
+    in property <[PaletteEntry]> entries;
+    // The entries that can run and hold `query`, best first.
+    pure callback filter([PaletteEntry], string) -> [PaletteMatch];
+    callback chosen(PaletteAction);
+    callback close;
+
+    property <string> query;
+    property <[PaletteMatch]> matches: root.filter(root.entries, root.query);
+    property <int> current;
+    property <length> row-height: 32px;
+    property <int> rows-shown: 9;
+
+    function run(index: int) {
+        if index >= 0 && index < root.matches.length {
+            root.chosen(root.matches[index].action);
+        }
+    }
+
+    // Keeps the highlighted row in view.
+    function reveal() {
+        if root.current * root.row-height < -rows.content-y {
+            rows.content-y = -root.current * root.row-height;
+        } else if (root.current + 1) * root.row-height > rows.height - rows.content-y {
+            rows.content-y = rows.height - (root.current + 1) * root.row-height;
+        }
+    }
+
+    background: Theme.scrim;
+
+    TouchArea {
+        clicked => {
+            root.close();
+        }
+    }
+
+    Rectangle {
+        width: min(600px, root.width - 32px);
+        height: content.preferred-height;
+        x: (root.width - self.width) / 2;
+        y: 74px;
+        background: Theme.surface-2;
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: Theme.border-strong;
+        clip: true;
+        drop-shadow-offset-y: 16px;
+        drop-shadow-blur: 48px;
+        drop-shadow-color: Theme.shadow-dialog;
+        accessible-role: groupbox;
+        accessible-label: @tr("Command palette");
+
+        // Clicks between the rows stay in the palette.
+        TouchArea { }
+
+        content := VerticalLayout {
+            HorizontalLayout {
+                height: 44px;
+                padding-left: 14px;
+                padding-right: 14px;
+                spacing: 10px;
+
+                Image {
+                    width: 16px;
+                    y: (parent.height - self.height) / 2;
+                    source: @image-url("images/search.svg");
+                    colorize: Theme.text-tertiary;
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+
+                    if input.text == "": Text {
+                        width: 100%;
+                        vertical-alignment: center;
+                        overflow: elide;
+                        text: @tr("Type a command");
+                        font-size: 15px;
+                        color: Theme.text-tertiary;
+                        accessible-role: none;
+                    }
+
+                    input := TextInput {
+                        vertical-alignment: center;
+                        single-line: true;
+                        font-size: 15px;
+                        color: Theme.text-primary;
+                        selection-background-color: Theme.accent-selection;
+                        selection-foreground-color: Theme.text-primary;
+                        accessible-label: @tr("Command");
+                        init => {
+                            self.focus();
+                        }
+                        edited => {
+                            root.query = self.text;
+                            root.current = 0;
+                            rows.content-y = 0;
+                        }
+                        accepted => {
+                            root.run(root.current);
+                        }
+                        key-pressed(event) => {
+                            if event.text == Key.Escape {
+                                root.close();
+                                return accept;
+                            }
+                            if event.text == Key.DownArrow {
+                                root.current = min(root.current + 1, root.matches.length - 1);
+                                root.reveal();
+                                return accept;
+                            }
+                            if event.text == Key.UpArrow {
+                                root.current = max(root.current - 1, 0);
+                                root.reveal();
+                                return accept;
+                            }
+                            return reject;
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: esc.preferred-width + 12px;
+                    height: 18px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: 3px;
+                    border-width: 1px;
+                    border-color: Theme.border-strong;
+
+                    esc := Text {
+                        text: "esc";
+                        font-size: 11px;
+                        color: Theme.text-secondary;
+                        accessible-role: none;
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Theme.border-subtle;
+            }
+
+            VerticalLayout {
+                padding: 6px;
+
+                Text {
+                    height: 26px;
+                    vertical-alignment: center;
+                    x: 8px;
+                    text: root.matches.length > 0 ? @tr("Commands").to-uppercase() : @tr("No command holds “{}”", root.query);
+                    font-size: root.matches.length > 0 ? 11px : 13px;
+                    font-weight: root.matches.length > 0 ? 500 : 400;
+                    letter-spacing: root.matches.length > 0 ? 0.66px : 0px;
+                    color: Theme.text-tertiary;
+                }
+
+                Rectangle {
+                    height: min(root.matches.length, root.rows-shown) * root.row-height;
+
+                    rows := Flickable {
+                        content-height: root.matches.length * root.row-height;
+                        accessible-role: list;
+                        accessible-label: @tr("Commands");
+
+                        for match[index] in root.matches: Rectangle {
+                            y: index * root.row-height;
+                            height: root.row-height;
+                            border-radius: 4px;
+                            background: index == root.current ? Theme.accent-selection : touch.has-hover ? Theme.surface-3 : transparent;
+                            accessible-role: list-item;
+                            accessible-label: match.before + match.matched + match.after;
+                            accessible-item-selected: index == root.current;
+                            accessible-action-default => {
+                                root.run(index);
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                spacing: 10px;
+
+                                HorizontalLayout {
+                                    horizontal-stretch: 1;
+                                    alignment: start;
+                                    spacing: 0px;
+
+                                    Text {
+                                        vertical-alignment: center;
+                                        text: match.before;
+                                        color: Theme.text-primary;
+                                    }
+
+                                    Text {
+                                        vertical-alignment: center;
+                                        text: match.matched;
+                                        font-weight: 600;
+                                        color: Theme.accent-text;
+                                    }
+
+                                    Text {
+                                        vertical-alignment: center;
+                                        text: match.after;
+                                        overflow: elide;
+                                        color: Theme.text-primary;
+                                    }
+                                }
+
+                                Text {
+                                    vertical-alignment: center;
+                                    text: match.category;
+                                    font-size: 12px;
+                                    color: Theme.text-tertiary;
+                                }
+                            }
+
+                            touch := TouchArea {
+                                clicked => {
+                                    root.run(index);
+                                }
+                            }
+                        }
+                    }
+
+                    if root.matches.length > root.rows-shown: ScrollBar {
+                        x: parent.width - 8px;
+                        width: 8px;
+                        content-size: rows.content-height;
+                        visible-size: rows.height;
+                        position <=> rows.content-y;
+                        accessible-label: @tr("Commands scroll bar");
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Theme.border-subtle;
+            }
+
+            HorizontalLayout {
+                height: 30px;
+                padding-left: 14px;
+                padding-right: 14px;
+                spacing: 16px;
+                alignment: start;
+
+                Text {
+                    vertical-alignment: center;
+                    text: @tr("↑↓ to move");
+                    font-size: 12px;
+                    color: Theme.text-tertiary;
+                }
+
+                Text {
+                    vertical-alignment: center;
+                    text: @tr("↵ to run");
+                    font-size: 12px;
+                    color: Theme.text-tertiary;
+                }
+
+                Text {
+                    vertical-alignment: center;
+                    text: @tr("esc to close");
+                    font-size: 12px;
+                    color: Theme.text-tertiary;
+                }
+            }
+        }
+    }
+}
