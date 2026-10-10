@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 /// A column of the track table that the user may hide. Status, number and title always show.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Column {
@@ -74,7 +76,8 @@ impl FromIterator<Column> for Columns {
 
 /// The width of every column once the user has resized one, in logical pixels. The status and
 /// number columns keep theirs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ColumnWidths {
     pub title: u32,
     pub artist: u32,

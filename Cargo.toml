@@ -16,6 +16,7 @@ colophon-library = { path = "crates/library" }
 colophon-player = { path = "crates/player" }
 colophon-tags = { path = "crates/tags" }
 colophon-ui = { path = "crates/ui-slint" }
+dirs = "7.0.0"
 slint = "1.18.1"
 slint-build = "1.18.1"
 # The testing backend does not follow semver: it moves with slint, to the exact version.
@@ -25,9 +26,11 @@ image = { version = "0.25.10", default-features = false, features = ["jpeg", "pn
 lofty = "0.25.4"
 rfd = "0.17.2"
 rustfft = "6.4.1"
+serde = { version = "1.0.229", features = ["derive"] }
 rodio = { version = "0.22.2", default-features = false, features = ["playback", "mp3"] }
 tempfile = "3.27.0"
 thiserror = "2.0.21"
+toml = "1.1.8"
 walkdir = "2.5.0"
 
 [workspace.lints.rust]

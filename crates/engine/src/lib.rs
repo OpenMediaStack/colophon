@@ -5,6 +5,7 @@ mod edits;
 mod inspection;
 mod listing;
 mod playback;
+mod preferences;
 mod selection;
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -17,6 +18,7 @@ use colophon_library::{
     SaveEvent, SaveHandle, SaveJob, ScanError, ScanEvent, ScanHandle, ScanOutcome, spawn_save,
     spawn_scan,
 };
+use serde::{Deserialize, Serialize};
 
 pub use colophon_library::{AUDIO_EXTENSIONS, Track, tags};
 pub use columns::{Column, ColumnWidths, Columns};
@@ -24,6 +26,7 @@ pub use edits::{Edit, Edits, Field, VersionChoice};
 pub use inspection::{AudioLine, Inspection, Shared, Summary};
 pub use listing::{Album, AlbumKey, Groups, Sort, SortColumn, Source};
 pub use playback::{Output, PlayError, Playback};
+pub use preferences::Preferences;
 pub use selection::{Selection, Step};
 
 /// A user action. The UI turns buttons, menu items and shortcuts into commands.
@@ -87,6 +90,8 @@ pub enum Command {
     Seek(Duration),
     /// From 0, silent, to 100, as loud as the file.
     SetVolume(u8),
+    /// The window's size, to open it at the next launch.
+    ResizeWindow(WindowSize),
 }
 
 impl Command {
@@ -126,6 +131,7 @@ impl Command {
             Command::PlayPrevious => "playback.previous",
             Command::Seek(_) => "playback.seek",
             Command::SetVolume(_) => "playback.volume",
+            Command::ResizeWindow(_) => "view.resize_window",
         }
     }
 }
@@ -141,6 +147,15 @@ pub struct ViewState {
     pub column_widths: Option<ColumnWidths>,
     /// The inspector chooses the tag versions to write, ID3v2.2 included.
     pub developer_mode: bool,
+    /// The window's size when it last closed, if it did.
+    pub window_size: Option<WindowSize>,
+}
+
+/// A window's size, in logical pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct WindowSize {
+    pub width: u32,
+    pub height: u32,
 }
 
 impl Default for ViewState {
@@ -151,6 +166,7 @@ impl Default for ViewState {
             columns: Columns::default(),
             column_widths: None,
             developer_mode: false,
+            window_size: None,
         }
     }
 }
@@ -244,6 +260,20 @@ impl Engine {
             output: Some(Box::new(output)),
             ..Self::default()
         }
+    }
+
+    /// What to remember until the next launch.
+    pub fn preferences(&self) -> Preferences {
+        Preferences {
+            view: self.view,
+            volume: (self.playback.volume * 100.0).round() as u8,
+        }
+    }
+
+    /// Starts from the preferences of the last launch.
+    pub fn restore(&mut self, preferences: Preferences) {
+        self.view = preferences.view;
+        self.execute(Command::SetVolume(preferences.volume));
     }
 
     /// A sound device exists, so tracks can play.
@@ -456,6 +486,7 @@ impl Engine {
                     output.set_volume(self.playback.volume);
                 }
             }
+            Command::ResizeWindow(size) => self.view.window_size = Some(size),
             Command::SortBy(column) => {
                 self.sort = Some(Sort {
                     column,

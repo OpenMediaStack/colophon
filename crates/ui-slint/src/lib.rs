@@ -12,12 +12,12 @@ use std::time::Duration;
 use colophon_engine::tags::{self, Id3v1Loss, Id3v1Version, Id3v2Version, ReadError};
 use colophon_engine::{
     AlbumKey, AudioLine, Column, ColumnWidths, Command, Edit, Engine, Field, Inspection, Library,
-    ScanStatus, Selection, Shared, Sort, SortColumn, Source, Step, Summary, Track, VersionChoice,
-    ViewState,
+    Preferences, ScanStatus, Selection, Shared, Sort, SortColumn, Source, Step, Summary, Track,
+    VersionChoice, ViewState, WindowSize,
 };
 use slint::{
-    CloseRequestResponse, Image, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString,
-    Timer, TimerMode, VecModel,
+    CloseRequestResponse, Image, LogicalSize, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer,
+    SharedString, Timer, TimerMode, VecModel,
 };
 
 mod generated {
@@ -92,7 +92,23 @@ pub fn main_window(
     engine: Engine,
     dialogs: impl Dialogs + 'static,
 ) -> Result<AppWindow, PlatformError> {
+    main_window_keeping(engine, dialogs, |_: &Preferences| {})
+}
+
+/// The same, at the size the engine's preferences remember, handing them to `keep` each time
+/// they change and when the window closes, so that the next launch starts from them.
+pub fn main_window_keeping(
+    engine: Engine,
+    dialogs: impl Dialogs + 'static,
+    keep: impl Fn(&Preferences) + 'static,
+) -> Result<AppWindow, PlatformError> {
     let window = AppWindow::new()?;
+    if let Some(size) = engine.view().window_size {
+        window
+            .window()
+            .set_size(LogicalSize::new(size.width as f32, size.height as f32));
+    }
+    let kept = engine.preferences();
     let tracks = Rc::new(VecModel::default());
     window.set_tracks(ModelRc::from(Rc::clone(&tracks)));
     let bridge = Rc::new_cyclic(|me| Bridge {
@@ -118,6 +134,8 @@ pub fn main_window(
         waveform: RefCell::default(),
         spectrum: RefCell::default(),
         spectrum_timer: Timer::default(),
+        kept: Cell::new(kept),
+        keep: Box::new(keep),
     });
     bridge.show();
     window.on_run({
@@ -305,6 +323,7 @@ pub fn main_window(
                 ask(&bridge);
                 CloseRequestResponse::KeepWindowShown
             } else {
+                bridge.keep_window_size();
                 CloseRequestResponse::HideWindow
             }
         }
@@ -360,6 +379,9 @@ struct Bridge {
     /// The spectrum of the single selected track, read on a thread of its own.
     spectrum: RefCell<SpectrumDrawing>,
     spectrum_timer: Timer,
+    /// The preferences handed to `keep` last.
+    kept: Cell<Preferences>,
+    keep: Box<dyn Fn(&Preferences)>,
 }
 
 /// The track whose spectrum shows or is being read.
@@ -563,6 +585,7 @@ fn after_save(bridge: &Rc<Bridge>) {
 }
 
 fn quit(bridge: &Rc<Bridge>) {
+    bridge.keep_window_size();
     if let Some(window) = bridge.window.upgrade() {
         window.hide().ok();
     }
@@ -678,6 +701,28 @@ impl Bridge {
         self.read_waveform(&window, &engine);
         self.read_spectrum(&window, &engine);
         self.show_departure(&window, &engine);
+        let preferences = engine.preferences();
+        if preferences != self.kept.get() {
+            self.kept.set(preferences);
+            (self.keep)(&preferences);
+        }
+    }
+
+    /// Remembers the window's size for the next launch, before it closes.
+    fn keep_window_size(&self) {
+        let Some(window) = self.window.upgrade() else {
+            return;
+        };
+        let window = window.window();
+        let size = window.size().to_logical(window.scale_factor());
+        let size = WindowSize {
+            width: size.width.round() as u32,
+            height: size.height.round() as u32,
+        };
+        self.engine
+            .borrow_mut()
+            .execute(Command::ResizeWindow(size));
+        self.show();
     }
 
     /// Lists the sidebar's sources, again when the library changed, and marks the one shown.
