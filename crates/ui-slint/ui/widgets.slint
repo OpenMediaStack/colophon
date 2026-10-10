@@ -234,3 +234,62 @@ export component Button inherits Rectangle {
         }
     }
 }
+
+// One choice of a Segmented control. Version numbers line up in JetBrains Mono.
+export struct Segment {
+    label: string,
+    mono: bool,
+}
+
+// A row of choices, one of them selected; none while the selection mixes several.
+export component Segmented inherits Rectangle {
+    in property <[Segment]> segments;
+    in property <int> selected: -1;
+    in property <string> label;
+    callback chosen(int);
+
+    height: 28px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: Theme.border-strong;
+    background: Theme.surface-2;
+    accessible-role: radio-group;
+    accessible-label: root.label;
+
+    HorizontalLayout {
+        padding: 2px;
+        spacing: 2px;
+
+        for segment[index] in root.segments: Rectangle {
+            // Equal shares of the width, whatever the length of each label.
+            min-width: 0px;
+            preferred-width: 0px;
+            horizontal-stretch: 1;
+            border-radius: 3px;
+            background: index == root.selected ? Theme.surface-3 : touch.has-hover ? Theme.border-subtle : transparent;
+            animate background { duration: 100ms; }
+            accessible-role: radio-button;
+            accessible-label: segment.label;
+            accessible-checked: index == root.selected;
+            accessible-action-default => {
+                root.chosen(index);
+            }
+
+            Text {
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                text: segment.label;
+                font-family: segment.mono ? "JetBrains Mono" : "Inter";
+                font-size: segment.mono ? 12px : 13px;
+                font-weight: index == root.selected ? 500 : 400;
+                color: index == root.selected ? Theme.text-primary : Theme.text-secondary;
+            }
+
+            touch := TouchArea {
+                clicked => {
+                    root.chosen(index);
+                }
+            }
+        }
+    }
+}

@@ -7,10 +7,10 @@ use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::time::Duration;
 
-use colophon_engine::tags::{self, Id3v1Loss, ReadError};
+use colophon_engine::tags::{self, Id3v1Loss, Id3v1Version, Id3v2Version, ReadError};
 use colophon_engine::{
     AudioLine, Column, ColumnWidths, Command, Edit, Engine, Field, Inspection, Library, ScanStatus,
-    Selection, Shared, Step, Summary, Track, ViewState,
+    Selection, Shared, Step, Summary, Track, VersionChoice, ViewState,
 };
 use slint::{CloseRequestResponse, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
@@ -35,6 +35,16 @@ const POLL_INTERVAL: Duration = Duration::from_millis(50);
 
 /// How many modified tracks the unsaved changes dialog names.
 const NAMED_TRACKS: usize = 3;
+
+/// The choices of the inspector's Tag format section, in their order.
+const ID3V2_CHOICES: [Option<Id3v2Version>; 4] = [
+    None,
+    Some(Id3v2Version::V2_2),
+    Some(Id3v2Version::V2_3),
+    Some(Id3v2Version::V2_4),
+];
+const ID3V1_CHOICES: [Option<Id3v1Version>; 3] =
+    [None, Some(Id3v1Version::V1_0), Some(Id3v1Version::V1_1)];
 
 /// Creates the main window and hands its user actions to the engine, which then drives what it shows.
 /// `pick_folder` asks the user for a folder, usually through the system's dialog.
@@ -110,6 +120,28 @@ pub fn main_window(
                 Command::Select(track)
             };
             execute(&bridge, command);
+        }
+    });
+    window.on_choose_id3v2({
+        let bridge = Rc::clone(&bridge);
+        move |index| {
+            if let Some(version) = choice(&ID3V2_CHOICES, index) {
+                execute(
+                    &bridge,
+                    Command::ChooseVersion(VersionChoice::Id3v2(version)),
+                );
+            }
+        }
+    });
+    window.on_choose_id3v1({
+        let bridge = Rc::clone(&bridge);
+        move |index| {
+            if let Some(version) = choice(&ID3V1_CHOICES, index) {
+                execute(
+                    &bridge,
+                    Command::ChooseVersion(VersionChoice::Id3v1(version)),
+                );
+            }
         }
     });
     window.on_resize_columns({
@@ -190,6 +222,7 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
     let command = match command {
         generated::Command::ToggleSidebar => Command::ToggleSidebar,
         generated::Command::ToggleInspector => Command::ToggleInspector,
+        generated::Command::ToggleDeveloperMode => Command::ToggleDeveloperMode,
         generated::Command::StopScan => Command::StopScan,
         generated::Command::ResetColumns => Command::ResetColumns,
         generated::Command::SelectAll => Command::SelectAll,
@@ -576,6 +609,13 @@ fn inspected_tracks(summary: &Summary) -> InspectedTracks {
                 .collect::<Vec<_>>()
                 .join(", ")
         }),
+        converted: count(summary.converted),
+        id3v2_choice: place_of_versions(&summary.versions, &ID3V2_CHOICES, |versions| {
+            versions.id3v2
+        }),
+        id3v1_choice: place_of_versions(&summary.versions, &ID3V1_CHOICES, |versions| {
+            versions.id3v1
+        }),
         id3v1_losses: Id3v1Losses {
             title: summary.id3v1_losses.contains(&Id3v1Loss::Title),
             artist: summary.id3v1_losses.contains(&Id3v1Loss::Artist),
@@ -586,6 +626,30 @@ fn inspected_tracks(summary: &Summary) -> InspectedTracks {
             genre: summary.id3v1_losses.contains(&Id3v1Loss::Genre),
         },
     }
+}
+
+/// The choice of the Tag format section at `index`, if there is one.
+fn choice<T: Copy>(choices: &[T], index: i32) -> Option<T> {
+    usize::try_from(index)
+        .ok()
+        .and_then(|index| choices.get(index))
+        .copied()
+}
+
+/// Where the version the tracks share stands among the choices, -1 while they have several.
+fn place_of_versions<T: PartialEq>(
+    versions: &Shared<tags::TagVersions>,
+    choices: &[T],
+    version: impl Fn(&tags::TagVersions) -> T,
+) -> i32 {
+    let Shared::Same(versions) = versions else {
+        return -1;
+    };
+    let version = version(versions);
+    choices
+        .iter()
+        .position(|choice| *choice == version)
+        .map_or(-1, count)
 }
 
 fn field<T>(value: &Shared<T>, modified: bool, text: impl Fn(&T) -> String) -> InspectorField {
@@ -687,6 +751,7 @@ fn show_saving(window: &AppWindow, engine: &Engine) {
 fn show_view(window: &AppWindow, view: &ViewState) {
     window.set_sidebar_visible(view.sidebar_visible);
     window.set_inspector_visible(view.inspector_visible);
+    window.set_developer_mode(view.developer_mode);
     let shown = |column| view.columns.contains(column);
     window.set_columns(TrackColumns {
         artist: shown(Column::Artist),

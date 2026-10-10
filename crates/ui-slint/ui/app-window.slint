@@ -20,6 +20,7 @@ export enum Command {
     stop-scan,
     toggle-sidebar,
     toggle-inspector,
+    toggle-developer-mode,
     reset-columns,
     select-all,
     select-previous,
@@ -35,6 +36,7 @@ export enum Command {
 export component AppWindow inherits Window {
     in property <bool> sidebar-visible: true;
     in property <bool> inspector-visible: true;
+    in property <bool> developer-mode;
     in property <bool> folder-open;
     in property <string> folder;
     in property <ScanState> scan-state;
@@ -84,6 +86,9 @@ export component AppWindow inherits Window {
     // on the machine.
     in property <bool> windows-buttons: Platform.os == OperatingSystemType.windows;
     callback toggle-column(TrackColumn);
+    // A choice of the inspector's Tag format section, by its place: none, then each version.
+    callback choose-id3v2(int);
+    callback choose-id3v1(int);
     callback resize-columns(TrackColumnWidths);
     // A click on a track, by its row, with Command (Ctrl elsewhere) or Shift held.
     callback track-pressed(int, bool, bool);
@@ -184,6 +189,18 @@ export component AppWindow inherits Window {
                 shortcut: @keys(Control + Alt + I);
                 activated => {
                     root.run(Command.toggle-inspector);
+                }
+            }
+
+            MenuSeparator { }
+
+            // Settings will hold the switch; until they exist, the View menu does.
+            MenuItem {
+                title: @tr("Developer Mode");
+                checkable: true;
+                checked: root.developer-mode;
+                activated => {
+                    root.run(Command.toggle-developer-mode);
                 }
             }
         }
@@ -303,6 +320,13 @@ export component AppWindow inherits Window {
                 select-all-shortcut: root.mac-shortcuts ? "⌘A" : "Ctrl+A";
                 modified-count: root.modified-count;
                 saving: root.saving;
+                developer-mode: root.developer-mode;
+                choose-id3v2(index) => {
+                    root.choose-id3v2(index);
+                }
+                choose-id3v1(index) => {
+                    root.choose-id3v1(index);
+                }
                 revert => {
                     root.run(Command.revert);
                 }
@@ -323,6 +347,7 @@ export component AppWindow inherits Window {
             save-total: root.save-total;
             save-failures: root.save-failures;
             folder: root.folder;
+            developer-mode: root.developer-mode;
             stop-scan => {
                 root.run(Command.stop-scan);
             }

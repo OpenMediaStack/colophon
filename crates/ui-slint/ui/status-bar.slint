@@ -15,6 +15,8 @@ export component StatusBar inherits Rectangle {
     in property <int> save-total;
     in property <int> save-failures;
     in property <string> folder;
+    // Developer mode is on: its marker makes it impossible to forget.
+    in property <bool> developer-mode;
     callback stop-scan;
 
     height: 24px;
@@ -86,6 +88,24 @@ export component StatusBar inherits Rectangle {
             font-size: 12px;
             color: Theme.text-secondary;
             text: root.folder;
+        }
+
+        if root.developer-mode: Rectangle {
+            width: marker.preferred-width + 12px;
+            height: 18px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 3px;
+            border-width: 1px;
+            border-color: Theme.border-strong;
+            accessible-role: text;
+            accessible-label: marker.text;
+
+            marker := Text {
+                text: @tr("Developer mode");
+                font-family: "JetBrains Mono";
+                font-size: 11px;
+                color: Theme.text-tertiary;
+            }
         }
     }
 }

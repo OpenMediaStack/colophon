@@ -110,6 +110,7 @@ fn command_ids_are_unique() {
     let commands = [
         Command::ToggleSidebar,
         Command::ToggleInspector,
+        Command::ToggleDeveloperMode,
         Command::OpenFolder(PathBuf::new()),
         Command::StopScan,
         Command::ToggleColumn(Column::Tags),
@@ -133,4 +134,14 @@ fn command_ids_are_unique() {
     let ids: HashSet<_> = commands.iter().map(Command::id).collect();
 
     assert_eq!(ids.len(), commands.len());
+}
+
+#[test]
+fn developer_mode_is_off_until_turned_on() {
+    let mut engine = Engine::new();
+    assert!(!engine.view().developer_mode);
+
+    engine.execute(Command::ToggleDeveloperMode);
+
+    assert!(engine.view().developer_mode);
 }

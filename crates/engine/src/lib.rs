@@ -26,6 +26,8 @@ pub use selection::{Selection, Step};
 pub enum Command {
     ToggleSidebar,
     ToggleInspector,
+    /// Shows the tools for people who write ID3 readers and writers.
+    ToggleDeveloperMode,
     OpenFolder(PathBuf),
     StopScan,
     ToggleColumn(Column),
@@ -63,6 +65,7 @@ impl Command {
         match self {
             Command::ToggleSidebar => "view.toggle_sidebar",
             Command::ToggleInspector => "view.toggle_inspector",
+            Command::ToggleDeveloperMode => "view.toggle_developer_mode",
             Command::OpenFolder(_) => "library.open_folder",
             Command::StopScan => "library.stop_scan",
             Command::ToggleColumn(_) => "view.toggle_column",
@@ -94,6 +97,8 @@ pub struct ViewState {
     pub columns: Columns,
     /// `None` until the user resizes a column: the table then shares its width between them.
     pub column_widths: Option<ColumnWidths>,
+    /// The inspector chooses the tag versions to write, ID3v2.2 included.
+    pub developer_mode: bool,
 }
 
 impl Default for ViewState {
@@ -103,6 +108,7 @@ impl Default for ViewState {
             inspector_visible: true,
             columns: Columns::default(),
             column_widths: None,
+            developer_mode: false,
         }
     }
 }
@@ -225,6 +231,7 @@ impl Engine {
         match command {
             Command::ToggleSidebar => self.view.sidebar_visible = !self.view.sidebar_visible,
             Command::ToggleInspector => self.view.inspector_visible = !self.view.inspector_visible,
+            Command::ToggleDeveloperMode => self.view.developer_mode = !self.view.developer_mode,
             Command::OpenFolder(folder) => self.open_folder(folder),
             Command::StopScan => self.stop_scan(),
             Command::ToggleColumn(column) => self.view.columns.toggle(column),

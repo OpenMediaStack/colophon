@@ -167,9 +167,8 @@ fn window_inspecting(
     Ok(window)
 }
 
-#[test]
-fn the_inspector_matches_its_references() -> TestResult {
-    let tracks = InspectedTracks {
+fn three_tracks() -> InspectedTracks {
+    InspectedTracks {
         count: 3,
         title: mixed(),
         artist: text("Cassette Bloom"),
@@ -193,8 +192,16 @@ fn the_inspector_matches_its_references() -> TestResult {
         },
         has_changes: true,
         saved_as: text("ID3v2.4, ID3v1.1"),
+        converted: 3,
+        id3v2_choice: 3,
+        id3v1_choice: 2,
         ..InspectedTracks::default()
-    };
+    }
+}
+
+#[test]
+fn the_inspector_matches_its_references() -> TestResult {
+    let tracks = three_tracks();
     let unreadable = UnreadableFile {
         path: "~/Music/Marlowe Kite/Small Hours/track07.mp3".into(),
         problem: ReadProblem::Damaged,
@@ -214,6 +221,22 @@ fn the_inspector_matches_its_references() -> TestResult {
             window.show()?;
             assert_matches_reference(&window, &format!("inspector-{name}-{theme}.png"))?;
         }
+    }
+    Ok(())
+}
+
+#[test]
+fn the_tag_format_section_matches_its_references() -> TestResult {
+    for (dark, theme) in [(true, "dark"), (false, "light")] {
+        let window = window_inspecting(
+            InspectorState::Tracks,
+            three_tracks(),
+            UnreadableFile::default(),
+        )?;
+        window.set_developer_mode(true);
+        window.global::<Theme>().set_dark(dark);
+        window.show()?;
+        assert_matches_reference(&window, &format!("inspector-developer-{theme}.png"))?;
     }
     Ok(())
 }

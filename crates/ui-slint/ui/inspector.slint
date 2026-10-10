@@ -1,5 +1,5 @@
 import { Theme } from "theme.slint";
-import { Button, ScrollBar } from "widgets.slint";
+import { Button, ScrollBar, Segmented } from "widgets.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
 import { SuggestionList } from "suggestions.slint";
 
@@ -63,6 +63,12 @@ export struct InspectedTracks {
     // The tags those tracks will hold once saved, and what their ID3v1 tags will lose.
     saved-as: InspectorField,
     id3v1-losses: Id3v1Losses,
+    // How many of them saving converts to other tags or versions.
+    converted: int,
+    // The versions saving writes the tracks in, by their place in the Tag format section's
+    // choices: none first, then each version. -1 while the tracks have several.
+    id3v2-choice: int,
+    id3v1-choice: int,
 }
 
 export enum ReadProblem { cannot-open, damaged, reader-failed }
@@ -309,8 +315,13 @@ export component Inspector inherits Rectangle {
     // The files with changes waiting to be saved, and whether a save runs.
     in property <int> modified-count;
     in property <bool> saving;
+    // Shows the Tag format section, which chooses the versions to write.
+    in property <bool> developer-mode;
     callback revert;
     callback save;
+    // A choice of the Tag format section, by its place.
+    callback choose-id3v2(int);
+    callback choose-id3v1(int);
 
     property <length> scrollbar-size: 10px;
     property <length> actions-height: 53px;
@@ -338,6 +349,23 @@ export component Inspector inherits Rectangle {
 
     pure function lost-names(losses: Id3v1Losses) -> string {
         return root.join(root.join(root.join(root.join(root.join(root.join(root.join("", @tr("Title"), losses.title), @tr("Artist"), losses.artist), @tr("Album"), losses.album), @tr("Year"), losses.year), @tr("Comment"), losses.comment), @tr("Track"), losses.track), @tr("Genre"), losses.genre);
+    }
+
+    // What saving does to the tags of the files it converts.
+    pure function conversion-text() -> string {
+        if root.tracks.converted == 0 {
+            return "";
+        }
+        if root.tracks.saved-as.mixed {
+            return @tr("Saving converts {n} file." | "Saving converts {n} files." % root.tracks.converted);
+        }
+        if root.tracks.saved-as.text == "" {
+            return @tr("Saving removes the tags of {n} file." | "Saving removes the tags of {n} files." % root.tracks.converted);
+        }
+        if root.tracks.formats.mixed || root.tracks.formats.text == "" {
+            return @tr("Saving converts {n} file to {0}." | "Saving converts {n} files to {0}." % root.tracks.converted, root.tracks.saved-as.text);
+        }
+        return @tr("Saving converts {n} file from {0} to {1}." | "Saving converts {n} files from {0} to {1}." % root.tracks.converted, root.tracks.formats.text, root.tracks.saved-as.text);
     }
 
     pure function audio-text() -> string {
@@ -640,6 +668,69 @@ export component Inspector inherits Rectangle {
                             FileValue {
                                 text: @tr("ID3v1 will keep only part of: {}", root.lost-names(root.tracks.id3v1-losses));
                                 color: Theme.warning;
+                            }
+                        }
+                    }
+                }
+
+                if root.developer-mode: VerticalLayout {
+                    spacing: 8px;
+
+                    SectionLabel {
+                        text: @tr("Tag format").to-uppercase();
+                    }
+
+                    GridLayout {
+                        spacing-horizontal: 8px;
+                        spacing-vertical: 6px;
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Write ID3v2");
+                            }
+
+                            Segmented {
+                                label: @tr("Write ID3v2");
+                                segments: [
+                                    { label: @tr("None") },
+                                    { label: "2.2", mono: true },
+                                    { label: "2.3", mono: true },
+                                    { label: "2.4", mono: true },
+                                ];
+                                selected: root.tracks.id3v2-choice;
+                                chosen(index) => {
+                                    root.choose-id3v2(index);
+                                }
+                            }
+                        }
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Write ID3v1");
+                            }
+
+                            Segmented {
+                                label: @tr("Write ID3v1");
+                                segments: [
+                                    { label: @tr("None") },
+                                    { label: "1.0", mono: true },
+                                    { label: "1.1", mono: true },
+                                ];
+                                selected: root.tracks.id3v1-choice;
+                                chosen(index) => {
+                                    root.choose-id3v1(index);
+                                }
+                            }
+                        }
+
+                        if root.conversion-text() != "": Row {
+                            Rectangle { }
+
+                            Text {
+                                text: root.conversion-text();
+                                wrap: word-wrap;
+                                font-size: 12px;
+                                color: Theme.text-tertiary;
                             }
                         }
                     }

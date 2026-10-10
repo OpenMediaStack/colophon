@@ -141,3 +141,18 @@ fn the_inspection_says_which_versions_saving_writes() -> TestResult {
     assert_eq!(summary(&engine)?.versions, Shared::Mixed);
     Ok(())
 }
+
+#[test]
+fn the_inspection_counts_the_files_saving_converts() -> TestResult {
+    let (_folder, mut engine) = two_tracks()?;
+    engine.execute(Command::SelectAll);
+
+    engine.execute(Command::ChooseVersion(VersionChoice::Id3v2(Some(
+        Id3v2Version::V2_3,
+    ))));
+
+    let summary = summary(&engine)?;
+    assert_eq!(engine.edits().modified_count(), 1);
+    assert_eq!(summary.converted, 1);
+    Ok(())
+}
