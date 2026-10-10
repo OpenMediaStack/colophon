@@ -124,6 +124,17 @@ ffmpeg "${silence[@]}" -id3v2_version 4 -write_id3v1 0 "${every_field[@]}" v24_f
 	cat no_tag.mp3
 } >v22.mp3
 
+# v23_cover.mp3: ID3v2.3 with a title, a publisher (TPUB) and an 8 by 8 red cover (APIC), frames
+# Colophon does not edit and must keep when it writes.
+# Expect: formats ID3v2.3, title "With a cover", one front cover picture, publisher "Colophon Records".
+ffmpeg -v error -y -f lavfi -i anullsrc=r=44100:cl=mono -f lavfi -i color=c=red:s=8x8 -t 0.1 \
+	-map 0:a -map 1:v -frames:v 1 -c:v png -disposition:v attached_pic \
+	-metadata:s:v comment="Cover (front)" \
+	-fflags +bitexact -flags:a +bitexact -flags:v +bitexact -write_xing 0 \
+	-id3v2_version 3 -write_id3v1 0 \
+	-metadata title="With a cover" -metadata publisher="Colophon Records" \
+	v23_cover.mp3
+
 # v23_v1_long_title.mp3: ID3v2.3 and ID3v1.1 written from the same values, with a title
 # longer than ID3v1's 30 bytes.
 # Expect: formats ID3v2.3 then ID3v1.1, title "A title longer than thirty characters" in full,

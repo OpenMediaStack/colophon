@@ -2,11 +2,13 @@
 
 mod bitrate_mode;
 mod read;
+mod write;
 
 use std::fmt;
 use std::time::Duration;
 
 pub use read::{ReadError, read};
+pub use write::{Id3v1Loss, WriteError, id3v1_losses, write};
 
 /// Everything Colophon reads from an audio file.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
