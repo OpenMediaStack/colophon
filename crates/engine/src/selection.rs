@@ -55,33 +55,46 @@ impl Selection {
         self.focus = Some(track);
     }
 
-    /// A Shift click: every track from the anchor to this one, and nothing else.
-    pub(crate) fn select_range(&mut self, track: usize) {
-        let anchor = *self.anchor.get_or_insert(track);
-        self.tracks = (anchor.min(track)..=anchor.max(track)).collect();
+    /// A Shift click: every track of `order`, the tracks as the table lists them, from the anchor
+    /// to this one, and nothing else. An anchor the table no longer lists starts from this track.
+    pub(crate) fn select_range(&mut self, track: usize, order: &[usize]) {
+        let place = |track: usize| order.iter().position(|listed| *listed == track);
+        let Some(to) = place(track) else {
+            return self.select(track);
+        };
+        let from = self.anchor.and_then(place).unwrap_or(to);
+        self.tracks = order[from.min(to)..=from.max(to)].iter().copied().collect();
+        if from == to {
+            self.anchor = Some(track);
+        }
         self.focus = Some(track);
     }
 
-    pub(crate) fn select_all(&mut self, count: usize) {
-        self.tracks = (0..count).collect();
+    /// Every track the table lists.
+    pub(crate) fn select_all(&mut self, order: &[usize]) {
+        self.tracks = order.iter().copied().collect();
     }
 
-    /// An arrow key among `count` tracks: the selection moves to the next track, or grows and
-    /// shrinks from the anchor when `extend`. It starts from the first or the last track.
-    pub(crate) fn step(&mut self, step: Step, count: usize, extend: bool) {
-        let Some(last) = count.checked_sub(1) else {
+    /// An arrow key in `order`, the tracks as the table lists them: the selection moves to the
+    /// next track, or grows and shrinks from the anchor when `extend`. It starts from the first or
+    /// the last track.
+    pub(crate) fn step(&mut self, step: Step, order: &[usize], extend: bool) {
+        let Some(last) = order.len().checked_sub(1) else {
             return;
         };
-        let track = match (self.focus, step) {
+        let place = self
+            .focus
+            .and_then(|focus| order.iter().position(|listed| *listed == focus));
+        let place = match (place, step) {
             (None, Step::Down) => 0,
             (None, Step::Up) => last,
-            (Some(focus), Step::Up) => focus.saturating_sub(1),
-            (Some(focus), Step::Down) => (focus + 1).min(last),
+            (Some(place), Step::Up) => place.saturating_sub(1),
+            (Some(place), Step::Down) => (place + 1).min(last),
         };
         if extend {
-            self.select_range(track);
+            self.select_range(order[place], order);
         } else {
-            self.select(track);
+            self.select(order[place]);
         }
     }
 }
@@ -89,6 +102,9 @@ impl Selection {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const ORDER: [usize; 10] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const FIVE: [usize; 5] = [0, 1, 2, 3, 4];
 
     fn selected(selection: &Selection) -> Vec<usize> {
         selection.iter().collect()
@@ -122,10 +138,10 @@ mod tests {
         let mut selection = Selection::default();
         selection.select(5);
 
-        selection.select_range(8);
+        selection.select_range(8, &ORDER);
         assert_eq!(selected(&selection), [5, 6, 7, 8]);
 
-        selection.select_range(3);
+        selection.select_range(3, &ORDER);
         assert_eq!(selected(&selection), [3, 4, 5]);
         assert_eq!(selection.focus(), Some(3));
     }
@@ -136,7 +152,7 @@ mod tests {
         selection.select(1);
         selection.toggle(6);
 
-        selection.select_range(8);
+        selection.select_range(8, &ORDER);
 
         assert_eq!(selected(&selection), [6, 7, 8]);
     }
@@ -146,7 +162,7 @@ mod tests {
         let mut selection = Selection::default();
         selection.select(2);
 
-        selection.select_all(4);
+        selection.select_all(&[0, 1, 2, 3]);
 
         assert_eq!(selected(&selection), [0, 1, 2, 3]);
         assert_eq!(selection.focus(), Some(2));
@@ -157,8 +173,8 @@ mod tests {
         let mut down = Selection::default();
         let mut up = Selection::default();
 
-        down.step(Step::Down, 5, false);
-        up.step(Step::Up, 5, false);
+        down.step(Step::Down, &FIVE, false);
+        up.step(Step::Up, &FIVE, false);
 
         assert_eq!(selected(&down), [0]);
         assert_eq!(selected(&up), [4]);
@@ -169,12 +185,12 @@ mod tests {
         let mut selection = Selection::default();
         selection.select(1);
 
-        selection.step(Step::Up, 5, false);
-        selection.step(Step::Up, 5, false);
+        selection.step(Step::Up, &FIVE, false);
+        selection.step(Step::Up, &FIVE, false);
         assert_eq!(selected(&selection), [0]);
 
         selection.select(4);
-        selection.step(Step::Down, 5, false);
+        selection.step(Step::Down, &FIVE, false);
         assert_eq!(selected(&selection), [4]);
     }
 
@@ -183,19 +199,33 @@ mod tests {
         let mut selection = Selection::default();
         selection.select(2);
 
-        selection.step(Step::Down, 5, true);
-        selection.step(Step::Down, 5, true);
+        selection.step(Step::Down, &FIVE, true);
+        selection.step(Step::Down, &FIVE, true);
         assert_eq!(selected(&selection), [2, 3, 4]);
 
-        selection.step(Step::Up, 5, true);
+        selection.step(Step::Up, &FIVE, true);
         assert_eq!(selected(&selection), [2, 3]);
+    }
+
+    #[test]
+    fn a_range_and_the_arrows_follow_the_order_of_the_table() {
+        let order = [4, 0, 3, 1];
+        let mut selection = Selection::default();
+        selection.select(0);
+
+        selection.select_range(1, &order);
+        assert_eq!(selected(&selection), [0, 1, 3]);
+
+        selection.select(4);
+        selection.step(Step::Down, &order, false);
+        assert_eq!(selected(&selection), [0]);
     }
 
     #[test]
     fn the_arrows_do_nothing_without_tracks() {
         let mut selection = Selection::default();
 
-        selection.step(Step::Down, 0, false);
+        selection.step(Step::Down, &[], false);
 
         assert!(selection.is_empty());
         assert_eq!(selection.focus(), None);
