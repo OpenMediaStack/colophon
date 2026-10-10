@@ -9,7 +9,8 @@ import { EmptyState } from "empty-state.slint";
 import { ScanState, StatusBar } from "status-bar.slint";
 import { TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
 import { Leaving, UnsavedChanges, UnsavedChoice } from "unsaved-changes.slint";
-import { BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, TagEditing, TagField, UnreadableFile } from "inspector.slint";
+import { BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
+import { TagEditing, TagField } from "tag-editing.slint";
 
 export { Theme, Leaving, UnsavedChoice, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
@@ -266,6 +267,7 @@ export component AppWindow inherits Window {
                     sized-widths: root.column-widths;
                     longest: root.longest;
                     focused-row: root.focused-row;
+                    selected-count: root.selected-count;
                     track-pressed(row, toggle, extend) => {
                         root.track-pressed(row, toggle, extend);
                     }
