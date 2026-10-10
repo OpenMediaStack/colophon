@@ -1,4 +1,7 @@
-//! Colophon's sound: the system's default output device, through rodio.
+//! Colophon's sound: the system's default output device, through rodio, and the waveforms of
+//! tracks.
+
+mod waveform;
 
 use std::fmt;
 use std::fs::File;
@@ -8,6 +11,8 @@ use std::time::Duration;
 
 use colophon_engine::{Output, PlayError};
 use rodio::{Decoder, DeviceSinkBuilder, MixerDeviceSink, Player};
+
+pub use waveform::{Peak, Waveform};
 
 /// The system's default output device, playing one file at a time.
 pub struct Speakers {

@@ -804,6 +804,7 @@ name = "colophon-ui"
 version = "0.1.0"
 dependencies = [
  "colophon-engine",
+ "colophon-player",
  "i-slint-backend-testing",
  "image",
  "slint",
