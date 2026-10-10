@@ -7,9 +7,10 @@ use std::error::Error;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use std::sync::Arc;
 
 use colophon_tags::{
-    Id3v1Version, Id3v2Version, TagVersions, Tags, formats_after_write, read, write,
+    Cover, Id3v1Version, Id3v2Version, TagVersions, Tags, formats_after_write, read, write,
 };
 use id3::TagLike;
 
@@ -46,8 +47,21 @@ fn tags() -> Tags {
         disc_total: Some(3),
         genre: Some("Folk".into()),
         comment: Some("Remastered in 2025.".into()),
+        cover: Some(Cover {
+            mime: Some("image/png".into()),
+            data: Arc::from(PIXEL),
+        }),
     }
 }
+
+/// A PNG of one transparent pixel.
+const PIXEL: [u8; 67] = [
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+    0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+    0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+    0x42, 0x60, 0x82,
+];
 
 /// What a file holds of `tags` once written in `versions`: everything with ID3v2, what ID3v1
 /// holds without it, and nothing without either.
@@ -60,6 +74,7 @@ fn kept(versions: TagVersions) -> Tags {
             id3v1: Some(version),
         } => Tags {
             album_artist: None,
+            cover: None,
             track: tags.track.filter(|_| version == Id3v1Version::V1_1),
             track_total: None,
             disc: None,
@@ -161,6 +176,10 @@ fn id3_crate_v2(path: &Path) -> Result<Option<(Id3v2Version, Tags)>, Box<dyn Err
             disc_total: tag.total_discs(),
             genre: tag.genre_parsed().map(|genre| genre.into_owned()),
             comment: tag.comments().next().map(|comment| comment.text.clone()),
+            cover: tag.pictures().next().map(|picture| Cover {
+                mime: Some(picture.mime_type.clone()),
+                data: Arc::from(picture.data.as_slice()),
+            }),
         },
     )))
 }

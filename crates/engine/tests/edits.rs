@@ -158,3 +158,20 @@ fn the_inspection_counts_the_files_saving_converts() -> TestResult {
     assert_eq!(summary.converted, 1);
     Ok(())
 }
+
+#[test]
+fn a_cover_is_an_edit_like_any_other() -> TestResult {
+    let folder = folder_with_fixtures(&[("v23_cover.mp3", "1.mp3"), ("v23_full.mp3", "2.mp3")])?;
+    let mut engine = engine_reading(&folder)?;
+    engine.execute(Command::SelectAll);
+    assert_eq!(summary(&engine)?.cover, Shared::Mixed);
+
+    let cover = engine.tags_of(0).and_then(|tags| tags.cover.clone());
+    engine.execute(Command::Edit(Edit::Cover(cover.clone())));
+
+    let summary = summary(&engine)?;
+    assert_eq!(summary.cover, cover.map_or(Shared::Empty, Shared::Same));
+    assert_eq!(summary.modified, BTreeSet::from([Field::Cover]));
+    assert_eq!(engine.edits().modified_count(), 1);
+    Ok(())
+}

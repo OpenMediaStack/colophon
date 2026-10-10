@@ -10,12 +10,18 @@ use lofty::config::{ParseOptions, WriteOptions};
 use lofty::error::{FileEncodingError, FileParseError};
 use lofty::file::AudioFile;
 use lofty::id3::v1::{GENRES, Id3v1Tag};
-use lofty::id3::v2::{Frame, FrameId, Id3v2Tag, TextInformationFrame, TimestampFrame};
+use lofty::id3::v2::{
+    AttachedPictureFrame, Frame, FrameId, Id3v2Tag, TextInformationFrame, TimestampFrame,
+};
 use lofty::mpeg::MpegFile;
+use lofty::picture::{MimeType, Picture, PictureType};
 use lofty::tag::items::Timestamp;
 use lofty::tag::{Accessor, TagType};
 
-use crate::{Id3v1Version, Id3v2Version, Metadata, ReadError, TagFormat, TagVersions, Tags, read};
+use crate::read::cover_picture;
+use crate::{
+    Cover, Id3v1Version, Id3v2Version, Metadata, ReadError, TagFormat, TagVersions, Tags, read,
+};
 
 const ALBUM_ARTIST: FrameId<'static> = FrameId::Valid(Cow::Borrowed("TPE2"));
 const RECORDING_TIME: FrameId<'static> = FrameId::Valid(Cow::Borrowed("TDRC"));
@@ -219,6 +225,42 @@ fn set_id3v2(tag: &mut Id3v2Tag, tags: &Tags) {
     }
     if let Some(total) = tags.disc_total {
         tag.set_disk_total(total);
+    }
+    set_cover(tag, tags.cover.as_ref());
+}
+
+/// Puts `cover` in the place of the picture Colophon reads as the cover: the front covers, or else
+/// the first picture. A cover the file holds already stays as it is, its type and description
+/// with it.
+fn set_cover(tag: &mut Id3v2Tag, cover: Option<&Cover>) {
+    let current = cover_picture(tag).map(|picture| (picture.pic_type(), picture.data().to_vec()));
+    if current.as_ref().map(|(_, data)| data.as_slice()) == cover.map(|cover| &*cover.data) {
+        return;
+    }
+    if let Some((kind, _)) = current {
+        let mut first = true;
+        tag.retain(|frame| {
+            let Frame::Picture(frame) = frame else {
+                return true;
+            };
+            let removed = if kind == PictureType::CoverFront {
+                frame.picture.pic_type() == PictureType::CoverFront
+            } else {
+                first
+            };
+            first = false;
+            !removed
+        });
+    }
+    if let Some(cover) = cover {
+        let mut picture = Picture::unchecked(cover.data.to_vec()).pic_type(PictureType::CoverFront);
+        if let Some(mime) = &cover.mime {
+            picture = picture.mime_type(MimeType::from_str(mime));
+        }
+        tag.insert(Frame::Picture(AttachedPictureFrame::new(
+            TextEncoding::UTF8,
+            picture.build(),
+        )));
     }
 }
 

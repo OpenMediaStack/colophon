@@ -45,6 +45,7 @@ fn new_tags() -> Tags {
         disc_total: Some(3),
         genre: Some("Synthwave".into()),
         comment: Some("Remastered from the original tapes.".into()),
+        cover: None,
     }
 }
 
@@ -143,8 +144,12 @@ fn ffmpegs_comment_goes_with_the_comment() -> TestResult {
 #[test]
 fn frames_colophon_does_not_edit_are_kept() -> TestResult {
     let (_folder, path) = copy_of("v23_cover.mp3")?;
+    let tags = Tags {
+        cover: read(&path)?.tags.cover,
+        ..new_tags()
+    };
 
-    write(&path, &new_tags())?;
+    write(&path, &tags)?;
 
     let mut file = fs::File::open(&path)?;
     let mpeg = MpegFile::read_from(&mut file, ParseOptions::new())?;
@@ -169,10 +174,15 @@ fn id3v2_2_keeps_the_frames_colophon_does_not_edit() -> TestResult {
         id3v1: None,
     };
 
-    let written = colophon_tags::write(&path, &new_tags(), versions)?;
+    let tags = Tags {
+        cover: read(&path)?.tags.cover,
+        ..new_tags()
+    };
+
+    let written = colophon_tags::write(&path, &tags, versions)?;
 
     assert_eq!(written.formats, [TagFormat::Id3v2(Id3v2Version::V2_2)]);
-    assert_eq!(written.tags, new_tags());
+    assert_eq!(written.tags, tags);
     let mut file = fs::File::open(&path)?;
     let mpeg = MpegFile::read_from(&mut file, ParseOptions::new())?;
     let id3v2 = mpeg.id3v2().ok_or("no ID3v2 tag")?;
@@ -300,5 +310,34 @@ fn a_folder_that_cannot_be_written_leaves_the_file_alone() -> TestResult {
     fs::set_permissions(folder.path(), fs::Permissions::from_mode(0o755))?;
     assert!(matches!(result, Err(WriteError::Io(_))), "{result:?}");
     assert_eq!(fs::read(&path)?, before);
+    Ok(())
+}
+
+#[test]
+fn a_new_cover_is_written_then_removed() -> TestResult {
+    let (_folder, path) = copy_of("v23_full.mp3")?;
+    let cover = read(&fixture("v23_cover.mp3"))?
+        .tags
+        .cover
+        .ok_or("the fixture has a cover")?;
+    let with_cover = Tags {
+        cover: Some(cover.clone()),
+        ..new_tags()
+    };
+
+    let written = write(&path, &with_cover)?;
+    assert_eq!(written.tags.cover, Some(cover));
+
+    let written = write(&path, &new_tags())?;
+    assert_eq!(written.tags.cover, None);
+    let mut file = fs::File::open(&path)?;
+    let mpeg = MpegFile::read_from(&mut file, ParseOptions::new())?;
+    let pictures = mpeg
+        .id3v2()
+        .into_iter()
+        .flatten()
+        .filter(|frame| matches!(frame, Frame::Picture(_)))
+        .count();
+    assert_eq!(pictures, 0);
     Ok(())
 }

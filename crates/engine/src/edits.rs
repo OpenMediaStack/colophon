@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use colophon_library::Track;
 use colophon_library::tags::{
-    Id3v1Version, Id3v2Version, Metadata, TagVersions, Tags, formats_after_write,
+    Cover, Id3v1Version, Id3v2Version, Metadata, TagVersions, Tags, formats_after_write,
 };
 
 /// A field of the inspector, which an edit changes.
@@ -17,10 +17,11 @@ pub enum Field {
     TrackTotal,
     Genre,
     Comment,
+    Cover,
 }
 
 impl Field {
-    pub const ALL: [Field; 9] = [
+    pub const ALL: [Field; 10] = [
         Field::Title,
         Field::Artist,
         Field::AlbumArtist,
@@ -30,6 +31,7 @@ impl Field {
         Field::TrackTotal,
         Field::Genre,
         Field::Comment,
+        Field::Cover,
     ];
 
     /// Whether two sets of tags hold different values for this field.
@@ -44,6 +46,7 @@ impl Field {
             Field::TrackTotal => one.track_total != other.track_total,
             Field::Genre => one.genre != other.genre,
             Field::Comment => one.comment != other.comment,
+            Field::Cover => one.cover != other.cover,
         }
     }
 }
@@ -60,6 +63,7 @@ pub enum Edit {
     TrackTotal(Option<u32>),
     Genre(Option<String>),
     Comment(Option<String>),
+    Cover(Option<Cover>),
 }
 
 impl Edit {
@@ -74,6 +78,7 @@ impl Edit {
             Edit::TrackTotal(_) => Field::TrackTotal,
             Edit::Genre(_) => Field::Genre,
             Edit::Comment(_) => Field::Comment,
+            Edit::Cover(_) => Field::Cover,
         }
     }
 
@@ -89,6 +94,7 @@ impl Edit {
             Edit::TrackTotal(value) => tags.track_total = *value,
             Edit::Genre(value) => tags.genre = text(value),
             Edit::Comment(value) => tags.comment = text(value),
+            Edit::Cover(value) => tags.cover.clone_from(value),
         }
     }
 }
