@@ -358,6 +358,8 @@ export component Inspector inherits Rectangle {
     in property <string> reveal-text;
     callback reveal-file;
     callback copy-details;
+    // An image dragged over the window would replace the cover.
+    in property <bool> cover-drop;
 
     property <length> scrollbar-size: 10px;
     property <length> actions-height: 53px;
@@ -490,9 +492,9 @@ export component Inspector inherits Rectangle {
 
                         Rectangle {
                             border-radius: 6px;
-                            border-width: 1px;
-                            border-color: root.tracks.cover-modified ? Theme.modified-border : Theme.border-subtle;
-                            background: Theme.surface-2;
+                            border-width: root.cover-drop ? 2px : 1px;
+                            border-color: root.cover-drop ? Theme.accent : root.tracks.cover-modified ? Theme.modified-border : Theme.border-subtle;
+                            background: root.cover-drop ? Theme.accent-selection : Theme.surface-2;
                             clip: true;
                             accessible-role: image;
                             accessible-label: root.tracks.cover-state == CoverState.shared ? @tr("Cover") : root.tracks.cover-state == CoverState.mixed ? @tr("Several covers") : @tr("No cover");

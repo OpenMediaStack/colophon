@@ -9,7 +9,9 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 use colophon_engine::{Engine, Preferences};
-use colophon_ui::{ComponentHandle, Dialogs, PlatformError};
+use colophon_ui::{AppWindow, ComponentHandle, Dialogs, PlatformError};
+use slint::winit_030::winit::event::WindowEvent;
+use slint::winit_030::{EventResult, WinitWindowAccessor};
 
 /// The system's file dialogs, file manager and clipboard.
 #[derive(Default)]
@@ -104,6 +106,24 @@ fn keep(path: &Path, preferences: &Preferences) -> io::Result<()> {
     fs::rename(&written, path)
 }
 
+/// Hands the files dragged from the system over the window to it, one event per file.
+fn take_dropped_files(window: &AppWindow) {
+    let weak = window.as_weak();
+    window.window().on_winit_window_event(move |_, event| {
+        let Some(window) = weak.upgrade() else {
+            return EventResult::Propagate;
+        };
+        let path = |path: &Path| path.to_string_lossy().as_ref().into();
+        match event {
+            WindowEvent::HoveredFile(file) => window.invoke_file_hovered(path(file)),
+            WindowEvent::HoveredFileCancelled => window.invoke_file_hover_ended(),
+            WindowEvent::DroppedFile(file) => window.invoke_file_dropped(path(file)),
+            _ => {}
+        }
+        EventResult::Propagate
+    });
+}
+
 fn main() -> Result<(), PlatformError> {
     // Without a sound device, Colophon still edits tags; only playing is out.
     let mut engine =
@@ -119,6 +139,7 @@ fn main() -> Result<(), PlatformError> {
             let _ = keep(path, preferences);
         }
     })?;
+    take_dropped_files(&window);
     #[cfg(target_os = "macos")]
     macos::ask_window_before_terminating(&window);
     window.run()

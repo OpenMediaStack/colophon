@@ -21,6 +21,10 @@ import { Toast, ToastMessage, ToastView } from "toast.slint";
 
 export { Theme, Toast, ToastMessage, Id3v1Policy, PaletteAction, PaletteEntry, PaletteMatch, CoverState, Kilohertz, TrackSpectrum, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
+// What files dragged from the system over the window would do: open folders and audio files,
+// or replace the cover of the selected tracks with an image.
+export enum DropTarget { none, library, cover }
+
 // The user actions the window can ask the engine to run.
 export enum Command {
     open-folder,
@@ -173,6 +177,11 @@ export component AppWindow inherits Window {
     callback reveal-file;
     callback copy-details;
     // A short message over the bottom of the window, and its action.
+    // Files dragged from the system, one event per file as the platform reports them.
+    in property <DropTarget> drop-target;
+    callback file-hovered(string);
+    callback file-hover-ended;
+    callback file-dropped(string);
     in-out property <bool> toast-shown;
     in property <Toast> toast;
     callback toast-acted;
@@ -686,6 +695,7 @@ export component AppWindow inherits Window {
                 remove-cover => {
                     root.remove-cover();
                 }
+                cover-drop: root.drop-target == DropTarget.cover;
                 reveal-text: root.mac-shortcuts ? @tr("Show in Finder") : root.windows-buttons ? @tr("Show in Explorer") : @tr("Show in Folder");
                 reveal-file => {
                     root.reveal-file();
@@ -715,6 +725,37 @@ export component AppWindow inherits Window {
             developer-mode: root.developer-mode;
             stop-scan => {
                 root.run(Command.stop-scan);
+            }
+        }
+    }
+
+    if root.drop-target == DropTarget.library: Rectangle {
+        background: Theme.scrim;
+
+        Rectangle {
+            x: 12px;
+            y: 12px;
+            width: parent.width - 24px;
+            height: parent.height - 24px;
+            border-radius: 8px;
+            border-width: 2px;
+            border-color: Theme.accent;
+
+            Rectangle {
+                width: drop-label.preferred-width + 32px;
+                height: 44px;
+                border-radius: 8px;
+                background: Theme.surface-2;
+                drop-shadow-offset-y: 8px;
+                drop-shadow-blur: 24px;
+                drop-shadow-color: Theme.shadow-menu;
+
+                drop-label := Text {
+                    text: @tr("Drop to open these folders and files");
+                    font-size: 15px;
+                    font-weight: 600;
+                    color: Theme.text-primary;
+                }
             }
         }
     }

@@ -31,11 +31,11 @@ mod generated {
 /// What the window asks the engine to run, before the bridge turns it into a [`Command`].
 pub use generated::Command as WindowCommand;
 pub use generated::{
-    AppWindow, BitrateMode, ByteSize, CoverState, Id3v1Losses, Id3v1Policy, InspectedTracks,
-    InspectorField, InspectorState, Kilohertz, PaletteAction, PaletteEntry, PaletteMatch,
-    ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit, SourceKind, TagEditing, TagField,
-    TagRemoval, Theme, Toast, ToastMessage, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow,
-    TrackSpectrum, TrackStatus, UnreadableFile, UnsavedChoice,
+    AppWindow, BitrateMode, ByteSize, CoverState, DropTarget, Id3v1Losses, Id3v1Policy,
+    InspectedTracks, InspectorField, InspectorState, Kilohertz, PaletteAction, PaletteEntry,
+    PaletteMatch, ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit, SourceKind,
+    TagEditing, TagField, TagRemoval, Theme, Toast, ToastMessage, TrackColumn, TrackColumnWidths,
+    TrackColumns, TrackRow, TrackSpectrum, TrackStatus, UnreadableFile, UnsavedChoice,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -152,6 +152,9 @@ pub fn main_window_keeping(
         keep: Box::new(keep),
         toast_timer: Timer::default(),
         shown_play_failure: Cell::default(),
+        hovered: RefCell::default(),
+        dropped: RefCell::default(),
+        drop_timer: Timer::default(),
     });
     bridge.show();
     window.on_run({
@@ -270,6 +273,40 @@ pub fn main_window_keeping(
             }
         }
     });
+    window.on_file_hovered({
+        let bridge = Rc::clone(&bridge);
+        move |path| {
+            bridge
+                .hovered
+                .borrow_mut()
+                .push(PathBuf::from(path.as_str()));
+            bridge.show_drop_target();
+        }
+    });
+    window.on_file_hover_ended({
+        let bridge = Rc::clone(&bridge);
+        move || {
+            bridge.hovered.borrow_mut().clear();
+            bridge.show_drop_target();
+        }
+    });
+    window.on_file_dropped({
+        let bridge = Rc::clone(&bridge);
+        move |path| {
+            bridge
+                .dropped
+                .borrow_mut()
+                .push(PathBuf::from(path.as_str()));
+            let bridge_weak = Rc::downgrade(&bridge);
+            bridge
+                .drop_timer
+                .start(TimerMode::SingleShot, Duration::ZERO, move || {
+                    if let Some(bridge) = bridge_weak.upgrade() {
+                        take_drop(&bridge);
+                    }
+                });
+        }
+    });
     window.on_toast_acted({
         let bridge = Rc::clone(&bridge);
         move || {
@@ -333,12 +370,8 @@ pub fn main_window_keeping(
     window.on_replace_cover({
         let bridge = Rc::clone(&bridge);
         move || {
-            let Some(path) = bridge.dialogs.pick_image() else {
-                return;
-            };
-            match cover_from(&path) {
-                Some(cover) => execute(&bridge, Command::Edit(Edit::Cover(Some(cover)))),
-                None => bridge.toast(ToastMessage::ImageUnreadable, 0, &file_name(&path)),
+            if let Some(path) = bridge.dialogs.pick_image() {
+                replace_cover(&bridge, &path);
             }
         }
     });
@@ -464,6 +497,11 @@ struct Bridge {
     toast_timer: Timer,
     /// The track whose failure to play the window told last.
     shown_play_failure: Cell<Option<usize>>,
+    /// The files dragged over the window, and those dropped on it, which the drop timer takes
+    /// in together once the platform has reported each of them.
+    hovered: RefCell<Vec<PathBuf>>,
+    dropped: RefCell<Vec<PathBuf>>,
+    drop_timer: Timer,
 }
 
 /// How long a toast stays: a success briefly, an error long enough to act on it.
@@ -592,6 +630,72 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         }
     };
     execute(bridge, command);
+}
+
+/// What files dragged over the window would do: open the folders and audio files among them,
+/// or else replace the cover of the selected tracks with an image.
+fn drop_target(paths: &[PathBuf], can_take_cover: bool) -> DropTarget {
+    if paths.iter().any(|path| path.is_dir() || is_audio(path)) {
+        DropTarget::Library
+    } else if can_take_cover && paths.iter().any(|path| is_image(path)) {
+        DropTarget::Cover
+    } else {
+        DropTarget::None
+    }
+}
+
+fn has_extension(path: &Path, extensions: &[&str]) -> bool {
+    path.extension()
+        .and_then(OsStr::to_str)
+        .is_some_and(|extension| {
+            extensions
+                .iter()
+                .any(|wanted| extension.eq_ignore_ascii_case(wanted))
+        })
+}
+
+fn is_audio(path: &Path) -> bool {
+    has_extension(path, colophon_engine::AUDIO_EXTENSIONS)
+}
+
+fn is_image(path: &Path) -> bool {
+    has_extension(path, &["jpg", "jpeg", "png"])
+}
+
+/// Takes in the files dropped on the window: opens the folders and audio files among them, or
+/// else makes the first image the cover of the selected tracks.
+fn take_drop(bridge: &Rc<Bridge>) {
+    let dropped = bridge.dropped.take();
+    bridge.hovered.borrow_mut().clear();
+    bridge.show_drop_target();
+    let can_take_cover = bridge.can_take_cover();
+    match drop_target(&dropped, can_take_cover) {
+        DropTarget::Library => {
+            let (folders, files): (Vec<PathBuf>, Vec<PathBuf>) =
+                dropped.into_iter().partition(|path| path.is_dir());
+            for folder in folders {
+                execute(bridge, Command::OpenFolder(folder));
+            }
+            let files: Vec<PathBuf> = files.into_iter().filter(|path| is_audio(path)).collect();
+            if !files.is_empty() {
+                execute(bridge, Command::OpenFiles(files));
+            }
+        }
+        DropTarget::Cover => {
+            if let Some(image) = dropped.iter().find(|path| is_image(path)) {
+                replace_cover(bridge, image);
+            }
+        }
+        DropTarget::None => {}
+    }
+}
+
+/// Makes the image at `path` the cover of the selected tracks, or tells why it cannot.
+fn replace_cover(bridge: &Rc<Bridge>, path: &Path) {
+    match cover_from(path) {
+        Some(cover) => execute(bridge, Command::Edit(Edit::Cover(Some(cover)))),
+        None => bridge.toast(ToastMessage::ImageUnreadable, 0, &file_name(path)),
+    }
 }
 
 fn change_policy(bridge: &Rc<Bridge>, change: impl FnOnce(&mut WritePolicy)) {
@@ -927,6 +1031,19 @@ impl Bridge {
             env!("CARGO_PKG_VERSION"),
         );
         Some((track.path.clone(), details))
+    }
+
+    /// Some tracks are selected whose tags could be read, so they can take a cover.
+    fn can_take_cover(&self) -> bool {
+        matches!(self.engine.borrow().inspection(), Inspection::Tracks(_))
+    }
+
+    /// Shows what the files dragged over the window would do.
+    fn show_drop_target(&self) {
+        if let Some(window) = self.window.upgrade() {
+            let target = drop_target(&self.hovered.borrow(), self.can_take_cover());
+            window.set_drop_target(target);
+        }
     }
 
     /// Shows a toast for a while.
