@@ -9,8 +9,8 @@ use std::time::{Duration, Instant};
 
 use colophon_ui::{AppWindow, ComponentHandle};
 use i_slint_backend_testing::{ElementHandle, TestingBackend, TestingBackendOptions};
-use slint::platform::{PointerEventButton, SetPlatformError, WindowEvent};
-use slint::{LogicalPosition, LogicalSize};
+use slint::platform::{Key, PointerEventButton, SetPlatformError, WindowEvent};
+use slint::{LogicalPosition, LogicalSize, SharedString};
 use tempfile::TempDir;
 
 pub type TestResult = Result<(), Box<dyn Error>>;
@@ -172,4 +172,39 @@ pub fn double_click(window: &AppWindow, at: LogicalPosition) {
                 button: left,
             });
     }
+}
+
+/// Presses and releases `key` while holding the `held` keys, as a keyboard would.
+pub fn press(window: &AppWindow, held: &[Key], key: impl Into<SharedString>) {
+    let key = key.into();
+    let window = window.window();
+    for modifier in held {
+        window.dispatch_event(WindowEvent::KeyPressed {
+            text: (*modifier).into(),
+        });
+    }
+    window.dispatch_event(WindowEvent::KeyPressed { text: key.clone() });
+    window.dispatch_event(WindowEvent::KeyReleased { text: key });
+    for modifier in held.iter().rev() {
+        window.dispatch_event(WindowEvent::KeyReleased {
+            text: (*modifier).into(),
+        });
+    }
+}
+
+/// Clicks `label` while holding the `held` keys.
+pub fn click_holding(window: &AppWindow, held: &[Key], label: &str) -> Result<(), String> {
+    let element = find(window, label)?;
+    for modifier in held {
+        window.window().dispatch_event(WindowEvent::KeyPressed {
+            text: (*modifier).into(),
+        });
+    }
+    element.mock_single_click(PointerEventButton::Left);
+    for modifier in held.iter().rev() {
+        window.window().dispatch_event(WindowEvent::KeyReleased {
+            text: (*modifier).into(),
+        });
+    }
+    Ok(())
 }

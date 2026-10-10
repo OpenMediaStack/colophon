@@ -1,79 +1,79 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
-"POT-Creation-Date: 2026-10-09 19:07+0000\n"
+"POT-Creation-Date: 2026-10-10 11:18+0000\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: ui/app-window.slint:78
+#: ui/app-window.slint:99
 msgctxt "AppWindow"
 msgid "File"
 msgstr "Fichier"
 
-#: ui/app-window.slint:81
+#: ui/app-window.slint:102
 msgctxt "AppWindow"
 msgid "Open Folder…"
 msgstr "Ouvrir un dossier…"
 
-#: ui/app-window.slint:90
+#: ui/app-window.slint:111
 msgctxt "AppWindow"
 msgid "View"
 msgstr "Présentation"
 
-#: ui/app-window.slint:93
+#: ui/app-window.slint:114
 msgctxt "AppWindow"
 msgid "Hide Sidebar"
 msgstr "Masquer la barre latérale"
 
-#: ui/app-window.slint:93
+#: ui/app-window.slint:114
 msgctxt "AppWindow"
 msgid "Show Sidebar"
 msgstr "Afficher la barre latérale"
 
-#: ui/app-window.slint:101
+#: ui/app-window.slint:122
 msgctxt "AppWindow"
 msgid "Hide Inspector"
 msgstr "Masquer l’inspecteur"
 
-#: ui/app-window.slint:101
+#: ui/app-window.slint:122
 msgctxt "AppWindow"
 msgid "Show Inspector"
 msgstr "Afficher l’inspecteur"
 
-#: ui/app-window.slint:126
+#: ui/app-window.slint:147
 msgctxt "AppWindow"
 msgid "Open folder"
 msgstr "Ouvrir un dossier"
 
-#: ui/app-window.slint:135
+#: ui/app-window.slint:156
 msgctxt "AppWindow"
 msgid "Toolbar"
 msgstr "Barre d’outils"
 
-#: ui/app-window.slint:142
+#: ui/app-window.slint:163
 msgctxt "AppWindow"
 msgid "Toggle sidebar"
 msgstr "Afficher ou masquer la barre latérale"
 
-#: ui/app-window.slint:152
+#: ui/app-window.slint:173
 msgctxt "AppWindow"
 msgid "Toggle inspector"
 msgstr "Afficher ou masquer l’inspecteur"
 
-#: ui/app-window.slint:167
+#: ui/app-window.slint:188
 msgctxt "AppWindow"
 msgid "Sidebar"
 msgstr "Barre latérale"
 
-#: ui/app-window.slint:194
+#: ui/app-window.slint:231
 msgctxt "AppWindow"
 msgid "Player"
 msgstr "Lecteur"
 
-#: ui/app-window.slint:201
+#: ui/app-window.slint:238
 msgctxt "AppWindow"
 msgid "Inspector"
 msgstr "Inspecteur"
@@ -93,125 +93,132 @@ msgctxt "EmptyState"
 msgid "Open folder…"
 msgstr "Ouvrir un dossier…"
 
-#: ui/status-bar.slint:26
+#: ui/status-bar.slint:27
 msgctxt "StatusBar"
 msgid "No folder open"
 msgstr "Aucun dossier ouvert"
 
-#: ui/status-bar.slint:27
+#: ui/status-bar.slint:28
 msgctxt "StatusBar"
 msgid "Reading… {n} track found"
 msgid_plural "Reading… {n} tracks found"
 msgstr[0] "Lecture… {n} morceau trouvé"
 msgstr[1] "Lecture… {n} morceaux trouvés"
 
-#: ui/status-bar.slint:28
+#: ui/status-bar.slint:29
 msgctxt "StatusBar"
 msgid "Reading stopped, {n} track"
 msgid_plural "Reading stopped, {n} tracks"
 msgstr[0] "Lecture arrêtée, {n} morceau"
 msgstr[1] "Lecture arrêtée, {n} morceaux"
 
-#: ui/status-bar.slint:29
+#: ui/status-bar.slint:30
 msgctxt "StatusBar"
 msgid "Could not read this folder"
 msgstr "Impossible de lire ce dossier"
 
-#: ui/status-bar.slint:30
+#: ui/status-bar.slint:31
 msgctxt "StatusBar"
 msgid "{n} track"
 msgid_plural "{n} tracks"
 msgstr[0] "{n} morceau"
 msgstr[1] "{n} morceaux"
 
-#: ui/status-bar.slint:37
+#: ui/status-bar.slint:32
+msgctxt "StatusBar"
+msgid "{n} selected"
+msgid_plural "{n} selected"
+msgstr[0] "{n} sélectionné"
+msgstr[1] "{n} sélectionnés"
+
+#: ui/status-bar.slint:39
 msgctxt "StatusBar"
 msgid "Stop"
 msgstr "Arrêter"
 
-#: ui/status-bar.slint:48
+#: ui/status-bar.slint:50
 msgctxt "StatusBar"
 msgid "{n} file could not be read"
 msgid_plural "{n} files could not be read"
 msgstr[0] "{n} fichier illisible"
 msgstr[1] "{n} fichiers illisibles"
 
-#: ui/track-table.slint:109
-msgctxt "PinnedRow"
+#: ui/track-table.slint:184
+msgctxt "TableRow"
 msgid "Unreadable"
 msgstr "Illisible"
 
-#: ui/track-table.slint:273 ui/track-table.slint:389
+#: ui/track-table.slint:506 ui/track-table.slint:544 ui/track-table.slint:666
 msgctxt "TrackTable"
 msgid "Title"
 msgstr "Titre"
 
-#: ui/track-table.slint:280 ui/track-table.slint:406
+#: ui/track-table.slint:509 ui/track-table.slint:551 ui/track-table.slint:677
 msgctxt "TrackTable"
 msgid "Artist"
 msgstr "Artiste"
 
-#: ui/track-table.slint:289 ui/track-table.slint:410
+#: ui/track-table.slint:512 ui/track-table.slint:560 ui/track-table.slint:687
 msgctxt "TrackTable"
 msgid "Album"
 msgstr "Album"
 
-#: ui/track-table.slint:298 ui/track-table.slint:414
+#: ui/track-table.slint:515 ui/track-table.slint:569 ui/track-table.slint:697
 msgctxt "TrackTable"
 msgid "Year"
 msgstr "Année"
 
-#: ui/track-table.slint:307 ui/track-table.slint:419
+#: ui/track-table.slint:518 ui/track-table.slint:578 ui/track-table.slint:708
 msgctxt "TrackTable"
 msgid "Genre"
 msgstr "Genre"
 
-#: ui/track-table.slint:316 ui/track-table.slint:423
+#: ui/track-table.slint:521 ui/track-table.slint:587 ui/track-table.slint:718
 msgctxt "TrackTable"
 msgid "Time"
 msgstr "Durée"
 
-#: ui/track-table.slint:325 ui/track-table.slint:428
+#: ui/track-table.slint:524 ui/track-table.slint:596 ui/track-table.slint:729
 msgctxt "TrackTable"
 msgid "Bitrate"
 msgstr "Débit"
 
-#: ui/track-table.slint:334 ui/track-table.slint:433
+#: ui/track-table.slint:527 ui/track-table.slint:605 ui/track-table.slint:740
 msgctxt "TrackTable"
 msgid "Tags"
 msgstr "Tags"
 
-#: ui/track-table.slint:343 ui/track-table.slint:437
+#: ui/track-table.slint:530 ui/track-table.slint:614 ui/track-table.slint:750
 msgctxt "TrackTable"
 msgid "File"
 msgstr "Fichier"
 
-#: ui/track-table.slint:352 ui/track-table.slint:441
+#: ui/track-table.slint:533 ui/track-table.slint:623 ui/track-table.slint:760
 msgctxt "TrackTable"
 msgid "Folder"
 msgstr "Dossier"
 
-#: ui/track-table.slint:363
+#: ui/track-table.slint:634
 msgctxt "TrackTable"
 msgid "Reset to default columns"
 msgstr "Rétablir les colonnes par défaut"
 
-#: ui/track-table.slint:463
+#: ui/track-table.slint:788
 msgctxt "TrackTable"
 msgid "Choose columns"
 msgstr "Choisir les colonnes"
 
-#: ui/track-table.slint:497
+#: ui/track-table.slint:806
 msgctxt "TrackTable"
 msgid "Tracks"
 msgstr "Morceaux"
 
-#: ui/track-table.slint:528
+#: ui/track-table.slint:830
 msgctxt "TrackTable"
 msgid "Vertical scroll bar"
 msgstr "Barre de défilement verticale"
 
-#: ui/track-table.slint:548
+#: ui/track-table.slint:850
 msgctxt "TrackTable"
 msgid "Horizontal scroll bar"
 msgstr "Barre de défilement horizontale"

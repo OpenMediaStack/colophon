@@ -21,6 +21,9 @@ export struct TrackRow {
     tags: string,
     file: string,
     folder: string,
+    selected: bool,
+    // The track the arrow keys move from.
+    focused: bool,
 }
 
 // The columns the table shows besides status, number and title, which are always there.
@@ -156,8 +159,15 @@ component TableRow inherits Rectangle {
     in property <length> status-width;
     in property <length> number-width;
     in property <TrackColumnWidths> widths;
+    // The table has the keyboard focus, which outlines the focused track.
+    in property <bool> table-focused;
+    // A press of the left button, with Command (Ctrl elsewhere) or Shift held.
+    callback pressed(bool, bool);
 
     height: 26px;
+    background: root.track.selected ? Theme.accent-selection : touch.has-hover ? Theme.surface-3 : transparent;
+    border-width: root.track.focused && root.table-focused ? 1px : 0px;
+    border-color: Theme.focus-ring;
 
     HorizontalLayout {
         alignment: start;
@@ -186,6 +196,7 @@ component TableRow inherits Rectangle {
             width: root.widths.title;
             text: root.track.title;
             text-color: root.track.status == TrackStatus.unreadable ? Theme.error : root.track.untitled ? Theme.text-tertiary : Theme.text-primary;
+            weight: root.track.selected ? 500 : 400;
         }
 
         if root.widths.artist > 0: Cell {
@@ -230,6 +241,15 @@ component TableRow inherits Rectangle {
     RowDivider {
         y: root.height - 1px;
     }
+
+    // Slint reports the Command key of macOS as control, so one test covers every platform.
+    touch := TouchArea {
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down && event.button == PointerEventButton.left {
+                root.pressed(event.modifiers.control, event.modifiers.shift);
+            }
+        }
+    }
 }
 
 // The tracks of the opened folder, in a list that scrolls sideways when its columns do not fit.
@@ -242,6 +262,12 @@ export component TrackTable inherits Rectangle {
     in property <TrackColumnWidths> sized-widths;
     // The longest value of each column, measured to fit a column to its content.
     in property <TrackRow> longest;
+    // The row the arrow keys move from, -1 for none. The table scrolls to keep it in view.
+    in property <int> focused-row: -1;
+    callback track-pressed(int, bool, bool);
+    callback select-all;
+    // An arrow key: up or down, and whether Shift extends the selection.
+    callback step-selection(bool, bool);
     callback toggle-column(TrackColumn);
     callback reset-columns;
     callback columns-resized(TrackColumnWidths);
@@ -340,6 +366,26 @@ export component TrackTable inherits Rectangle {
         root.scroll-y = max(root.scroll-y, min(0px, root.list-height - root.rows-height));
     }
 
+    // Scrolls the least that shows the whole row.
+    function reveal(row: int) {
+        if row < 0 {
+            return;
+        }
+        if row * root.row-height < -root.scroll-y {
+            root.scroll-y = -row * root.row-height;
+        } else if (row + 1) * root.row-height > root.list-height - root.scroll-y {
+            root.scroll-y = root.list-height - (row + 1) * root.row-height;
+        }
+    }
+
+    changed focused-row => {
+        root.reveal(root.focused-row);
+    }
+
+    init => {
+        keys.focus();
+    }
+
     function resize(column: TrackColumn, width: length) {
         root.columns-resized(root.with-width(column, max(root.narrowest-width, width)));
     }
@@ -402,6 +448,23 @@ export component TrackTable inherits Rectangle {
     }
 
     background: Theme.surface-1;
+
+    keys := FocusScope {
+        width: 0;
+        height: 0;
+
+        key-pressed(event) => {
+            if event.text == Key.UpArrow || event.text == Key.DownArrow {
+                root.step-selection(event.text == Key.UpArrow, event.modifiers.shift);
+                return accept;
+            }
+            if event.modifiers.control && (event.text == "a" || event.text == "A") {
+                root.select-all();
+                return accept;
+            }
+            return reject;
+        }
+    }
 
     // A container of no size, so that the long texts measured inside never stretch the table.
     Rectangle {
@@ -742,12 +805,17 @@ export component TrackTable inherits Rectangle {
         accessible-role: list;
         accessible-label: @tr("Tracks");
 
-        for row in root.rows: TableRow {
+        for row[index] in root.rows: TableRow {
             width: root.content-width;
             track: row;
             status-width: root.status-width;
             number-width: root.number-width;
             widths: root.widths;
+            table-focused: keys.has-focus;
+            pressed(toggle, extend) => {
+                keys.focus();
+                root.track-pressed(index, toggle, extend);
+            }
         }
     }
 

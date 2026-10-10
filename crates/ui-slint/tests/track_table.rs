@@ -7,9 +7,9 @@ use std::time::Duration;
 
 use colophon_ui::{
     AppWindow, ComponentHandle, ScanState, Theme, TrackColumnWidths, TrackColumns, TrackRow,
-    TrackStatus,
+    TrackStatus, WindowCommand,
 };
-use slint::platform::PointerEventButton;
+use slint::platform::{Key, PointerEventButton, WindowEvent};
 use slint::{LogicalPosition, ModelRc, VecModel};
 
 use common::{TestResult, assert_matches_reference, find, resize_handle, shows};
@@ -324,6 +324,75 @@ fn resized_columns_wider_than_the_window_scroll_sideways() -> TestResult {
     Ok(())
 }
 
+/// The rows the table asks to select, with Command and Shift.
+fn record_presses(window: &AppWindow) -> Rc<RefCell<Vec<(i32, bool, bool)>>> {
+    let presses = Rc::new(RefCell::new(Vec::new()));
+    window.on_track_pressed({
+        let presses = Rc::clone(&presses);
+        move |row, toggle, extend| presses.borrow_mut().push((row, toggle, extend))
+    });
+    presses
+}
+
+#[test]
+fn a_click_on_a_row_asks_to_select_it_with_its_keys() -> TestResult {
+    let window = window_with_tracks(100, 1440.0, 900.0)?;
+    window.show()?;
+    let presses = record_presses(&window);
+
+    find(&window, "Artist 00003")?.mock_single_click(PointerEventButton::Left);
+    common::click_holding(&window, &[Key::Control], "Track 00005")?;
+    common::click_holding(&window, &[Key::Shift], "Album 1")?;
+
+    assert_eq!(
+        *presses.borrow(),
+        [(2, false, false), (4, true, false), (0, false, true)]
+    );
+    Ok(())
+}
+
+#[test]
+fn the_keyboard_moves_and_extends_the_selection() -> TestResult {
+    let window = window_with_tracks(100, 1440.0, 900.0)?;
+    window.show()?;
+    let commands = Rc::new(RefCell::new(Vec::new()));
+    window.on_run({
+        let commands = Rc::clone(&commands);
+        move |command| commands.borrow_mut().push(command)
+    });
+
+    common::press(&window, &[], Key::DownArrow);
+    common::press(&window, &[], Key::UpArrow);
+    common::press(&window, &[Key::Shift], Key::DownArrow);
+    common::press(&window, &[Key::Shift], Key::UpArrow);
+    common::press(&window, &[Key::Control], "a");
+
+    assert_eq!(
+        *commands.borrow(),
+        [
+            WindowCommand::SelectNext,
+            WindowCommand::SelectPrevious,
+            WindowCommand::ExtendSelectionDown,
+            WindowCommand::ExtendSelectionUp,
+            WindowCommand::SelectAll
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn the_focused_row_scrolls_into_view() -> TestResult {
+    let window = window_with_tracks(10_000, 1440.0, 900.0)?;
+    window.show()?;
+    assert!(!shows(&window, "Track 05001"));
+
+    window.set_focused_row(5000);
+    settle();
+
+    assert!(shows(&window, "Track 05001"));
+    Ok(())
+}
+
 #[test]
 fn the_headers_are_named_in_french_when_selected() -> TestResult {
     let window = window_with_tracks(10, 1440.0, 900.0)?;
@@ -348,12 +417,17 @@ fn the_table_matches_its_references() -> TestResult {
                 title: "06 Damaged file".into(),
                 ..TrackRow::default()
             };
+            for row in &mut rows[7..=9] {
+                row.selected = true;
+            }
+            rows[8].focused = true;
             let window = window_with(rows, width as f32, height as f32)?;
             window.global::<Theme>().set_dark(dark);
             window.show()?;
             if sideways != 0.0 {
                 find(&window, "Tracks")?.scroll(sideways, 0.0);
                 settle();
+                window.window().dispatch_event(WindowEvent::PointerExited);
             }
             assert_matches_reference(&window, &format!("tracks-{theme}-{width}x{height}.png"))?;
         }

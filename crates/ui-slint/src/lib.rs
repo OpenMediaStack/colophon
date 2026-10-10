@@ -7,7 +7,7 @@ use std::rc::{Rc, Weak};
 use std::time::Duration;
 
 use colophon_engine::{
-    Column, ColumnWidths, Command, Engine, Library, ScanStatus, Track, ViewState,
+    Column, ColumnWidths, Command, Engine, Library, ScanStatus, Selection, Step, Track, ViewState,
 };
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
@@ -17,6 +17,8 @@ mod generated {
     slint::include_modules!();
 }
 
+/// What the window asks the engine to run, before the bridge turns it into a [`Command`].
+pub use generated::Command as WindowCommand;
 pub use generated::{
     AppWindow, ScanState, Theme, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow,
     TrackStatus,
@@ -57,6 +59,22 @@ pub fn main_window(
             }
         }
     });
+    window.on_track_pressed({
+        let bridge = Rc::clone(&bridge);
+        move |row, toggle, extend| {
+            let Ok(track) = usize::try_from(row) else {
+                return;
+            };
+            let command = if extend {
+                Command::SelectRange(track)
+            } else if toggle {
+                Command::ToggleSelected(track)
+            } else {
+                Command::Select(track)
+            };
+            execute(&bridge, command);
+        }
+    });
     window.on_resize_columns({
         let bridge = Rc::clone(&bridge);
         move |widths| execute(&bridge, Command::ResizeColumns(engine_widths(widths)))
@@ -80,6 +98,11 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         generated::Command::ToggleInspector => Command::ToggleInspector,
         generated::Command::StopScan => Command::StopScan,
         generated::Command::ResetColumns => Command::ResetColumns,
+        generated::Command::SelectAll => Command::SelectAll,
+        generated::Command::SelectPrevious => Command::MoveSelection(Step::Up),
+        generated::Command::SelectNext => Command::MoveSelection(Step::Down),
+        generated::Command::ExtendSelectionUp => Command::ExtendSelection(Step::Up),
+        generated::Command::ExtendSelectionDown => Command::ExtendSelection(Step::Down),
         generated::Command::OpenFolder => match (bridge.pick_folder)() {
             Some(folder) => Command::OpenFolder(folder),
             None => return,
@@ -128,6 +151,30 @@ impl Bridge {
         show_view(&window, engine.view());
         show_library(&window, engine.library());
         self.show_tracks(&window, engine.library());
+        self.show_selection(&window, engine.selection());
+    }
+
+    /// Marks the selected rows and the focused one, touching only the rows that change.
+    fn show_selection(&self, window: &AppWindow, selection: &Selection) {
+        for index in 0..self.tracks.row_count() {
+            let Some(row) = self.tracks.row_data(index) else {
+                continue;
+            };
+            let selected = selection.contains(index);
+            let focused = selection.focus() == Some(index);
+            if row.selected != selected || row.focused != focused {
+                self.tracks.set_row_data(
+                    index,
+                    TrackRow {
+                        selected,
+                        focused,
+                        ..row
+                    },
+                );
+            }
+        }
+        window.set_focused_row(selection.focus().map_or(-1, count));
+        window.set_selected_count(count(selection.len()));
     }
 
     /// Adds the tracks found since the last call. A newly opened folder has fewer tracks than the
