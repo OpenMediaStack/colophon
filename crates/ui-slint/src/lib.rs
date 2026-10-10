@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::time::Duration;
 
-use colophon_engine::tags::ReadError;
+use colophon_engine::tags::{self, ReadError};
 use colophon_engine::{
     AudioLine, Column, ColumnWidths, Command, Engine, Inspection, Library, ScanStatus, Selection,
     Shared, Step, Summary, Track, ViewState,
@@ -22,9 +22,9 @@ mod generated {
 /// What the window asks the engine to run, before the bridge turns it into a [`Command`].
 pub use generated::Command as WindowCommand;
 pub use generated::{
-    AppWindow, ByteSize, InspectedTracks, InspectorField, InspectorState, ReadProblem, ScanState,
-    SizeUnit, Theme, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow, TrackStatus,
-    UnreadableFile,
+    AppWindow, BitrateMode, ByteSize, InspectedTracks, InspectorField, InspectorState, ReadProblem,
+    ScanState, SizeUnit, Theme, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow,
+    TrackStatus, UnreadableFile,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -269,9 +269,11 @@ fn inspected_tracks(summary: &Summary) -> InspectedTracks {
     let AudioLine {
         bitrate,
         sample_rate,
+        mode,
     } = audio.unwrap_or(AudioLine {
         bitrate: 0,
         sample_rate: 0,
+        mode: None,
     });
     // Tenths of kilohertz, rounded: 44100 Hz reads 44.1 kHz, 22050 Hz 22.1 kHz.
     let tenths = (sample_rate + 50) / 100;
@@ -290,6 +292,11 @@ fn inspected_tracks(summary: &Summary) -> InspectedTracks {
         comment: field(&summary.comment, String::clone),
         audio_shared: audio.is_some(),
         bitrate: number(bitrate),
+        bitrate_mode: match mode {
+            Some(tags::BitrateMode::Constant) => BitrateMode::Constant,
+            Some(tags::BitrateMode::Variable) => BitrateMode::Variable,
+            None => BitrateMode::Unknown,
+        },
         sample_rate_whole: number(tenths / 10),
         sample_rate_tenth: number(tenths % 10),
         formats: field(&summary.formats, |formats| {
@@ -490,7 +497,10 @@ fn track_row(track: &Track) -> TrackRow {
         year: number(tags.year.map(|year| year.to_string())),
         genre: text(&tags.genre),
         time: number(audio.duration.map(duration_text)),
-        bitrate: number(audio.bitrate.map(|bitrate| bitrate.to_string())),
+        bitrate: number(audio.bitrate.map(|bitrate| match audio.bitrate_mode {
+            Some(tags::BitrateMode::Variable) => format!("VBR {bitrate}"),
+            _ => bitrate.to_string(),
+        })),
         tags: metadata
             .formats
             .iter()
@@ -594,6 +604,17 @@ mod tests {
         assert_eq!(row.bitrate, "320");
         assert_eq!(row.tags, "ID3v2.3, ID3v1.1");
         assert_eq!(row.file, "07.mp3");
+    }
+
+    #[test]
+    fn a_variable_bitrate_reads_as_in_the_mockup() {
+        let mut metadata = paper_satellites();
+        metadata.audio.bitrate = Some(245);
+        metadata.audio.bitrate_mode = Some(tags::BitrateMode::Variable);
+
+        let row = track_row(&track(Path::new("/music/07.mp3"), Ok(metadata)));
+
+        assert_eq!(row.bitrate, "VBR 245");
     }
 
     #[test]

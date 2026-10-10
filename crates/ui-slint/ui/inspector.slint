@@ -12,6 +12,8 @@ export struct InspectorField {
 
 export enum SizeUnit { bytes, kilobytes, megabytes, gigabytes }
 
+export enum BitrateMode { unknown, constant, variable }
+
 // A size, in decimal units with one decimal digit, put into words by the inspector so that each
 // language writes its own decimal mark and units.
 export struct ByteSize {
@@ -37,6 +39,7 @@ export struct InspectedTracks {
     // Whether the tracks share their audio properties, and these.
     audio-shared: bool,
     bitrate: int,
+    bitrate-mode: BitrateMode,
     sample-rate-whole: int,
     sample-rate-tenth: int,
     formats: InspectorField,
@@ -130,22 +133,24 @@ export component Inspector inherits Rectangle {
 
     pure function size-text(size: ByteSize) -> string {
         if size.unit == SizeUnit.bytes {
-            return @tr("{n} byte" | "{n} bytes" % size.whole);
+            return @tr("{n}\u{a0}byte" | "{n}\u{a0}bytes" % size.whole);
         }
         if size.unit == SizeUnit.kilobytes {
-            return @tr("{} KB", size.whole);
+            return @tr("{}\u{a0}KB", size.whole);
         }
         if size.unit == SizeUnit.megabytes {
-            return @tr("{0}.{1} MB", size.whole, size.tenth);
+            return @tr("{0}.{1}\u{a0}MB", size.whole, size.tenth);
         }
-        return @tr("{0}.{1} GB", size.whole, size.tenth);
+        return @tr("{0}.{1}\u{a0}GB", size.whole, size.tenth);
     }
 
     pure function audio-text() -> string {
         if !root.tracks.audio-shared {
             return @tr("Multiple values");
         }
-        return "MP3 · " + @tr("{} kbps", root.tracks.bitrate) + " · " + (root.tracks.sample-rate-tenth == 0 ? @tr("{} kHz", root.tracks.sample-rate-whole) : @tr("{0}.{1} kHz", root.tracks.sample-rate-whole, root.tracks.sample-rate-tenth));
+        return "MP3 · " + @tr("{}\u{a0}kbps", root.tracks.bitrate)
+            + (root.tracks.bitrate-mode == BitrateMode.constant ? "\u{a0}CBR" : root.tracks.bitrate-mode == BitrateMode.variable ? "\u{a0}VBR" : "")
+            + " · " + (root.tracks.sample-rate-tenth == 0 ? @tr("{}\u{a0}kHz", root.tracks.sample-rate-whole) : @tr("{0}.{1}\u{a0}kHz", root.tracks.sample-rate-whole, root.tracks.sample-rate-tenth));
     }
 
     background: Theme.surface-1;
@@ -367,7 +372,6 @@ export component Inspector inherits Rectangle {
 
                             FileValue {
                                 text: root.audio-text();
-                                mono: root.tracks.audio-shared;
                             }
                         }
 

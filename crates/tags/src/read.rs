@@ -12,7 +12,7 @@ use lofty::id3::v2::{self, Frame, Id3v2Tag};
 use lofty::mpeg::{MpegFile, MpegProperties};
 use lofty::tag::{Accessor, ItemKey, Tag};
 
-use crate::{AudioProperties, Id3v1Version, Id3v2Version, Metadata, TagFormat, Tags};
+use crate::{AudioProperties, Id3v1Version, Id3v2Version, Metadata, TagFormat, Tags, bitrate_mode};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ReadError {
@@ -47,7 +47,10 @@ fn read_mpeg(path: &Path) -> Result<Metadata, ReadError> {
     let mpeg = MpegFile::read_from(&mut reader, options).map_err(ReadError::Damaged)?;
     Ok(Metadata {
         tags: primary_tags(&mpeg),
-        audio: audio_properties(mpeg.properties()),
+        audio: AudioProperties {
+            bitrate_mode: bitrate_mode::read_mode(&mut reader),
+            ..audio_properties(mpeg.properties())
+        },
         formats: formats(&mpeg),
     })
 }
@@ -154,6 +157,7 @@ fn audio_properties(properties: &MpegProperties) -> AudioProperties {
         bitrate: known(properties.audio_bitrate()),
         sample_rate: known(properties.sample_rate()),
         channels: Some(properties.channels()).filter(|channels| *channels > 0),
+        bitrate_mode: None,
     }
 }
 
