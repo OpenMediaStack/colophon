@@ -20,7 +20,7 @@ pub use colophon_library::{AUDIO_EXTENSIONS, Track, tags};
 pub use columns::{Column, ColumnWidths, Columns};
 pub use edits::{Edit, Edits, Field, VersionChoice};
 pub use inspection::{AudioLine, Inspection, Shared, Summary};
-pub use listing::{AlbumKey, Groups, Sort, SortColumn, Source};
+pub use listing::{Album, AlbumKey, Groups, Sort, SortColumn, Source};
 pub use selection::{Selection, Step};
 
 /// A user action. The UI turns buttons, menu items and shortcuts into commands.

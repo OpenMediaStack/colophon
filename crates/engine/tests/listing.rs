@@ -131,9 +131,10 @@ fn the_library_groups_its_tracks_by_album_and_artist() -> TestResult {
     let albums: Vec<&str> = groups
         .albums
         .iter()
-        .map(|(album, _)| album.title.as_str())
+        .map(|album| album.key.title.as_str())
         .collect();
     assert!(albums.contains(&"Small Hours"));
+    assert!(groups.albums.iter().all(|album| album.cover.is_none()));
     assert!(groups.artists.contains(&("Marlowe Kite".to_string(), 1)));
     Ok(())
 }

@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use colophon_library::Track;
-use colophon_library::tags::Tags;
+use colophon_library::tags::{Cover, Tags};
 
 /// Where the table's tracks come from: what the sidebar chose.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
@@ -62,25 +62,42 @@ pub struct Sort {
 /// The albums and artists of the library, with how many tracks each has, in alphabetical order.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Groups {
-    pub albums: Vec<(AlbumKey, usize)>,
+    pub albums: Vec<Album>,
     pub artists: Vec<(String, usize)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Album {
+    pub key: AlbumKey,
+    pub tracks: usize,
+    /// The cover of its first track that has one.
+    pub cover: Option<Cover>,
 }
 
 /// Groups the readable tracks by album and by artist, from their files' tags.
 pub(crate) fn groups(tracks: &[Track]) -> Groups {
-    let mut albums: BTreeMap<AlbumKey, usize> = BTreeMap::new();
+    let mut albums: BTreeMap<AlbumKey, (usize, Option<Cover>)> = BTreeMap::new();
     let mut artists: BTreeMap<String, usize> = BTreeMap::new();
     for tags in tracks.iter().filter_map(file_tags) {
         if let Some(album) = AlbumKey::of(tags) {
-            *albums.entry(album).or_default() += 1;
+            let (count, cover) = albums.entry(album).or_default();
+            *count += 1;
+            if cover.is_none() {
+                cover.clone_from(&tags.cover);
+            }
         }
         if let Some(artist) = &tags.artist {
             *artists.entry(artist.clone()).or_default() += 1;
         }
     }
     let by_name = |one: &String, other: &String| one.to_lowercase().cmp(&other.to_lowercase());
-    let mut albums: Vec<_> = albums.into_iter().collect();
-    albums.sort_by(|(one, _), (other, _)| by_name(&one.title, &other.title).then(one.cmp(other)));
+    let mut albums: Vec<Album> = albums
+        .into_iter()
+        .map(|(key, (tracks, cover))| Album { key, tracks, cover })
+        .collect();
+    albums.sort_by(|one, other| {
+        by_name(&one.key.title, &other.key.title).then(one.key.cmp(&other.key))
+    });
     let mut artists: Vec<_> = artists.into_iter().collect();
     artists.sort_by(|(one, _), (other, _)| by_name(one, other).then(one.cmp(other)));
     Groups { albums, artists }
