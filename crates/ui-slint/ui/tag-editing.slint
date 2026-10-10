@@ -7,4 +7,6 @@ export global TagEditing {
     pure callback invalid(TagField, string) -> bool;
     callback commit(TagField, string, bool);
     callback cancel-typing;
+    // The genres to suggest for a text: those that start with it, then those that hold it.
+    pure callback genres(string) -> [string];
 }

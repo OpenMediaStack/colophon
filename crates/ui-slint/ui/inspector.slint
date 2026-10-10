@@ -1,6 +1,7 @@
 import { Theme } from "theme.slint";
 import { Button, ScrollBar } from "widgets.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
+import { SuggestionList } from "suggestions.slint";
 
 // Empty while no folder is open.
 export enum InspectorState { empty, nothing-selected, tracks, unreadable }
@@ -114,6 +115,12 @@ component EditField inherits Rectangle {
     in property <bool> mono;
     in property <string> mixed-text: @tr("Multiple values");
     in property <bool> multiline;
+    // Suggests genres as the user types, with a button that shows them all.
+    in property <bool> suggests;
+    // The suggestions shown under the field, and the one the arrow keys reached.
+    out property <bool> suggesting: root.list-open && input.has-focus && root.suggestions.length > 0;
+    out property <[string]> suggestions: root.list-open ? TagEditing.genres(root.filter) : [];
+    out property <int> highlighted: -1;
 
     property <string> value: root.field.mixed ? "" : root.field.text;
     property <bool> invalid: TagEditing.invalid(root.tag, input.text);
@@ -121,9 +128,35 @@ component EditField inherits Rectangle {
     // is kept at once, so that saving never misses what was just typed.
     property <string> started-with;
     property <bool> typing;
+    property <bool> list-open;
+    // What the suggestions match: the text typed, or nothing for every genre.
+    property <string> filter;
 
     function restore() {
         input.text = root.value;
+    }
+
+    function keep-text() {
+        if root.invalid {
+            // The engine keeps the value from before, until the text makes sense again.
+            root.cancel();
+        } else if input.text != root.value {
+            TagEditing.commit(root.tag, input.text, root.typing);
+            root.typing = true;
+        }
+    }
+
+    function open-list(filter: string) {
+        root.filter = filter;
+        root.highlighted = -1;
+        root.list-open = true;
+    }
+
+    public function pick(value: string) {
+        input.text = value;
+        root.list-open = false;
+        root.keep-text();
+        input.clear-focus();
     }
 
     // Undoes what was typed since the field took the focus.
@@ -161,7 +194,7 @@ component EditField inherits Rectangle {
     input := TextInput {
         x: 8px;
         y: root.multiline ? 6px : 0px;
-        width: parent.width - 16px;
+        width: parent.width - (root.suggests ? 30px : 16px);
         height: root.multiline ? parent.height - 12px : parent.height;
         text: root.value;
         single-line: !root.multiline;
@@ -175,12 +208,9 @@ component EditField inherits Rectangle {
         accessible-label: root.label;
 
         edited => {
-            if root.invalid {
-                // The engine keeps the value from before, until the text makes sense again.
-                root.cancel();
-            } else if self.text != root.value {
-                TagEditing.commit(root.tag, self.text, root.typing);
-                root.typing = true;
+            root.keep-text();
+            if root.suggests {
+                root.open-list(self.text);
             }
         }
         accepted => {
@@ -189,6 +219,27 @@ component EditField inherits Rectangle {
             }
         }
         key-pressed(event) => {
+            if root.suggesting {
+                if event.text == Key.DownArrow {
+                    root.highlighted = min(root.highlighted + 1, root.suggestions.length - 1);
+                    return accept;
+                }
+                if event.text == Key.UpArrow {
+                    root.highlighted = max(root.highlighted - 1, -1);
+                    return accept;
+                }
+                if event.text == Key.Return && root.highlighted >= 0 {
+                    root.pick(root.suggestions[root.highlighted]);
+                    return accept;
+                }
+                if event.text == Key.Escape {
+                    root.list-open = false;
+                    return accept;
+                }
+            } else if root.suggests && event.text == Key.DownArrow {
+                root.open-list("");
+                return accept;
+            }
             if event.text == Key.Escape {
                 root.cancel();
                 self.text = root.started-with;
@@ -201,11 +252,38 @@ component EditField inherits Rectangle {
             if self.has-focus {
                 root.started-with = root.value;
             } else {
+                root.list-open = false;
                 if root.invalid {
                     root.cancel();
                     self.text = root.started-with;
                 }
                 root.typing = false;
+            }
+        }
+    }
+
+    if root.suggests: Rectangle {
+        x: parent.width - self.width - 4px;
+        width: 22px;
+        height: parent.height;
+        accessible-role: button;
+        accessible-label: @tr("Show suggestions");
+        accessible-action-default => {
+            input.focus();
+            root.open-list("");
+        }
+
+        Image {
+            width: 14px;
+            height: 14px;
+            source: @image-url("images/chevron-down.svg");
+            colorize: Theme.text-tertiary;
+        }
+
+        TouchArea {
+            clicked => {
+                input.focus();
+                root.open-list("");
             }
         }
     }
@@ -475,10 +553,11 @@ export component Inspector inherits Rectangle {
                                 modified: root.tracks.genre.modified;
                             }
 
-                            EditField {
+                            genre-field := EditField {
                                 field: root.tracks.genre;
                                 tag: TagField.genre;
                                 label: @tr("Genre");
+                                suggests: true;
                             }
                         }
 
@@ -613,6 +692,20 @@ export component Inspector inherits Rectangle {
                         root.save();
                     }
                 }
+            }
+        }
+
+        // Over the fields that follow, and above the field when there is no room under it.
+        if genre-field.suggesting: SuggestionList {
+            property <length> field-y: genre-field.absolute-position.y - parent.absolute-position.y;
+
+            x: genre-field.absolute-position.x - parent.absolute-position.x;
+            y: self.field-y + genre-field.height + 2px + self.height <= parent.height - root.actions-height ? self.field-y + genre-field.height + 2px : self.field-y - 2px - self.height;
+            width: genre-field.width;
+            items: genre-field.suggestions;
+            highlighted: genre-field.highlighted;
+            picked(genre) => {
+                genre-field.pick(genre);
             }
         }
     }
