@@ -8,11 +8,11 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+id3.workspace = true
 lofty.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-id3.workspace = true
 tempfile.workspace = true
 
 [lints]

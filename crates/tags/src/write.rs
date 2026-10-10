@@ -4,6 +4,7 @@ use std::fs::{self, OpenOptions};
 use std::io::{self, Seek};
 use std::path::{Path, PathBuf};
 
+use id3::TagLike;
 use lofty::TextEncoding;
 use lofty::config::{ParseOptions, WriteOptions};
 use lofty::error::{FileEncodingError, FileParseError};
@@ -37,8 +38,9 @@ pub enum WriteError {
     /// The tags were written, but the file could not be read back.
     #[error("could not read the file back")]
     ReadBack(#[source] ReadError),
-    #[error("Colophon cannot write {0}")]
-    Unsupported(TagFormat),
+    /// lofty does not write ID3v2.2, so the `id3` crate rewrites the tag lofty wrote.
+    #[error("could not write the ID3v2.2 tag")]
+    Id3v2_2(#[source] id3::Error),
 }
 
 /// Writes `tags` into an MP3, in the tags and versions of `versions`, and removes the ID3 tags it
@@ -46,11 +48,6 @@ pub enum WriteError {
 /// copy of the file in the same folder, which replaces the original only once complete on disk: a
 /// failed write leaves the original untouched. Gives back what the written file holds.
 pub fn write(path: &Path, tags: &Tags, versions: TagVersions) -> Result<Metadata, WriteError> {
-    if versions.id3v2 == Some(Id3v2Version::V2_2) {
-        return Err(WriteError::Unsupported(TagFormat::Id3v2(
-            Id3v2Version::V2_2,
-        )));
-    }
     if fs::metadata(path)?.permissions().readonly() {
         return Err(WriteError::ReadOnly);
     }
@@ -98,7 +95,10 @@ fn write_copy(
         None => removed.extend(mpeg.remove_id3v1().map(|_| TagType::Id3v1)),
     }
 
-    let options = WriteOptions::new().use_id3v23(versions.id3v2 == Some(Id3v2Version::V2_3));
+    let options = WriteOptions::new().use_id3v23(matches!(
+        versions.id3v2,
+        Some(Id3v2Version::V2_3 | Id3v2Version::V2_2)
+    ));
     file.rewind()?;
     mpeg.save_to(&mut file, options)
         .map_err(WriteError::Encode)?;
@@ -108,8 +108,34 @@ fn write_copy(
         tag.remove_from(&mut file, options)
             .map_err(WriteError::Encode)?;
     }
+    if versions.id3v2 == Some(Id3v2Version::V2_2) {
+        downgrade_to_id3v2_2(&mut file)?;
+    }
     file.sync_all()?;
     Ok(())
+}
+
+/// Rewrites as ID3v2.2 the ID3v2.3 tag lofty wrote, which ID3v2.2 is closest to. A frame
+/// ID3v2.2 has no name for is left out, and its text is in UTF-16 or Latin-1, as ID3v2.2 has no
+/// UTF-8.
+fn downgrade_to_id3v2_2(file: &mut fs::File) -> Result<(), WriteError> {
+    file.rewind()?;
+    let written = id3::Tag::read_from2(&mut *file).map_err(WriteError::Id3v2_2)?;
+    let mut downgraded = id3::Tag::with_version(id3::Version::Id3v22);
+    for frame in written.frames() {
+        if frame.id_for_version(id3::Version::Id3v22).is_none() {
+            continue;
+        }
+        let encoding = match frame.encoding() {
+            Some(id3::Encoding::Latin1) => id3::Encoding::Latin1,
+            _ => id3::Encoding::UTF16,
+        };
+        downgraded.add_frame(frame.clone().set_encoding(Some(encoding)));
+    }
+    file.rewind()?;
+    downgraded
+        .write_to_file(&mut *file, id3::Version::Id3v22)
+        .map_err(WriteError::Id3v2_2)
 }
 
 fn set_id3v2(tag: &mut Id3v2Tag, tags: &Tags) {

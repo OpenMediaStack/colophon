@@ -9,7 +9,7 @@ use std::path::Path;
 use std::process::Command;
 
 use colophon_tags::{
-    Id3v1Version, Id3v2Version, TagFormat, TagVersions, Tags, formats_after_write, read, write,
+    Id3v1Version, Id3v2Version, TagVersions, Tags, formats_after_write, read, write,
 };
 use id3::TagLike;
 
@@ -24,7 +24,12 @@ const FIXTURES: [&str; 6] = [
     "v23_cover.mp3",
     "v24_full.mp3",
 ];
-const ID3V2: [Option<Id3v2Version>; 3] = [Some(Id3v2Version::V2_4), Some(Id3v2Version::V2_3), None];
+const ID3V2: [Option<Id3v2Version>; 4] = [
+    Some(Id3v2Version::V2_4),
+    Some(Id3v2Version::V2_3),
+    Some(Id3v2Version::V2_2),
+    None,
+];
 const ID3V1: [Option<Id3v1Version>; 3] = [Some(Id3v1Version::V1_1), Some(Id3v1Version::V1_0), None];
 
 /// Values every version holds whole, ID3v1 included: short Latin-1 text and a genre of its list.
@@ -82,6 +87,8 @@ fn ffprobe(path: &Path) -> Result<HashMap<String, String>, Box<dyn Error>> {
         .lines()
         .filter_map(|line| line.strip_prefix("format.tags."))
         .filter_map(|line| line.split_once('='))
+        // ffmpeg names every ID3v2.2 frame Colophon edits but the disc, which it leaves as TPA.
+        .map(|(key, value)| (if key == "TPA" { "disc" } else { key }, value))
         .filter(|(key, _)| EDITED.contains(key))
         .map(|(key, value)| (key.to_owned(), value.trim_matches('"').to_owned()))
         .collect())
@@ -230,34 +237,5 @@ fn every_version_reads_back_the_same_in_colophon_ffprobe_and_the_id3_crate() -> 
         }
     }
     assert!(report.is_empty(), "{}", report.join("\n"));
-    Ok(())
-}
-
-#[test]
-fn id3v2_2_cannot_be_written_yet() -> TestResult {
-    let folder = tempfile::tempdir()?;
-    let path = folder.path().join("v23_full.mp3");
-    fs::copy(fixture("v23_full.mp3"), &path)?;
-    let before = fs::read(&path)?;
-
-    let result = write(
-        &path,
-        &tags(),
-        TagVersions {
-            id3v2: Some(Id3v2Version::V2_2),
-            id3v1: None,
-        },
-    );
-
-    assert!(
-        matches!(
-            result,
-            Err(colophon_tags::WriteError::Unsupported(TagFormat::Id3v2(
-                Id3v2Version::V2_2
-            )))
-        ),
-        "{result:?}"
-    );
-    assert_eq!(fs::read(&path)?, before);
     Ok(())
 }

@@ -162,6 +162,33 @@ fn frames_colophon_does_not_edit_are_kept() -> TestResult {
 }
 
 #[test]
+fn id3v2_2_keeps_the_frames_colophon_does_not_edit() -> TestResult {
+    let (_folder, path) = copy_of("v23_cover.mp3")?;
+    let versions = TagVersions {
+        id3v2: Some(Id3v2Version::V2_2),
+        id3v1: None,
+    };
+
+    let written = colophon_tags::write(&path, &new_tags(), versions)?;
+
+    assert_eq!(written.formats, [TagFormat::Id3v2(Id3v2Version::V2_2)]);
+    assert_eq!(written.tags, new_tags());
+    let mut file = fs::File::open(&path)?;
+    let mpeg = MpegFile::read_from(&mut file, ParseOptions::new())?;
+    let id3v2 = mpeg.id3v2().ok_or("no ID3v2 tag")?;
+    let pictures = id3v2
+        .into_iter()
+        .filter(|frame| matches!(frame, Frame::Picture(_)))
+        .count();
+    assert_eq!(pictures, 1);
+    assert_eq!(
+        id3v2.get_text(&FrameId::new("TPUB")?),
+        Some("Colophon Records")
+    );
+    Ok(())
+}
+
+#[test]
 fn an_id3v1_tag_is_rewritten_from_the_new_values() -> TestResult {
     let (_folder, path) = copy_of("v23_v1_long_title.mp3")?;
     let tags = Tags {
