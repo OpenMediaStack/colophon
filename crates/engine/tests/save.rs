@@ -4,8 +4,8 @@ use std::error::Error;
 use std::fs;
 use std::path::Path;
 
-use colophon_engine::tags::{WriteError, read};
-use colophon_engine::{Command, Edit, Engine, SaveProgress};
+use colophon_engine::tags::{Id3v1Version, Id3v2Version, TagFormat, WriteError, read};
+use colophon_engine::{Command, Edit, Engine, SaveProgress, VersionChoice};
 use tempfile::TempDir;
 
 use common::{TestResult, engine_reading, folder_with_fixtures, poll_until_saved};
@@ -121,5 +121,33 @@ fn saving_nothing_does_nothing() -> TestResult {
     engine.execute(Command::Save);
 
     assert_eq!(engine.saving(), None);
+    Ok(())
+}
+
+#[test]
+fn saving_writes_the_versions_chosen() -> TestResult {
+    let (folder, mut engine) = two_tracks()?;
+    engine.execute(Command::SelectAll);
+
+    engine.execute(Command::ChooseVersion(VersionChoice::Id3v2(Some(
+        Id3v2Version::V2_3,
+    ))));
+    engine.execute(Command::ChooseVersion(VersionChoice::Id3v1(Some(
+        Id3v1Version::V1_0,
+    ))));
+    assert_eq!(engine.edits().modified_count(), 2);
+    engine.execute(Command::Save);
+    poll_until_saved(&mut engine)?;
+
+    for name in ["1.mp3", "2.mp3"] {
+        assert_eq!(
+            read(&folder.path().join(name))?.formats,
+            [
+                TagFormat::Id3v2(Id3v2Version::V2_3),
+                TagFormat::Id3v1(Id3v1Version::V1_0)
+            ]
+        );
+    }
+    assert_eq!(engine.edits().modified_count(), 0);
     Ok(())
 }

@@ -1,7 +1,9 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use colophon_engine::{Column, ColumnWidths, Command, Edit, Engine, Step, ViewState};
+use colophon_engine::{
+    Column, ColumnWidths, Command, Edit, Engine, Step, VersionChoice, ViewState,
+};
 
 #[test]
 fn both_panels_are_visible_at_start() {
@@ -124,6 +126,7 @@ fn command_ids_are_unique() {
         Command::Undo,
         Command::Redo,
         Command::Revert,
+        Command::ChooseVersion(VersionChoice::Id3v1(None)),
         Command::Save,
     ];
 
