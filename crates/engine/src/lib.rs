@@ -4,11 +4,13 @@ mod columns;
 mod edits;
 mod inspection;
 mod listing;
+mod playback;
 mod selection;
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::PathBuf;
 use std::sync::mpsc::TryRecvError;
+use std::time::Duration;
 
 use colophon_library::tags::WriteError;
 use colophon_library::{
@@ -21,6 +23,7 @@ pub use columns::{Column, ColumnWidths, Columns};
 pub use edits::{Edit, Edits, Field, VersionChoice};
 pub use inspection::{AudioLine, Inspection, Shared, Summary};
 pub use listing::{Album, AlbumKey, Groups, Sort, SortColumn, Source};
+pub use playback::{Output, PlayError, Playback};
 pub use selection::{Selection, Step};
 
 /// A user action. The UI turns buttons, menu items and shortcuts into commands.
@@ -68,6 +71,18 @@ pub enum Command {
     Filter(String),
     /// Sorts the table by a column, or the other way round when it is sorted by it already.
     SortBy(SortColumn),
+    /// Plays a track from its start.
+    Play(usize),
+    /// Pauses or resumes; with nothing playing, plays the focused track, or the first listed.
+    PlayPause,
+    /// Plays the next track the table lists.
+    PlayNext,
+    /// Plays the track before, or this one again from its start once a few seconds have played.
+    PlayPrevious,
+    /// Moves the playing track to this position.
+    Seek(Duration),
+    /// From 0, silent, to 100, as loud as the file.
+    SetVolume(u8),
 }
 
 impl Command {
@@ -99,6 +114,12 @@ impl Command {
             Command::ShowSource(_) => "view.show_source",
             Command::Filter(_) => "view.filter",
             Command::SortBy(_) => "view.sort_by",
+            Command::Play(_) => "playback.play",
+            Command::PlayPause => "playback.play_pause",
+            Command::PlayNext => "playback.next",
+            Command::PlayPrevious => "playback.previous",
+            Command::Seek(_) => "playback.seek",
+            Command::SetVolume(_) => "playback.volume",
         }
     }
 }
@@ -189,11 +210,50 @@ pub struct Engine {
     sort: Option<Sort>,
     /// The tracks the table lists, in its order.
     listed: Vec<usize>,
+    /// Where the sound goes; without it, nothing plays.
+    output: Option<Box<dyn Output>>,
+    playback: Playback,
+    /// Why the track asked for last could not play.
+    play_failure: Option<PlayFailure>,
 }
+
+/// A track that could not play, and why.
+#[derive(Debug)]
+pub struct PlayFailure {
+    pub track: usize,
+    pub error: PlayError,
+}
+
+/// Previous plays the track before only within its first seconds; later, it starts it again.
+const RESTART_AFTER: Duration = Duration::from_secs(3);
 
 impl Engine {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// An engine that plays tracks through `output`.
+    pub fn with_output(output: impl Output + 'static) -> Self {
+        Self {
+            output: Some(Box::new(output)),
+            ..Self::default()
+        }
+    }
+
+    pub fn playback(&self) -> Playback {
+        self.playback
+    }
+
+    /// How far the playing track has played.
+    pub fn position(&self) -> Duration {
+        match (&self.output, self.playback.track) {
+            (Some(output), Some(_)) => output.position(),
+            _ => Duration::ZERO,
+        }
+    }
+
+    pub fn play_failure(&self) -> Option<&PlayFailure> {
+        self.play_failure.as_ref()
     }
 
     pub fn view(&self) -> &ViewState {
@@ -343,6 +403,22 @@ impl Engine {
                 self.filter = filter;
                 self.relist();
             }
+            Command::Play(track) => self.play(track),
+            Command::PlayPause => self.play_pause(),
+            Command::PlayNext => self.play_next(),
+            Command::PlayPrevious => self.play_previous(),
+            Command::Seek(position) => {
+                if let (Some(output), Some(_)) = (&mut self.output, self.playback.track) {
+                    // A position the decoder cannot reach leaves the track where it was.
+                    let _ = output.seek(position);
+                }
+            }
+            Command::SetVolume(percent) => {
+                self.playback.volume = f32::from(percent.min(100)) / 100.0;
+                if let Some(output) = &mut self.output {
+                    output.set_volume(self.playback.volume);
+                }
+            }
             Command::SortBy(column) => {
                 self.sort = Some(Sort {
                     column,
@@ -363,7 +439,86 @@ impl Engine {
         if scanned || saved {
             self.relist();
         }
-        scanned || saved
+        let ended =
+            self.playback.playing() && self.output.as_ref().is_some_and(|output| output.finished());
+        if ended {
+            self.play_next();
+        }
+        scanned || saved || ended
+    }
+
+    fn play(&mut self, track: usize) {
+        let (Some(output), Some(listed)) = (&mut self.output, self.library.tracks.get(track))
+        else {
+            return;
+        };
+        match output.play(&listed.path) {
+            Ok(()) => {
+                output.set_volume(self.playback.volume);
+                self.playback.track = Some(track);
+                self.playback.paused = false;
+                self.play_failure = None;
+            }
+            Err(error) => {
+                self.stop_playing();
+                self.play_failure = Some(PlayFailure { track, error });
+            }
+        }
+    }
+
+    fn play_pause(&mut self) {
+        match (&mut self.output, self.playback.track) {
+            (Some(output), Some(_)) if self.playback.paused => {
+                output.resume();
+                self.playback.paused = false;
+            }
+            (Some(output), Some(_)) => {
+                output.pause();
+                self.playback.paused = true;
+            }
+            _ => {
+                let first = self
+                    .selection
+                    .focus()
+                    .or_else(|| self.selection.iter().next())
+                    .or_else(|| self.listed.first().copied());
+                if let Some(track) = first {
+                    self.play(track);
+                }
+            }
+        }
+    }
+
+    /// The track the table lists `step` places from the playing one.
+    fn listed_from_playing(&self, step: isize) -> Option<usize> {
+        let playing = self.playback.track?;
+        let place = self.listed.iter().position(|track| *track == playing)?;
+        self.listed.get(place.checked_add_signed(step)?).copied()
+    }
+
+    fn play_next(&mut self) {
+        match self.listed_from_playing(1) {
+            Some(track) => self.play(track),
+            None => self.stop_playing(),
+        }
+    }
+
+    fn play_previous(&mut self) {
+        let Some(playing) = self.playback.track else {
+            return;
+        };
+        match self.listed_from_playing(-1) {
+            Some(track) if self.position() < RESTART_AFTER => self.play(track),
+            _ => self.play(playing),
+        }
+    }
+
+    fn stop_playing(&mut self) {
+        if let Some(output) = &mut self.output {
+            output.stop();
+        }
+        self.playback.track = None;
+        self.playback.paused = false;
     }
 
     /// Lists the tracks of the source again, filtered and sorted.

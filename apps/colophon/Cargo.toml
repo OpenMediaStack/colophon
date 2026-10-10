@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 colophon-engine.workspace = true
+colophon-player.workspace = true
 colophon-ui.workspace = true
 rfd.workspace = true
 

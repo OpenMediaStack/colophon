@@ -33,7 +33,9 @@ impl Dialogs for SystemDialogs {
 }
 
 fn main() -> Result<(), PlatformError> {
-    let window = colophon_ui::main_window(Engine::new(), SystemDialogs)?;
+    // Without a sound device, Colophon still edits tags; only playing is out.
+    let engine = colophon_player::Speakers::open().map_or_else(Engine::new, Engine::with_output);
+    let window = colophon_ui::main_window(engine, SystemDialogs)?;
     #[cfg(target_os = "macos")]
     macos::ask_window_before_terminating(&window);
     window.run()
