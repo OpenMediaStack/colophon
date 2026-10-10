@@ -62,7 +62,8 @@ const ID3V2_CHOICES: [Option<Id3v2Version>; 4] = [
 const ID3V1_CHOICES: [Option<Id3v1Version>; 3] =
     [None, Some(Id3v1Version::V1_0), Some(Id3v1Version::V1_1)];
 
-/// How the window asks the user for folders and files, usually through the system's dialogs.
+/// How the window reaches the desktop: the system's dialogs to ask for folders and files, its
+/// file manager and its clipboard.
 pub trait Dialogs {
     fn pick_folder(&self) -> Option<PathBuf>;
 
@@ -80,6 +81,16 @@ pub trait Dialogs {
     fn pick_save_path(&self, suggested: &str) -> Option<PathBuf> {
         let _ = suggested;
         None
+    }
+
+    /// Shows a file in the system's file manager.
+    fn reveal(&self, path: &Path) {
+        let _ = path;
+    }
+
+    /// Puts text on the clipboard.
+    fn copy(&self, text: &str) {
+        let _ = text;
     }
 }
 
@@ -239,6 +250,22 @@ pub fn main_window_keeping(
                 Id3v1Policy::Never => tags::Id3v1Policy::Never,
             };
             change_policy(&bridge, |policy| policy.id3v1 = id3v1);
+        }
+    });
+    window.on_reveal_file({
+        let bridge = Rc::clone(&bridge);
+        move || {
+            if let Some((path, _)) = bridge.unreadable_shown() {
+                bridge.dialogs.reveal(&path);
+            }
+        }
+    });
+    window.on_copy_details({
+        let bridge = Rc::clone(&bridge);
+        move || {
+            if let Some((_, details)) = bridge.unreadable_shown() {
+                bridge.dialogs.copy(&details);
+            }
         }
     });
     window.on_filter_palette(|entries, query| {
@@ -855,6 +882,22 @@ impl Bridge {
             self.kept.set(preferences);
             (self.keep)(&preferences);
         }
+    }
+
+    /// The unreadable file the inspector shows, if it does, and its details as plain text to
+    /// paste in a bug report.
+    fn unreadable_shown(&self) -> Option<(PathBuf, String)> {
+        let engine = self.engine.borrow();
+        let Inspection::Unreadable { track, error } = engine.inspection() else {
+            return None;
+        };
+        let details = format!(
+            "File: {}\nSize: {} bytes\nError: {error}\nColophon {}",
+            track.path.display(),
+            track.size,
+            env!("CARGO_PKG_VERSION"),
+        );
+        Some((track.path.clone(), details))
     }
 
     /// Remembers the window's size for the next launch, before it closes.

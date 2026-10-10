@@ -169,6 +169,8 @@ export component AppWindow inherits Window {
     callback choose-id3v1(int);
     // The cover of the selected tracks.
     callback replace-cover;
+    callback reveal-file;
+    callback copy-details;
     callback extract-cover;
     callback remove-cover;
     callback resize-columns(TrackColumnWidths);
@@ -678,6 +680,13 @@ export component AppWindow inherits Window {
                 }
                 remove-cover => {
                     root.remove-cover();
+                }
+                reveal-text: root.mac-shortcuts ? @tr("Show in Finder") : root.windows-buttons ? @tr("Show in Explorer") : @tr("Show in Folder");
+                reveal-file => {
+                    root.reveal-file();
+                }
+                copy-details => {
+                    root.copy-details();
                 }
                 revert => {
                     root.run(Command.revert);
