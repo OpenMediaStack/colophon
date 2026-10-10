@@ -37,6 +37,7 @@ export enum Command {
     redo,
     revert,
     number-tracks,
+    select-album,
     play-pause,
     play-next,
     play-previous,
@@ -147,6 +148,7 @@ export component AppWindow inherits Window {
     out property <string> window-title: !root.folder-open ? "Colophon" : "Colophon · " + (root.shown-kind == SourceKind.all-tracks ? @tr("All tracks") : root.shown-kind == SourceKind.recently-changed ? @tr("Recently changed") : root.shown-kind == SourceKind.unreadable ? @tr("Unreadable files") : root.shown-label);
     // A click on a track, by its row, with Command (Ctrl elsewhere) or Shift held.
     callback track-pressed(int, bool, bool);
+    callback play-row(int);
 
     property <length> sidebar-width: 220px;
     property <length> inspector-width: 320px;
@@ -248,6 +250,14 @@ export component AppWindow inherits Window {
             }
 
             MenuSeparator { }
+
+            MenuItem {
+                title: @tr("Select Album");
+                enabled: root.selected-count > 0 && !root.modal;
+                activated => {
+                    root.run(Command.select-album);
+                }
+            }
 
             MenuItem {
                 title: @tr("Number Tracks");
@@ -477,6 +487,20 @@ export component AppWindow inherits Window {
                     }
                     play-pause => {
                         root.run(Command.play-pause);
+                    }
+                    can-play: root.player-available;
+                    selection-modified: root.inspected-tracks.has-changes;
+                    play-row(row) => {
+                        root.play-row(row);
+                    }
+                    select-album => {
+                        root.run(Command.select-album);
+                    }
+                    number-tracks => {
+                        root.run(Command.number-tracks);
+                    }
+                    revert => {
+                        root.run(Command.revert);
                     }
                 }
 

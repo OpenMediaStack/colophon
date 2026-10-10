@@ -158,3 +158,30 @@ fn numbering_the_selection_numbers_every_track_of_it() -> TestResult {
     assert!(shows(&window, "2 files with unsaved changes"));
     Ok(())
 }
+
+#[test]
+fn a_right_click_selects_the_row_and_opens_its_menu() -> TestResult {
+    let (window, _folder) =
+        window_with(&[("v23_full.mp3", "1.mp3"), ("v24_unicode.mp3", "2.mp3")])?;
+
+    find(&window, "Marlowe Kite")?.mock_single_click(PointerEventButton::Right);
+    assert_eq!(window.get_selected_count(), 1);
+    common::menu_item(&window, "Number Tracks")?.mock_single_click(PointerEventButton::Left);
+
+    assert_eq!(value(&window, "Track")?, "1");
+    assert_eq!(value(&window, "Track total")?, "1");
+    Ok(())
+}
+
+#[test]
+fn a_right_click_on_a_selected_row_keeps_the_selection() -> TestResult {
+    let (window, _folder) =
+        window_with(&[("v23_full.mp3", "1.mp3"), ("v24_unicode.mp3", "2.mp3")])?;
+    press(&window, &[Key::Control], "a");
+
+    find(&window, "Marlowe Kite")?.mock_single_click(PointerEventButton::Right);
+
+    assert_eq!(window.get_selected_count(), 2);
+    assert!(common::menu_item(&window, "Select Album").is_ok());
+    Ok(())
+}

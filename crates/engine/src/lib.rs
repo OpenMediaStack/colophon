@@ -63,6 +63,8 @@ pub enum Command {
     Revert,
     /// Numbers the selected tracks in the table's order, from 1 on each disc.
     NumberTracks,
+    /// Every listed track of the albums of the selected tracks joins the selection.
+    SelectAlbum,
     /// The version to write one tag of the selected tracks in, or none to remove it.
     ChooseVersion(VersionChoice),
     /// Writes every pending change to its file, in the background.
@@ -112,6 +114,7 @@ impl Command {
             Command::Redo => "edit.redo",
             Command::Revert => "tags.revert",
             Command::NumberTracks => "tags.number_tracks",
+            Command::SelectAlbum => "selection.select_album",
             Command::ChooseVersion(_) => "tags.choose_version",
             Command::Save => "tags.save",
             Command::ShowSource(_) => "view.show_source",
@@ -398,6 +401,24 @@ impl Engine {
             Command::Revert => self
                 .edits
                 .revert(&self.library.tracks, self.selection.iter()),
+            Command::SelectAlbum => {
+                let albums: BTreeSet<AlbumKey> = self
+                    .selection
+                    .iter()
+                    .filter_map(|track| AlbumKey::of(self.tags_of(track)?))
+                    .collect();
+                let tracks: Vec<usize> = self
+                    .listed
+                    .iter()
+                    .copied()
+                    .filter(|track| {
+                        self.tags_of(*track)
+                            .and_then(AlbumKey::of)
+                            .is_some_and(|album| albums.contains(&album))
+                    })
+                    .collect();
+                self.selection.add(tracks);
+            }
             Command::NumberTracks => {
                 let ordered = self
                     .listed

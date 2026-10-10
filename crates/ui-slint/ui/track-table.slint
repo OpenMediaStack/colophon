@@ -354,6 +354,8 @@ component TableRow inherits Rectangle {
     callback released;
     // A double click on a cell that can be edited.
     callback edit(TagField);
+    // A right click, or a Control click on macOS: the row's menu, at this point of the window.
+    callback open-menu(length, length);
 
     // Where the editable cells start, a hidden column taking no room.
     property <length> title-x: root.status-width + root.number-width;
@@ -485,7 +487,9 @@ component TableRow inherits Rectangle {
     // Slint reports the Command key of macOS as control, so one test covers every platform.
     touch := TouchArea {
         pointer-event(event) => {
-            if event.button == PointerEventButton.left {
+            if event.kind == PointerEventKind.down && (event.button == PointerEventButton.right || (event.button == PointerEventButton.left && event.modifiers.meta)) {
+                root.open-menu(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+            } else if event.button == PointerEventButton.left {
                 if event.kind == PointerEventKind.down {
                     root.pressed(event.modifiers.control, event.modifiers.shift);
                 } else if event.kind == PointerEventKind.up {
@@ -540,6 +544,14 @@ export component TrackTable inherits Rectangle {
     callback sort-by(SortColumn);
     // Space: plays the focused track, or pauses.
     callback play-pause;
+    // The row menu's commands: play its row, select the albums of the selection, number it, and
+    // bring it back to its files' tags.
+    in property <bool> can-play;
+    in property <bool> selection-modified;
+    callback play-row(int);
+    callback select-album;
+    callback number-tracks;
+    callback revert;
     callback columns-resized(TrackColumnWidths);
 
     property <length> header-height: 28px;
@@ -1213,6 +1225,50 @@ export component TrackTable inherits Rectangle {
         }
     }
 
+    // A right click on a row selects it, unless it is selected already, and opens this menu over it.
+    property <int> menu-row: -1;
+    row-menu := ContextMenuArea {
+        y: root.header-height;
+        height: root.list-height;
+        enabled: false;
+
+        Menu {
+            MenuItem {
+                title: @tr("Play");
+                enabled: root.can-play;
+                activated => {
+                    root.play-row(root.menu-row);
+                }
+            }
+
+            MenuSeparator { }
+
+            MenuItem {
+                title: @tr("Select Album");
+                activated => {
+                    root.select-album();
+                }
+            }
+
+            MenuItem {
+                title: @tr("Number Tracks");
+                activated => {
+                    root.number-tracks();
+                }
+            }
+
+            MenuSeparator { }
+
+            MenuItem {
+                title: @tr("Revert");
+                enabled: root.selection-modified;
+                activated => {
+                    root.revert();
+                }
+            }
+        }
+    }
+
     track-list := ListView {
         x: 0;
         y: root.header-height;
@@ -1250,6 +1306,16 @@ export component TrackTable inherits Rectangle {
                 shrink-timer.running = false;
                 root.shrink-to-row = -1;
                 root.start-editing(index, field);
+            }
+            open-menu(x, y) => {
+                keys.focus();
+                shrink-timer.running = false;
+                root.shrink-to-row = -1;
+                if !row.selected {
+                    root.track-pressed(index, false, false);
+                }
+                root.menu-row = index;
+                row-menu.show({ x: x - row-menu.absolute-position.x, y: y - row-menu.absolute-position.y });
             }
         }
     }
