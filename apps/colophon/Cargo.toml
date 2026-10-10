@@ -11,6 +11,7 @@ publish = false
 colophon-engine.workspace = true
 colophon-player.workspace = true
 colophon-ui.workspace = true
+dirs.workspace = true
 rfd.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]

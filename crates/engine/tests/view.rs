@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use colophon_engine::{
-    Column, ColumnWidths, Command, Edit, Engine, Step, VersionChoice, ViewState,
+    Column, ColumnWidths, Command, Edit, Engine, Step, VersionChoice, ViewState, WindowSize,
 };
 
 #[test]
@@ -151,4 +151,24 @@ fn developer_mode_is_off_until_turned_on() {
     engine.execute(Command::ToggleDeveloperMode);
 
     assert!(engine.view().developer_mode);
+}
+
+#[test]
+fn the_next_launch_starts_from_the_preferences() {
+    let mut engine = Engine::new();
+    engine.execute(Command::ToggleSidebar);
+    engine.execute(Command::ToggleColumn(Column::Tags));
+    engine.execute(Command::SetVolume(35));
+    engine.execute(Command::ResizeWindow(WindowSize {
+        width: 1440,
+        height: 900,
+    }));
+
+    let mut next = Engine::new();
+    next.restore(engine.preferences());
+
+    assert_eq!(next.preferences(), engine.preferences());
+    assert!(!next.view().sidebar_visible);
+    assert!(next.view().columns.contains(Column::Tags));
+    assert!((next.playback().volume - 0.35).abs() < f32::EPSILON);
 }
