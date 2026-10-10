@@ -70,6 +70,11 @@ impl Selection {
         self.focus = Some(track);
     }
 
+    /// These tracks join the selection.
+    pub(crate) fn add(&mut self, tracks: impl IntoIterator<Item = usize>) {
+        self.tracks.extend(tracks);
+    }
+
     /// Every track the table lists.
     pub(crate) fn select_all(&mut self, order: &[usize]) {
         self.tracks = order.iter().copied().collect();

@@ -220,3 +220,32 @@ fn tracks_are_numbered_in_the_table_order_disc_by_disc() -> TestResult {
     assert_eq!(number(&engine, "1.mp3")?, (Some(3), Some(12)));
     Ok(())
 }
+
+#[test]
+fn selecting_the_album_selects_every_listed_track_of_it() -> TestResult {
+    let folder = folder_with_fixtures(&[
+        ("v23_full.mp3", "1.mp3"),
+        ("v24_full.mp3", "2.mp3"),
+        ("v24_unicode.mp3", "3.mp3"),
+    ])?;
+    let mut engine = engine_reading(&folder)?;
+    let (one, two) = (
+        track_named(&engine, "1.mp3")?,
+        track_named(&engine, "2.mp3")?,
+    );
+    engine.execute(Command::Select(one));
+    engine.execute(Command::ToggleSelected(two));
+    engine.execute(Command::Edit(Edit::Album(Some("Analog Hearts".into()))));
+    engine.execute(Command::Edit(Edit::AlbumArtist(Some(
+        "Cassette Bloom".into(),
+    ))));
+    engine.execute(Command::Select(two));
+
+    engine.execute(Command::SelectAlbum);
+
+    let selected: Vec<usize> = engine.selection().iter().collect();
+    let mut expected = vec![one, two];
+    expected.sort_unstable();
+    assert_eq!(selected, expected);
+    Ok(())
+}

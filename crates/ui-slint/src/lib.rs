@@ -174,6 +174,14 @@ pub fn main_window(
             execute(&bridge, command);
         }
     });
+    window.on_play_row({
+        let bridge = Rc::clone(&bridge);
+        move |row| {
+            if let Some(track) = bridge.track_at(row) {
+                execute(&bridge, Command::Play(track));
+            }
+        }
+    });
     window.on_choose_id3v2({
         let bridge = Rc::clone(&bridge);
         move |index| {
@@ -450,6 +458,7 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         generated::Command::Redo => Command::Redo,
         generated::Command::Revert => Command::Revert,
         generated::Command::NumberTracks => Command::NumberTracks,
+        generated::Command::SelectAlbum => Command::SelectAlbum,
         generated::Command::PlayPause => Command::PlayPause,
         generated::Command::PlayNext => Command::PlayNext,
         generated::Command::PlayPrevious => Command::PlayPrevious,
