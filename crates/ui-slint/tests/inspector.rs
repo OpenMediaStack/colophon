@@ -9,6 +9,7 @@ use colophon_ui::{
     AppWindow, BitrateMode, ByteSize, ComponentHandle, FrameKind, InspectedTracks, InspectorField,
     InspectorState, ReadProblem, ScanState, SizeUnit, TagFrame, TagLayout, Theme, UnreadableFile,
 };
+use i_slint_backend_testing::ElementHandle;
 use slint::platform::{Key, PointerEventButton};
 use slint::{ModelRc, VecModel};
 use tempfile::TempDir;
@@ -323,5 +324,24 @@ fn the_frames_section_matches_its_references() -> TestResult {
         window.show()?;
         assert_matches_reference(&window, &format!("inspector-frames-{theme}.png"))?;
     }
+    Ok(())
+}
+
+#[test]
+fn a_section_folds_and_stays_folded() -> TestResult {
+    let (window, _folder) = window_with(&[("v23_full.mp3", "1.mp3")])?;
+    find(&window, "Marlowe Kite")?.mock_single_click(PointerEventButton::Left);
+    assert!(common::input(&window, "Title").is_ok());
+
+    let header = ElementHandle::find_by_accessible_label(&window, "Tags")
+        .find(|element| element.accessible_expandable() == Some(true))
+        .ok_or("no Tags header")?;
+    header.invoke_accessible_default_action();
+    assert!(!window.get_tags_open());
+    assert_eq!(header.accessible_expanded(), Some(false));
+
+    window.invoke_run(colophon_ui::WindowCommand::ToggleInspector);
+    window.invoke_run(colophon_ui::WindowCommand::ToggleInspector);
+    assert!(!window.get_tags_open());
     Ok(())
 }

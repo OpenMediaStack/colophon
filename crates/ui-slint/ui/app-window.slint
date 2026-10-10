@@ -178,6 +178,12 @@ export component AppWindow inherits Window {
     callback reveal-file;
     callback copy-details;
     // A short message over the bottom of the window, and its action.
+    // The inspector's sections that show their content, kept while the inspector is hidden.
+    in-out property <bool> tags-open: true;
+    in-out property <bool> file-open: true;
+    in-out property <bool> spectrum-open: true;
+    in-out property <bool> tag-format-open: true;
+    in-out property <bool> frames-open: true;
     // How ID3v2 tags are encoded when saved in developer mode.
     in property <int> encoding-choice;
     in property <int> padding-choice;
@@ -709,6 +715,11 @@ export component AppWindow inherits Window {
                 cover-drop: root.drop-target == DropTarget.cover;
                 has-layout: root.has-layout;
                 layout: root.tag-layout;
+                tags-open <=> root.tags-open;
+                file-open <=> root.file-open;
+                spectrum-open <=> root.spectrum-open;
+                tag-format-open <=> root.tag-format-open;
+                frames-open <=> root.frames-open;
                 encoding-choice: root.encoding-choice;
                 padding-choice: root.padding-choice;
                 unsynchronisation: root.unsynchronisation;
