@@ -35,3 +35,23 @@ pub fn poll_until_done(engine: &mut Engine) -> Result<(), String> {
     }
     Ok(())
 }
+
+/// A folder holding copies of fixtures of `testdata/`, each under its new name.
+pub fn folder_with_fixtures(copies: &[(&str, &str)]) -> Result<TempDir, Box<dyn Error>> {
+    let folder = tempfile::tempdir()?;
+    let fixtures = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata");
+    for (fixture, name) in copies {
+        fs::copy(fixtures.join(fixture), folder.path().join(name))?;
+    }
+    Ok(folder)
+}
+
+/// An engine that has read the whole folder.
+pub fn engine_reading(folder: &TempDir) -> Result<Engine, Box<dyn Error>> {
+    let mut engine = Engine::new();
+    engine.execute(colophon_engine::Command::OpenFolder(
+        folder.path().to_path_buf(),
+    ));
+    poll_until_done(&mut engine)?;
+    Ok(engine)
+}

@@ -1,0 +1,488 @@
+import { Theme } from "theme.slint";
+import { ScrollBar } from "widgets.slint";
+
+// Empty while no folder is open.
+export enum InspectorState { empty, nothing-selected, tracks, unreadable }
+
+// One field of the selected tracks: their shared value, or several.
+export struct InspectorField {
+    text: string,
+    mixed: bool,
+}
+
+export enum SizeUnit { bytes, kilobytes, megabytes, gigabytes }
+
+// A size, in decimal units with one decimal digit, put into words by the inspector so that each
+// language writes its own decimal mark and units.
+export struct ByteSize {
+    whole: int,
+    tenth: int,
+    unit: SizeUnit,
+}
+
+export struct InspectedTracks {
+    count: int,
+    unreadable: int,
+    // The title of a single track, or its file name.
+    heading: string,
+    title: InspectorField,
+    artist: InspectorField,
+    album-artist: InspectorField,
+    album: InspectorField,
+    year: InspectorField,
+    track: InspectorField,
+    track-total: InspectorField,
+    genre: InspectorField,
+    comment: InspectorField,
+    // Whether the tracks share their audio properties, and these.
+    audio-shared: bool,
+    bitrate: int,
+    sample-rate-whole: int,
+    sample-rate-tenth: int,
+    formats: InspectorField,
+    size: ByteSize,
+}
+
+export enum ReadProblem { cannot-open, damaged, reader-failed }
+
+export struct UnreadableFile {
+    path: string,
+    problem: ReadProblem,
+    size: ByteSize,
+}
+
+component SectionLabel inherits Text {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.66px;
+    color: Theme.text-tertiary;
+}
+
+component FieldLabel inherits HorizontalLayout {
+    in property <string> text;
+    in property <length> size: 13px;
+
+    width: 96px;
+    padding-left: 12px;
+
+    Text {
+        vertical-alignment: center;
+        text: root.text;
+        font-size: root.size;
+        color: Theme.text-secondary;
+    }
+}
+
+// A field shown as the mockup's input, read only until tags can be edited.
+component ReadOnlyField inherits Rectangle {
+    in property <InspectorField> field;
+    in property <bool> mono;
+    in property <string> mixed-text: @tr("Multiple values");
+    in property <bool> multiline;
+
+    min-height: 28px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: Theme.border-strong;
+    background: Theme.surface-2;
+
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        padding-top: root.multiline ? 6px : 0px;
+        padding-bottom: root.multiline ? 6px : 0px;
+
+        Text {
+            vertical-alignment: root.multiline ? top : center;
+            wrap: root.multiline ? word-wrap : no-wrap;
+            overflow: elide;
+            text: root.field.mixed ? root.mixed-text : root.field.text;
+            font-family: root.mono && !root.field.mixed ? "JetBrains Mono" : "Inter";
+            font-size: root.mono && !root.field.mixed ? 12px : 13px;
+            color: root.field.mixed ? Theme.text-tertiary : Theme.text-primary;
+        }
+    }
+}
+
+component FileValue inherits Text {
+    in property <bool> mono;
+
+    vertical-alignment: center;
+    wrap: word-wrap;
+    font-family: root.mono ? "JetBrains Mono" : "Inter";
+    font-size: 12px;
+    color: Theme.text-primary;
+}
+
+// The panel at the right of the window: the tags of the selected tracks, read only for now.
+export component Inspector inherits Rectangle {
+    in property <InspectorState> state;
+    in property <InspectedTracks> tracks;
+    in property <UnreadableFile> unreadable;
+    // How Select All is written on this system: ⌘A or Ctrl+A.
+    in property <string> select-all-shortcut;
+
+    property <length> scrollbar-size: 10px;
+    property <string> album-and-artist: root.tracks.album.mixed || root.tracks.album.text == "" ? root.shared-artist
+        : root.shared-artist == "" ? root.tracks.album.text
+        : root.tracks.album.text + " · " + root.shared-artist;
+    property <string> shared-artist: root.tracks.artist.mixed ? "" : root.tracks.artist.text;
+
+    pure function size-text(size: ByteSize) -> string {
+        if size.unit == SizeUnit.bytes {
+            return @tr("{n} byte" | "{n} bytes" % size.whole);
+        }
+        if size.unit == SizeUnit.kilobytes {
+            return @tr("{} KB", size.whole);
+        }
+        if size.unit == SizeUnit.megabytes {
+            return @tr("{0}.{1} MB", size.whole, size.tenth);
+        }
+        return @tr("{0}.{1} GB", size.whole, size.tenth);
+    }
+
+    pure function audio-text() -> string {
+        if !root.tracks.audio-shared {
+            return @tr("Multiple values");
+        }
+        return "MP3 · " + @tr("{} kbps", root.tracks.bitrate) + " · " + (root.tracks.sample-rate-tenth == 0 ? @tr("{} kHz", root.tracks.sample-rate-whole) : @tr("{0}.{1} kHz", root.tracks.sample-rate-whole, root.tracks.sample-rate-tenth));
+    }
+
+    background: Theme.surface-1;
+    accessible-role: groupbox;
+    accessible-label: @tr("Inspector");
+
+    if root.state == InspectorState.nothing-selected: VerticalLayout {
+        alignment: center;
+        padding: 16px;
+        spacing: 6px;
+
+        Text {
+            horizontal-alignment: center;
+            wrap: word-wrap;
+            text: @tr("Select tracks to see their tags");
+            color: Theme.text-secondary;
+        }
+
+        Text {
+            horizontal-alignment: center;
+            wrap: word-wrap;
+            text: @tr("{} selects every track", root.select-all-shortcut);
+            font-size: 12px;
+            color: Theme.text-tertiary;
+        }
+    }
+
+    if root.state == InspectorState.tracks: Rectangle {
+        flick := Flickable {
+            mouse-drag-pan-enabled: false;
+            content-height: column.preferred-height;
+
+            column := VerticalLayout {
+                width: flick.width;
+                alignment: start;
+                padding: 16px;
+                spacing: 16px;
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    Rectangle {
+                        width: 64px;
+                        height: 64px;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: Theme.border-subtle;
+                        background: Theme.surface-2;
+
+                        Image {
+                            width: 24px;
+                            height: 24px;
+                            source: @image-url("images/music.svg");
+                            colorize: Theme.text-tertiary;
+                        }
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 4px;
+
+                        Text {
+                            wrap: word-wrap;
+                            text: root.tracks.count == 1 ? root.tracks.heading : @tr("{n} track selected" | "{n} tracks selected" % root.tracks.count);
+                            font-size: 15px;
+                            font-weight: 600;
+                            color: Theme.text-primary;
+                        }
+
+                        if root.album-and-artist != "": Text {
+                            wrap: word-wrap;
+                            text: root.album-and-artist;
+                            color: Theme.text-secondary;
+                        }
+
+                        if root.tracks.unreadable > 0: Text {
+                            wrap: word-wrap;
+                            text: @tr("{n} file could not be read" | "{n} files could not be read" % root.tracks.unreadable);
+                            font-size: 12px;
+                            color: Theme.error;
+                        }
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 8px;
+
+                    SectionLabel {
+                        text: @tr("Tags").to-uppercase();
+                    }
+
+                    GridLayout {
+                        spacing-horizontal: 8px;
+                        spacing-vertical: 6px;
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Title");
+                            }
+
+                            ReadOnlyField {
+                                field: root.tracks.title;
+                            }
+                        }
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Artist");
+                            }
+
+                            ReadOnlyField {
+                                field: root.tracks.artist;
+                            }
+                        }
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Album artist");
+                            }
+
+                            ReadOnlyField {
+                                field: root.tracks.album-artist;
+                            }
+                        }
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Album");
+                            }
+
+                            ReadOnlyField {
+                                field: root.tracks.album;
+                            }
+                        }
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Year");
+                            }
+
+                            ReadOnlyField {
+                                field: root.tracks.year;
+                                mono: true;
+                            }
+                        }
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Track");
+                            }
+
+                            HorizontalLayout {
+                                spacing: 6px;
+                                alignment: start;
+
+                                ReadOnlyField {
+                                    width: 72px;
+                                    field: root.tracks.track;
+                                    mono: true;
+                                    mixed-text: @tr("Multiple");
+                                }
+
+                                Text {
+                                    vertical-alignment: center;
+                                    text: @tr("of");
+                                    color: Theme.text-tertiary;
+                                }
+
+                                ReadOnlyField {
+                                    width: 52px;
+                                    field: root.tracks.track-total;
+                                    mono: true;
+                                    mixed-text: "…";
+                                }
+                            }
+                        }
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Genre");
+                            }
+
+                            ReadOnlyField {
+                                field: root.tracks.genre;
+                            }
+                        }
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Comment");
+                            }
+
+                            ReadOnlyField {
+                                height: 46px;
+                                field: root.tracks.comment;
+                                multiline: true;
+                            }
+                        }
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 8px;
+
+                    SectionLabel {
+                        text: @tr("File").to-uppercase();
+                    }
+
+                    GridLayout {
+                        spacing-horizontal: 8px;
+                        spacing-vertical: 4px;
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Audio");
+                                size: 12px;
+                            }
+
+                            FileValue {
+                                text: root.audio-text();
+                                mono: root.tracks.audio-shared;
+                            }
+                        }
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Size");
+                                size: 12px;
+                            }
+
+                            FileValue {
+                                text: root.tracks.count == 1 ? root.size-text(root.tracks.size) : @tr("{} total", root.size-text(root.tracks.size));
+                                mono: true;
+                            }
+                        }
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Tags");
+                                size: 12px;
+                            }
+
+                            FileValue {
+                                text: root.tracks.formats.mixed ? @tr("Multiple values") : root.tracks.formats.text == "" ? @tr("None") : root.tracks.formats.text;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        ScrollBar {
+            x: parent.width - root.scrollbar-size;
+            width: root.scrollbar-size;
+            content-size: flick.content-height;
+            visible-size: flick.height;
+            position <=> flick.content-y;
+            accessible-label: @tr("Inspector scroll bar");
+        }
+    }
+
+    if root.state == InspectorState.unreadable: VerticalLayout {
+        alignment: start;
+        padding: 16px;
+        spacing: 16px;
+
+        VerticalLayout {
+            spacing: 6px;
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+
+                Image {
+                    width: 16px;
+                    height: 16px;
+                    y: (parent.height - self.height) / 2;
+                    source: @image-url("images/circle-alert.svg");
+                    colorize: Theme.error;
+                }
+
+                Text {
+                    vertical-alignment: center;
+                    text: @tr("Could not read this file");
+                    font-size: 15px;
+                    font-weight: 600;
+                    color: Theme.text-primary;
+                }
+            }
+
+            Text {
+                wrap: word-wrap;
+                text: root.unreadable.path;
+                font-family: "JetBrains Mono";
+                font-size: 12px;
+                color: Theme.text-secondary;
+            }
+        }
+
+        VerticalLayout {
+            spacing: 6px;
+
+            SectionLabel {
+                text: @tr("Problem").to-uppercase();
+            }
+
+            Text {
+                wrap: word-wrap;
+                text: root.unreadable.problem == ReadProblem.cannot-open ? @tr("Colophon could not open this file. It may have been moved or deleted, or Colophon may not be allowed to read it.")
+                    : root.unreadable.problem == ReadProblem.damaged ? @tr("This file is damaged, or it is not an MP3: Colophon could not make sense of it.")
+                    : @tr("Reading this file failed in a way it never should. This is a bug in Colophon, and the file itself may be fine.");
+                color: Theme.text-primary;
+            }
+        }
+
+        VerticalLayout {
+            spacing: 6px;
+
+            SectionLabel {
+                text: @tr("Details").to-uppercase();
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+
+                FieldLabel {
+                    text: @tr("File size");
+                    size: 12px;
+                    padding-left: 0;
+                }
+
+                FileValue {
+                    text: root.size-text(root.unreadable.size);
+                    mono: true;
+                }
+            }
+        }
+    }
+}
