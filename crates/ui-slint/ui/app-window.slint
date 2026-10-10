@@ -10,10 +10,11 @@ import { ScanState, StatusBar } from "status-bar.slint";
 import { SortColumn, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
 import { UnsavedChanges, UnsavedChoice } from "unsaved-changes.slint";
 import { ConfirmTagRemoval, RemovedTag, TagRemoval } from "tag-removal.slint";
+import { Sidebar, SidebarItem, SourceKind } from "sidebar.slint";
 import { BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
 
-export { Theme, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
@@ -102,6 +103,18 @@ export component AppWindow inherits Window {
     in property <SortColumn> sorted-by;
     in property <bool> sort-descending;
     callback sort-by(SortColumn);
+    // The sidebar's sources, and the one the table lists, which titles the window.
+    in property <[SidebarItem]> library-sources;
+    in property <[SidebarItem]> folder-sources;
+    in property <[SidebarItem]> album-sources;
+    in property <[SidebarItem]> first-album-sources;
+    in property <[SidebarItem]> artist-sources;
+    in property <SourceKind> shown-kind;
+    in property <int> shown-index;
+    in property <string> shown-label;
+    callback show-source(SourceKind, int);
+    // The application's name, then the source the table lists.
+    out property <string> window-title: !root.folder-open ? "Colophon" : "Colophon · " + (root.shown-kind == SourceKind.all-tracks ? @tr("All tracks") : root.shown-kind == SourceKind.recently-changed ? @tr("Recently changed") : root.shown-kind == SourceKind.unreadable ? @tr("Unreadable files") : root.shown-label);
     // A click on a track, by its row, with Command (Ctrl elsewhere) or Shift held.
     callback track-pressed(int, bool, bool);
 
@@ -127,7 +140,7 @@ export component AppWindow inherits Window {
         root.update-sidebar-fit();
     }
 
-    title: "Colophon";
+    title: root.window-title;
     preferred-width: 1280px;
     preferred-height: 800px;
     min-width: 960px;
@@ -282,10 +295,18 @@ export component AppWindow inherits Window {
         HorizontalLayout {
             spacing: 1px;
 
-            if root.sidebar-shown: Region {
+            if root.sidebar-shown: Sidebar {
                 width: root.sidebar-width;
-                label: @tr("Sidebar");
-                background: Theme.surface-0;
+                library: root.library-sources;
+                folders: root.folder-sources;
+                albums: root.album-sources;
+                first-albums: root.first-album-sources;
+                artists: root.artist-sources;
+                shown-kind: root.shown-kind;
+                shown-index: root.shown-index;
+                show(kind, index) => {
+                    root.show-source(kind, index);
+                }
             }
 
             VerticalLayout {

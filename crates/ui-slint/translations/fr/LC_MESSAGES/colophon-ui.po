@@ -1,104 +1,114 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
-"POT-Creation-Date: 2026-10-10 18:12+0000\n"
+"POT-Creation-Date: 2026-10-10 18:16+0000\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: ui/app-window.slint:143
+#: ui/app-window.slint:141
+msgctxt "AppWindow"
+msgid "All tracks"
+msgstr "Toutes les pistes"
+
+#: ui/app-window.slint:141
+msgctxt "AppWindow"
+msgid "Recently changed"
+msgstr "Modifiés récemment"
+
+#: ui/app-window.slint:141
+msgctxt "AppWindow"
+msgid "Unreadable files"
+msgstr "Fichiers illisibles"
+
+#: ui/app-window.slint:154
 msgctxt "AppWindow"
 msgid "File"
 msgstr "Fichier"
 
-#: ui/app-window.slint:146
+#: ui/app-window.slint:157
 msgctxt "AppWindow"
 msgid "Open Folder…"
 msgstr "Ouvrir un dossier…"
 
-#: ui/app-window.slint:155
+#: ui/app-window.slint:166
 msgctxt "AppWindow"
 msgid "Open Files…"
 msgstr "Ouvrir des fichiers…"
 
-#: ui/app-window.slint:166
+#: ui/app-window.slint:177
 msgctxt "AppWindow"
 msgid "Save"
 msgstr "Enregistrer"
 
-#: ui/app-window.slint:176
+#: ui/app-window.slint:187
 msgctxt "AppWindow"
 msgid "Edit"
 msgstr "Édition"
 
-#: ui/app-window.slint:179
+#: ui/app-window.slint:190
 msgctxt "AppWindow"
 msgid "Undo"
 msgstr "Annuler"
 
-#: ui/app-window.slint:188
+#: ui/app-window.slint:199
 msgctxt "AppWindow"
 msgid "Redo"
 msgstr "Rétablir"
 
-#: ui/app-window.slint:198
+#: ui/app-window.slint:209
 msgctxt "AppWindow"
 msgid "View"
 msgstr "Présentation"
 
-#: ui/app-window.slint:201
+#: ui/app-window.slint:212
 msgctxt "AppWindow"
 msgid "Hide Sidebar"
 msgstr "Masquer la barre latérale"
 
-#: ui/app-window.slint:201
+#: ui/app-window.slint:212
 msgctxt "AppWindow"
 msgid "Show Sidebar"
 msgstr "Afficher la barre latérale"
 
-#: ui/app-window.slint:209
+#: ui/app-window.slint:220
 msgctxt "AppWindow"
 msgid "Hide Inspector"
 msgstr "Masquer l’inspecteur"
 
-#: ui/app-window.slint:209
+#: ui/app-window.slint:220
 msgctxt "AppWindow"
 msgid "Show Inspector"
 msgstr "Afficher l’inspecteur"
 
-#: ui/app-window.slint:220
+#: ui/app-window.slint:231
 msgctxt "AppWindow"
 msgid "Developer Mode"
 msgstr "Mode développeur"
 
-#: ui/app-window.slint:246
+#: ui/app-window.slint:257
 msgctxt "AppWindow"
 msgid "Open folder"
 msgstr "Ouvrir un dossier"
 
-#: ui/app-window.slint:255
+#: ui/app-window.slint:266
 msgctxt "AppWindow"
 msgid "Toolbar"
 msgstr "Barre d’outils"
 
-#: ui/app-window.slint:262
+#: ui/app-window.slint:273
 msgctxt "AppWindow"
 msgid "Toggle sidebar"
 msgstr "Afficher ou masquer la barre latérale"
 
-#: ui/app-window.slint:272
+#: ui/app-window.slint:283
 msgctxt "AppWindow"
 msgid "Toggle inspector"
 msgstr "Afficher ou masquer l’inspecteur"
 
-#: ui/app-window.slint:287
-msgctxt "AppWindow"
-msgid "Sidebar"
-msgstr "Barre latérale"
-
-#: ui/app-window.slint:337
+#: ui/app-window.slint:356
 msgctxt "AppWindow"
 msgid "Player"
 msgstr "Lecteur"
@@ -398,6 +408,58 @@ msgstr "Détails"
 msgctxt "Inspector"
 msgid "File size"
 msgstr "Taille du fichier"
+
+#: ui/sidebar.slint:106
+msgctxt "Sidebar"
+msgid "Sidebar"
+msgstr "Barre latérale"
+
+#: ui/sidebar.slint:118
+msgctxt "Sidebar"
+msgid "Library"
+msgstr "Bibliothèque"
+
+#: ui/sidebar.slint:125
+msgctxt "Sidebar"
+msgid "All tracks"
+msgstr "Toutes les pistes"
+
+#: ui/sidebar.slint:125
+msgctxt "Sidebar"
+msgid "Recently changed"
+msgstr "Modifiés récemment"
+
+#: ui/sidebar.slint:125
+msgctxt "Sidebar"
+msgid "Unreadable files"
+msgstr "Fichiers illisibles"
+
+#: ui/sidebar.slint:134
+msgctxt "Sidebar"
+msgid "Folders"
+msgstr "Dossiers"
+
+#: ui/sidebar.slint:149
+msgctxt "Sidebar"
+msgid "Albums"
+msgstr "Albums"
+
+#: ui/sidebar.slint:174
+msgctxt "Sidebar"
+msgid "{n} more album"
+msgid_plural "{n} more albums"
+msgstr[0] "{n} autre album"
+msgstr[1] "{n} autres albums"
+
+#: ui/sidebar.slint:211
+msgctxt "Sidebar"
+msgid "Artists"
+msgstr "Artistes"
+
+#: ui/sidebar.slint:242
+msgctxt "Sidebar"
+msgid "Sidebar scroll bar"
+msgstr "Barre de défilement de la barre latérale"
 
 #: ui/status-bar.slint:33
 msgctxt "StatusBar"

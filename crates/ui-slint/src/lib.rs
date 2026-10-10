@@ -9,8 +9,9 @@ use std::time::Duration;
 
 use colophon_engine::tags::{self, Id3v1Loss, Id3v1Version, Id3v2Version, ReadError};
 use colophon_engine::{
-    AudioLine, Column, ColumnWidths, Command, Edit, Engine, Field, Inspection, Library, ScanStatus,
-    Selection, Shared, Sort, SortColumn, Step, Summary, Track, VersionChoice, ViewState,
+    AlbumKey, AudioLine, Column, ColumnWidths, Command, Edit, Engine, Field, Inspection, Library,
+    ScanStatus, Selection, Shared, Sort, SortColumn, Source, Step, Summary, Track, VersionChoice,
+    ViewState,
 };
 use slint::{CloseRequestResponse, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
@@ -24,9 +25,9 @@ mod generated {
 pub use generated::Command as WindowCommand;
 pub use generated::{
     AppWindow, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, InspectorField, InspectorState,
-    ReadProblem, RemovedTag, ScanState, SizeUnit, TagEditing, TagField, TagRemoval, Theme,
-    TrackColumn, TrackColumnWidths, TrackColumns, TrackRow, TrackStatus, UnreadableFile,
-    UnsavedChoice,
+    ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit, SourceKind, TagEditing, TagField,
+    TagRemoval, Theme, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow, TrackStatus,
+    UnreadableFile, UnsavedChoice,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -39,6 +40,9 @@ const NAMED_TRACKS: usize = 3;
 
 /// How many files the dialog that asks before removing a tag lists.
 const LISTED_FILES: usize = 8;
+
+/// How many albums the sidebar shows until the user asks for them all.
+const FIRST_ALBUMS: usize = 8;
 
 /// The choices of the inspector's Tag format section, in their order.
 const ID3V2_CHOICES: [Option<Id3v2Version>; 4] = [
@@ -89,6 +93,7 @@ pub fn main_window(
         genres: RefCell::default(),
         genres_read_from: Cell::default(),
         removal: Cell::default(),
+        sources: RefCell::default(),
     });
     bridge.show();
     window.on_run({
@@ -173,6 +178,26 @@ pub fn main_window(
             }
         }
     });
+    window.on_show_source({
+        let bridge = Rc::clone(&bridge);
+        move |kind, index| {
+            let source = {
+                let sources = bridge.sources.borrow();
+                let place = usize::try_from(index).unwrap_or(usize::MAX);
+                match kind {
+                    SourceKind::AllTracks => Some(Source::AllTracks),
+                    SourceKind::RecentlyChanged => Some(Source::RecentlyChanged),
+                    SourceKind::Unreadable => Some(Source::Unreadable),
+                    SourceKind::Folder => sources.folders.get(place).cloned().map(Source::Folder),
+                    SourceKind::Album => sources.albums.get(place).cloned().map(Source::Album),
+                    SourceKind::Artist => sources.artists.get(place).cloned().map(Source::Artist),
+                }
+            };
+            if let Some(source) = source {
+                execute(&bridge, Command::ShowSource(source));
+            }
+        }
+    });
     window.on_sort_by({
         let bridge = Rc::clone(&bridge);
         move |column| execute(&bridge, Command::SortBy(engine_sort_column(column)))
@@ -227,6 +252,17 @@ struct Bridge {
     genres_read_from: Cell<Option<GenreSource>>,
     /// A tag removal that waits for the user's answer.
     removal: Cell<Option<VersionChoice>>,
+    /// The folders, albums and artists the sidebar lists, by their place in it.
+    sources: RefCell<Sources>,
+}
+
+/// The sources the sidebar lists, and the state of the library they were read from.
+#[derive(Default)]
+struct Sources {
+    folders: Vec<PathBuf>,
+    albums: Vec<AlbumKey>,
+    artists: Vec<String>,
+    read_from: Option<GenreSource>,
 }
 
 /// What changes the genres to suggest: tracks found, and files saved.
@@ -453,6 +489,7 @@ impl Bridge {
         };
         let engine = self.engine.borrow();
         self.read_genres(&engine);
+        self.show_sources(&window, &engine);
         show_view(&window, engine.view());
         show_sort(&window, engine.sort());
         show_library(&window, engine.library());
@@ -461,6 +498,129 @@ impl Bridge {
         show_inspection(&window, engine.library(), engine.inspection());
         show_saving(&window, &engine);
         self.show_departure(&window, &engine);
+    }
+
+    /// Lists the sidebar's sources, again when the library changed, and marks the one shown.
+    fn show_sources(&self, window: &AppWindow, engine: &Engine) {
+        let library = engine.library();
+        let source = GenreSource {
+            tracks: library.tracks.len(),
+            status: library.status,
+            saving: engine.saving().is_some(),
+        };
+        let mut sources = self.sources.borrow_mut();
+        if sources.read_from != Some(source) {
+            sources.read_from = Some(source);
+            let groups = engine.groups();
+            sources.folders = library.roots.clone();
+            sources.albums = groups
+                .albums
+                .iter()
+                .map(|(album, _)| album.clone())
+                .collect();
+            sources.artists = groups
+                .artists
+                .iter()
+                .map(|(artist, _)| artist.clone())
+                .collect();
+            let folders: Vec<SidebarItem> = library
+                .roots
+                .iter()
+                .enumerate()
+                .map(|(index, folder)| SidebarItem {
+                    kind: SourceKind::Folder,
+                    index: count(index),
+                    label: display_folder(folder).into(),
+                    count: count(
+                        library
+                            .tracks
+                            .iter()
+                            .filter(|track| track.path.starts_with(folder))
+                            .count(),
+                    ),
+                    ..SidebarItem::default()
+                })
+                .collect();
+            let albums: Vec<SidebarItem> = groups
+                .albums
+                .iter()
+                .enumerate()
+                .map(|(index, (album, tracks))| SidebarItem {
+                    kind: SourceKind::Album,
+                    index: count(index),
+                    label: album.title.as_str().into(),
+                    count: count(*tracks),
+                    swatch: swatch(album),
+                })
+                .collect();
+            let artists: Vec<SidebarItem> = groups
+                .artists
+                .iter()
+                .enumerate()
+                .map(|(index, (artist, tracks))| SidebarItem {
+                    kind: SourceKind::Artist,
+                    index: count(index),
+                    label: artist.as_str().into(),
+                    count: count(*tracks),
+                    ..SidebarItem::default()
+                })
+                .collect();
+            let first: Vec<SidebarItem> = albums.iter().take(FIRST_ALBUMS).cloned().collect();
+            window.set_folder_sources(ModelRc::new(VecModel::from(folders)));
+            window.set_album_sources(ModelRc::new(VecModel::from(albums)));
+            window.set_first_album_sources(ModelRc::new(VecModel::from(first)));
+            window.set_artist_sources(ModelRc::new(VecModel::from(artists)));
+        }
+
+        let unreadable = library
+            .tracks
+            .iter()
+            .filter(|track| track.metadata.is_err())
+            .count();
+        let library_items = [
+            (SourceKind::AllTracks, library.tracks.len()),
+            (SourceKind::RecentlyChanged, engine.changed().len()),
+            (SourceKind::Unreadable, unreadable),
+        ]
+        .map(|(kind, tracks)| SidebarItem {
+            kind,
+            count: count(tracks),
+            ..SidebarItem::default()
+        });
+        let shown_items = window.get_library_sources();
+        if shown_items.row_count() != library_items.len()
+            || library_items
+                .iter()
+                .enumerate()
+                .any(|(row, item)| shown_items.row_data(row).as_ref() != Some(item))
+        {
+            window.set_library_sources(ModelRc::new(VecModel::from(library_items.to_vec())));
+        }
+
+        let place = |found: Option<usize>| found.map_or(-1, count);
+        let (kind, index, label) = match engine.source() {
+            Source::AllTracks => (SourceKind::AllTracks, 0, String::new()),
+            Source::RecentlyChanged => (SourceKind::RecentlyChanged, 0, String::new()),
+            Source::Unreadable => (SourceKind::Unreadable, 0, String::new()),
+            Source::Folder(folder) => (
+                SourceKind::Folder,
+                place(sources.folders.iter().position(|shown| shown == folder)),
+                display_folder(folder),
+            ),
+            Source::Album(album) => (
+                SourceKind::Album,
+                place(sources.albums.iter().position(|shown| shown == album)),
+                album.title.clone(),
+            ),
+            Source::Artist(artist) => (
+                SourceKind::Artist,
+                place(sources.artists.iter().position(|shown| shown == artist)),
+                artist.clone(),
+            ),
+        };
+        window.set_shown_kind(kind);
+        window.set_shown_index(index);
+        window.set_shown_label(label.into());
     }
 
     fn read_genres(&self, engine: &Engine) {
@@ -771,6 +931,15 @@ fn field<T>(value: &Shared<T>, modified: bool, text: impl Fn(&T) -> String) -> I
         mixed,
         modified,
     }
+}
+
+/// The colour that stands for an album's cover until covers show: a hue of its own.
+fn swatch(album: &AlbumKey) -> slint::Color {
+    use std::hash::{DefaultHasher, Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    album.hash(&mut hasher);
+    let hue = (hasher.finish() % 360) as f32;
+    slint::Color::from_hsva(hue, 0.55, 0.85, 1.0)
 }
 
 /// The genres that start with `text`, then those that hold it further on, ignoring case.
