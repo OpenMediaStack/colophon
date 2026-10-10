@@ -8,9 +8,10 @@ import { Region, ToolbarButton } from "widgets.slint";
 import { EmptyState } from "empty-state.slint";
 import { ScanState, StatusBar } from "status-bar.slint";
 import { TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
+import { Leaving, UnsavedChanges, UnsavedChoice } from "unsaved-changes.slint";
 import { BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, TagEditing, TagField, UnreadableFile } from "inspector.slint";
 
-export { Theme, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, Leaving, UnsavedChoice, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
@@ -72,6 +73,15 @@ export component AppWindow inherits Window {
     in property <InspectorState> inspector-state;
     in property <InspectedTracks> inspected-tracks;
     in property <UnreadableFile> unreadable-file;
+    // Set while the window asks what to do with the pending changes before leaving them.
+    in property <bool> asking-to-save;
+    in property <Leaving> leaving;
+    // The titles of the first modified tracks, for the question.
+    in property <[string]> unsaved-titles;
+    callback unsaved-changes(UnsavedChoice);
+    // Dialog buttons in the order of Windows. Tests set it so that their captures do not depend
+    // on the machine.
+    in property <bool> windows-buttons: Platform.os == OperatingSystemType.windows;
     callback toggle-column(TrackColumn);
     callback resize-columns(TrackColumnWidths);
     // A click on a track, by its row, with Command (Ctrl elsewhere) or Shift held.
@@ -117,6 +127,7 @@ export component AppWindow inherits Window {
             MenuItem {
                 title: @tr("Open Folder…");
                 shortcut: @keys(Control + O);
+                enabled: !root.asking-to-save;
                 activated => {
                     root.run(Command.open-folder);
                 }
@@ -127,7 +138,7 @@ export component AppWindow inherits Window {
             MenuItem {
                 title: @tr("Save");
                 shortcut: @keys(Control + S);
-                enabled: root.modified-count > 0 && !root.saving;
+                enabled: root.modified-count > 0 && !root.saving && !root.asking-to-save;
                 activated => {
                     root.run(Command.save);
                 }
@@ -140,7 +151,7 @@ export component AppWindow inherits Window {
             MenuItem {
                 title: @tr("Undo");
                 shortcut: @keys(Control + Z);
-                enabled: root.can-undo;
+                enabled: root.can-undo && !root.asking-to-save;
                 activated => {
                     root.run(Command.undo);
                 }
@@ -149,7 +160,7 @@ export component AppWindow inherits Window {
             MenuItem {
                 title: @tr("Redo");
                 shortcut: @keys(Control + Shift + Z);
-                enabled: root.can-redo;
+                enabled: root.can-redo && !root.asking-to-save;
                 activated => {
                     root.run(Command.redo);
                 }
@@ -313,6 +324,18 @@ export component AppWindow inherits Window {
             stop-scan => {
                 root.run(Command.stop-scan);
             }
+        }
+    }
+
+    if root.asking-to-save: UnsavedChanges {
+        width: root.width;
+        height: root.height;
+        leaving: root.leaving;
+        count: root.modified-count;
+        titles: root.unsaved-titles;
+        windows-order: root.windows-buttons;
+        chose(choice) => {
+            root.unsaved-changes(choice);
         }
     }
 }
