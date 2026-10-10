@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use colophon_library::Track;
-use colophon_library::tags::Tags;
+use colophon_library::tags::{
+    Id3v1Version, Id3v2Version, Metadata, TagVersions, Tags, formats_after_write,
+};
 
 /// A field of the inspector, which an edit changes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -91,8 +93,23 @@ impl Edit {
     }
 }
 
-/// One step of the history: the tags of each track it changed, before and after, and the field
-/// it edited, if it came from an edit.
+/// A choice of the version to write one tag of the selected tracks in. `None` removes the tag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VersionChoice {
+    Id3v2(Option<Id3v2Version>),
+    Id3v1(Option<Id3v1Version>),
+}
+
+/// What the user wants for a track: its tags, and the tag versions to write them in if the user
+/// chose some rather than Colophon's.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Wanted {
+    tags: Tags,
+    versions: Option<TagVersions>,
+}
+
+/// One step of the history: what the user wanted for each track it changed, before and after,
+/// and the field it edited, if it came from an edit.
 #[derive(Debug, Clone)]
 struct Action {
     field: Option<Field>,
@@ -102,29 +119,44 @@ struct Action {
 #[derive(Debug, Clone)]
 struct Change {
     track: usize,
-    before: Tags,
-    after: Tags,
+    before: Wanted,
+    after: Wanted,
 }
 
-/// The tags the user wants for each track, where they differ from the file's, and the history
-/// of how they got there. The history holds values rather than "modified or not", so that undoing
-/// an edit already saved brings the old values back as a change to save.
+/// What the user wants for each track, and the history of how they got there. The history holds
+/// values rather than "modified or not", so that undoing an edit already saved brings the old
+/// values back as a change to save.
 #[derive(Debug, Default)]
 pub struct Edits {
+    /// The tracks saving would change, with the tags to write into them.
     pending: BTreeMap<usize, Tags>,
+    /// The tag versions the user chose, kept once saved so that the next save writes them again.
+    chosen: BTreeMap<usize, TagVersions>,
     undo: Vec<Action>,
     redo: Vec<Action>,
 }
 
 impl Edits {
-    /// The tags the user wants for a track, if they differ from the file's.
+    /// The tags to write into a track, if saving would change its file: new tags, or tags to
+    /// write in other versions.
     pub fn pending(&self, track: usize) -> Option<&Tags> {
         self.pending.get(&track)
     }
 
-    /// The tracks whose tags differ from their file's, in library order.
+    /// The tracks saving would change, with the tags to write into them, in library order.
     pub fn modified(&self) -> impl Iterator<Item = (usize, &Tags)> + '_ {
         self.pending.iter().map(|(track, tags)| (*track, tags))
+    }
+
+    /// The tag versions to write a track in: those the user chose, or else Colophon's.
+    pub fn versions(&self, tracks: &[Track], track: usize) -> Option<TagVersions> {
+        let saved = saved(tracks, track)?;
+        Some(
+            self.chosen
+                .get(&track)
+                .copied()
+                .unwrap_or_else(|| TagVersions::default_for(&saved.formats)),
+        )
     }
 
     pub fn modified_count(&self) -> usize {
@@ -147,7 +179,7 @@ impl Edits {
     ) -> BTreeSet<Field> {
         selected
             .into_iter()
-            .filter_map(|track| Some((self.pending(track)?, saved_tags(tracks, track)?)))
+            .filter_map(|track| Some((self.pending(track)?, &saved(tracks, track)?.tags)))
             .flat_map(|(wanted, saved)| {
                 Field::ALL
                     .into_iter()
@@ -166,23 +198,57 @@ impl Edits {
         edit: &Edit,
         continues: bool,
     ) {
-        let changes: Vec<Change> = selected
+        let changes = self.changes(tracks, selected, |wanted, _, _| {
+            edit.apply(&mut wanted.tags)
+        });
+        if continues && self.continue_last(tracks, edit.field(), &changes) {
+            return;
+        }
+        self.record(tracks, Some(edit.field()), changes);
+    }
+
+    /// Writes these tracks in the version chosen for one tag, the other tag keeping its own.
+    pub(crate) fn choose_versions(
+        &mut self,
+        tracks: &[Track],
+        selected: impl IntoIterator<Item = usize>,
+        choice: VersionChoice,
+    ) {
+        let changes = self.changes(tracks, selected, |wanted, _, mut versions| {
+            match choice {
+                VersionChoice::Id3v2(version) => versions.id3v2 = version,
+                VersionChoice::Id3v1(version) => versions.id3v1 = version,
+            }
+            wanted.versions = Some(versions);
+        });
+        self.record(tracks, None, changes);
+    }
+
+    /// What `change` makes of what the user wants for each of these tracks whose tags could be
+    /// read. It also gets what the file holds, and the versions the track would be written in.
+    fn changes(
+        &self,
+        tracks: &[Track],
+        selected: impl IntoIterator<Item = usize>,
+        change: impl Fn(&mut Wanted, &Metadata, TagVersions),
+    ) -> Vec<Change> {
+        selected
             .into_iter()
             .filter_map(|track| {
                 let before = self.wanted(tracks, track)?;
                 let mut after = before.clone();
-                edit.apply(&mut after);
+                change(
+                    &mut after,
+                    saved(tracks, track)?,
+                    self.versions(tracks, track)?,
+                );
                 Some(Change {
                     track,
                     before,
                     after,
                 })
             })
-            .collect();
-        if continues && self.continue_last(tracks, edit.field(), &changes) {
-            return;
-        }
-        self.record(tracks, Some(edit.field()), changes);
+            .collect()
     }
 
     /// Folds `changes` into the latest step, if it edited `field` of the same tracks.
@@ -206,7 +272,7 @@ impl Edits {
             .changes
             .iter()
             .all(|change| change.before == change.after);
-        let wanted: Vec<(usize, Tags)> = last
+        let wanted: Vec<(usize, Wanted)> = last
             .changes
             .iter()
             .map(|change| (change.track, change.after.clone()))
@@ -214,25 +280,19 @@ impl Edits {
         if undone {
             self.undo.pop();
         }
-        for (track, tags) in wanted {
-            self.want(tracks, track, tags);
+        for (track, wanted) in wanted {
+            self.want(tracks, track, wanted);
         }
         self.redo.clear();
         true
     }
 
-    /// Brings these tracks back to their files' tags.
+    /// Brings these tracks back to their files' tags, written in Colophon's versions.
     pub(crate) fn revert(&mut self, tracks: &[Track], selected: impl IntoIterator<Item = usize>) {
-        let changes = selected
-            .into_iter()
-            .filter_map(|track| {
-                Some(Change {
-                    track,
-                    before: self.pending(track)?.clone(),
-                    after: saved_tags(tracks, track)?.clone(),
-                })
-            })
-            .collect();
+        let changes = self.changes(tracks, selected, |wanted, saved, _| {
+            wanted.tags = saved.tags.clone();
+            wanted.versions = None;
+        });
         self.record(tracks, None, changes);
     }
 
@@ -256,8 +316,8 @@ impl Edits {
 
     /// Forgets a track's pending tags once its file holds them, after a save.
     pub(crate) fn settle(&mut self, tracks: &[Track], track: usize) {
-        if let Some(tags) = self.pending.get(&track).cloned() {
-            self.want(tracks, track, tags);
+        if let Some(wanted) = self.wanted(tracks, track) {
+            self.want(tracks, track, wanted);
         }
     }
 
@@ -277,37 +337,47 @@ impl Edits {
         self.redo.clear();
     }
 
-    /// The tags a track should have: the pending ones, or else its file's.
-    fn wanted(&self, tracks: &[Track], track: usize) -> Option<Tags> {
-        self.pending(track)
-            .or_else(|| saved_tags(tracks, track))
-            .cloned()
+    /// What the user wants for a track: the pending tags, or else its file's, and the versions
+    /// they chose.
+    fn wanted(&self, tracks: &[Track], track: usize) -> Option<Wanted> {
+        let tags = self.pending(track).or(Some(&saved(tracks, track)?.tags))?;
+        Some(Wanted {
+            tags: tags.clone(),
+            versions: self.chosen.get(&track).copied(),
+        })
     }
 
-    fn want(&mut self, tracks: &[Track], track: usize, tags: Tags) {
-        if saved_tags(tracks, track) == Some(&tags) {
-            self.pending.remove(&track);
+    /// Takes `wanted` in for a track: it waits to be saved if saving would change the file, with
+    /// other tags or in other versions.
+    fn want(&mut self, tracks: &[Track], track: usize, wanted: Wanted) {
+        match wanted.versions {
+            Some(versions) => self.chosen.insert(track, versions),
+            None => self.chosen.remove(&track),
+        };
+        let Some(saved) = saved(tracks, track) else {
+            return;
+        };
+        let rewritten = wanted.versions.is_some_and(|versions| {
+            formats_after_write(&saved.formats, &wanted.tags, versions) != saved.formats
+        });
+        if wanted.tags != saved.tags || rewritten {
+            self.pending.insert(track, wanted.tags);
         } else {
-            self.pending.insert(track, tags);
+            self.pending.remove(&track);
         }
     }
 }
 
-/// The tags in a track's file, if they could be read.
-fn saved_tags(tracks: &[Track], track: usize) -> Option<&Tags> {
-    tracks
-        .get(track)?
-        .metadata
-        .as_ref()
-        .ok()
-        .map(|metadata| &metadata.tags)
+/// What a track's file holds, if it could be read.
+fn saved(tracks: &[Track], track: usize) -> Option<&Metadata> {
+    tracks.get(track)?.metadata.as_ref().ok()
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
-    use colophon_library::tags::{Metadata, ReadError};
+    use colophon_library::tags::{ReadError, TagFormat};
 
     use super::*;
 
@@ -326,6 +396,15 @@ mod tests {
         }
     }
 
+    /// A track whose file holds an ID3v2.3 tag.
+    fn in_id3v2_3(title: &str) -> Track {
+        let mut track = track(title);
+        if let Ok(metadata) = &mut track.metadata {
+            metadata.formats = vec![TagFormat::Id3v2(Id3v2Version::V2_3)];
+        }
+        track
+    }
+
     fn unreadable() -> Track {
         Track {
             metadata: Err(ReadError::ReaderPanicked),
@@ -334,7 +413,9 @@ mod tests {
     }
 
     fn title(edits: &Edits, tracks: &[Track], track: usize) -> Option<String> {
-        edits.wanted(tracks, track).and_then(|tags| tags.title)
+        edits
+            .wanted(tracks, track)
+            .and_then(|wanted| wanted.tags.title)
     }
 
     fn renamed(title: &str) -> Edit {
@@ -476,6 +557,73 @@ mod tests {
         edits.undo(&tracks);
 
         assert_eq!(title(&edits, &tracks, 0).as_deref(), Some("New"));
+    }
+
+    #[test]
+    fn a_version_that_changes_the_file_waits_to_be_saved() {
+        let tracks = [in_id3v2_3("a")];
+        let mut edits = Edits::default();
+
+        edits.choose_versions(&tracks, [0], VersionChoice::Id3v2(Some(Id3v2Version::V2_4)));
+        assert_eq!(edits.modified_count(), 1);
+        assert_eq!(
+            edits.versions(&tracks, 0).map(|versions| versions.id3v2),
+            Some(Some(Id3v2Version::V2_4))
+        );
+
+        edits.undo(&tracks);
+        assert_eq!(edits.modified_count(), 0);
+    }
+
+    #[test]
+    fn the_version_a_file_has_changes_nothing_but_is_kept_for_the_next_save() {
+        let tracks = [in_id3v2_3("a")];
+        let mut edits = Edits::default();
+
+        edits.choose_versions(&tracks, [0], VersionChoice::Id3v2(Some(Id3v2Version::V2_3)));
+        assert_eq!(edits.modified_count(), 0);
+
+        edits.edit(&tracks, [0], &renamed("New"), false);
+        assert_eq!(
+            edits.versions(&tracks, 0).map(|versions| versions.id3v2),
+            Some(Some(Id3v2Version::V2_3))
+        );
+    }
+
+    #[test]
+    fn a_chosen_version_outlives_the_save_that_wrote_it() {
+        let mut tracks = [in_id3v2_3("a")];
+        let mut edits = Edits::default();
+        edits.choose_versions(&tracks, [0], VersionChoice::Id3v2(Some(Id3v2Version::V2_2)));
+
+        if let Ok(metadata) = &mut tracks[0].metadata {
+            metadata.formats = vec![TagFormat::Id3v2(Id3v2Version::V2_2)];
+        }
+        edits.settle(&tracks, 0);
+
+        assert_eq!(edits.modified_count(), 0);
+        assert_eq!(
+            edits.versions(&tracks, 0).map(|versions| versions.id3v2),
+            Some(Some(Id3v2Version::V2_2))
+        );
+    }
+
+    #[test]
+    fn revert_drops_the_chosen_versions() {
+        let tracks = [in_id3v2_3("a")];
+        let mut edits = Edits::default();
+        edits.choose_versions(&tracks, [0], VersionChoice::Id3v1(Some(Id3v1Version::V1_1)));
+
+        edits.revert(&tracks, [0]);
+
+        assert_eq!(edits.modified_count(), 0);
+        assert_eq!(
+            edits.versions(&tracks, 0),
+            Some(TagVersions {
+                id3v2: Some(Id3v2Version::V2_4),
+                id3v1: None
+            })
+        );
     }
 
     #[test]

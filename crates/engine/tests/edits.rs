@@ -3,7 +3,7 @@ mod common;
 use std::collections::BTreeSet;
 
 use colophon_engine::tags::{Id3v1Loss, Id3v1Version, Id3v2Version, TagFormat};
-use colophon_engine::{Command, Edit, Engine, Field, Inspection, Shared, Summary};
+use colophon_engine::{Command, Edit, Engine, Field, Inspection, Shared, Summary, VersionChoice};
 
 use common::{TestResult, engine_reading, folder_with_fixtures};
 
@@ -120,5 +120,24 @@ fn the_genres_to_suggest_are_id3v1_s_and_those_read() -> TestResult {
     engine.execute(Command::Save);
     common::poll_until_saved(&mut engine)?;
     assert!(engine.genres().contains(&"Synthwave".to_string()));
+    Ok(())
+}
+
+#[test]
+fn the_inspection_says_which_versions_saving_writes() -> TestResult {
+    let (_folder, mut engine) = two_tracks()?;
+    engine.execute(Command::SelectAll);
+    let Shared::Same(versions) = summary(&engine)?.versions else {
+        return Err("the tracks should share Colophon's versions".into());
+    };
+    assert_eq!(versions.id3v2, Some(Id3v2Version::V2_4));
+
+    engine.execute(Command::Select(0));
+    engine.execute(Command::ChooseVersion(VersionChoice::Id3v2(Some(
+        Id3v2Version::V2_3,
+    ))));
+    engine.execute(Command::SelectAll);
+
+    assert_eq!(summary(&engine)?.versions, Shared::Mixed);
     Ok(())
 }

@@ -17,7 +17,7 @@ use colophon_library::{
 
 pub use colophon_library::{Track, tags};
 pub use columns::{Column, ColumnWidths, Columns};
-pub use edits::{Edit, Edits, Field};
+pub use edits::{Edit, Edits, Field, VersionChoice};
 pub use inspection::{AudioLine, Inspection, Shared, Summary};
 pub use selection::{Selection, Step};
 
@@ -51,6 +51,8 @@ pub enum Command {
     Redo,
     /// Brings the selected tracks back to their files' tags.
     Revert,
+    /// The version to write one tag of the selected tracks in, or none to remove it.
+    ChooseVersion(VersionChoice),
     /// Writes every pending change to its file, in the background.
     Save,
 }
@@ -77,6 +79,7 @@ impl Command {
             Command::Undo => "edit.undo",
             Command::Redo => "edit.redo",
             Command::Revert => "tags.revert",
+            Command::ChooseVersion(_) => "tags.choose_version",
             Command::Save => "tags.save",
         }
     }
@@ -258,6 +261,10 @@ impl Engine {
             Command::Revert => self
                 .edits
                 .revert(&self.library.tracks, self.selection.iter()),
+            Command::ChooseVersion(choice) => {
+                self.edits
+                    .choose_versions(&self.library.tracks, self.selection.iter(), choice);
+            }
             Command::Save => self.save(),
         }
     }
@@ -310,13 +317,11 @@ impl Engine {
             .edits
             .modified()
             .filter_map(|(track, tags)| {
-                let saved = self.library.tracks.get(track)?;
-                let formats = saved.metadata.as_ref().ok()?.formats.as_slice();
                 Some(SaveJob {
                     track,
-                    path: saved.path.clone(),
+                    path: self.library.tracks.get(track)?.path.clone(),
                     tags: tags.clone(),
-                    versions: tags::TagVersions::default_for(formats),
+                    versions: self.edits.versions(&self.library.tracks, track)?,
                 })
             })
             .collect();

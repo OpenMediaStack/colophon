@@ -76,6 +76,8 @@ pub struct Summary {
     pub comment: Shared<String>,
     pub audio: Shared<AudioLine>,
     pub formats: Shared<Vec<TagFormat>>,
+    /// The tag versions saving writes the selected tracks in.
+    pub versions: Shared<TagVersions>,
     /// The size of every selected file, in bytes.
     pub size: u64,
     /// The fields with a value waiting to be saved, in at least one selected track.
@@ -115,10 +117,18 @@ fn summarise(tracks: &[Track], selected: &[(usize, &Track)], edits: &Edits) -> S
         })
         .collect();
     let tags = || read.iter().map(|(tags, _)| *tags);
-    // The selected tracks with changes waiting to be saved, and their files' tags.
+    let versions = |index: usize| edits.versions(tracks, index);
+    // The selected tracks with changes waiting to be saved, their files' tags, and the versions
+    // they will be written in.
     let pending: Vec<_> = selected
         .iter()
-        .filter_map(|(index, track)| Some((edits.pending(*index)?, track.metadata.as_ref().ok()?)))
+        .filter_map(|(index, track)| {
+            Some((
+                edits.pending(*index)?,
+                track.metadata.as_ref().ok()?,
+                versions(*index)?,
+            ))
+        })
         .collect();
     let text = |field: fn(&colophon_library::tags::Tags) -> &Option<String>| {
         Shared::of(tags().map(|tags| field(tags).clone()))
@@ -160,18 +170,20 @@ fn summarise(tracks: &[Track], selected: &[(usize, &Track)], edits: &Edits) -> S
             read.iter()
                 .map(|(_, metadata)| Some(metadata.formats.clone())),
         ),
+        versions: Shared::of(
+            selected
+                .iter()
+                .filter(|(_, track)| track.metadata.is_ok())
+                .map(|(index, _)| versions(*index)),
+        ),
         size: selected.iter().map(|(_, track)| track.size).sum(),
         modified: edits.modified_fields(tracks, selected.iter().map(|(index, _)| *index)),
-        saved_as: Shared::of(pending.iter().map(|(tags, metadata)| {
-            let versions = TagVersions::default_for(&metadata.formats);
-            Some(formats_after_write(&metadata.formats, tags, versions))
+        saved_as: Shared::of(pending.iter().map(|(tags, metadata, versions)| {
+            Some(formats_after_write(&metadata.formats, tags, *versions))
         })),
         id3v1_losses: pending
             .iter()
-            .filter_map(|(tags, metadata)| {
-                let version = TagVersions::default_for(&metadata.formats).id3v1?;
-                Some(id3v1_losses(tags, version))
-            })
+            .filter_map(|(tags, _, versions)| Some(id3v1_losses(tags, versions.id3v1?)))
             .flatten()
             .collect(),
     }
