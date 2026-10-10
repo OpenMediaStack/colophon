@@ -6,6 +6,7 @@ import "fonts/JetBrainsMono-Medium.ttf";
 import { Theme } from "theme.slint";
 import { Region, ToolbarButton } from "widgets.slint";
 import { FilterField, SaveButton } from "toolbar.slint";
+import { PlayerBar } from "player.slint";
 import { EmptyState } from "empty-state.slint";
 import { ScanState, StatusBar } from "status-bar.slint";
 import { SortColumn, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
@@ -35,6 +36,9 @@ export enum Command {
     undo,
     redo,
     revert,
+    play-pause,
+    play-next,
+    play-previous,
 }
 
 export component AppWindow inherits Window {
@@ -120,6 +124,18 @@ export component AppWindow inherits Window {
     callback show-source(SourceKind, int);
     // The text of the toolbar's filter field.
     callback filter-edited(string);
+    // The player: whether sound can play, what plays, where and how loud.
+    in property <bool> player-available;
+    in property <bool> player-has-track;
+    in property <bool> player-playing;
+    in property <string> player-title;
+    in property <string> player-artist;
+    in property <float> player-progress;
+    in property <string> player-position;
+    in property <string> player-duration;
+    in property <float> player-volume;
+    callback player-seek(float);
+    callback player-set-volume(float);
     // The application's name, then the source the table lists.
     out property <string> window-title: !root.folder-open ? "Colophon" : "Colophon · " + (root.shown-kind == SourceKind.all-tracks ? @tr("All tracks") : root.shown-kind == SourceKind.recently-changed ? @tr("Recently changed") : root.shown-kind == SourceKind.unreadable ? @tr("Unreadable files") : root.shown-label);
     // A click on a track, by its row, with Command (Ctrl elsewhere) or Shift held.
@@ -221,6 +237,34 @@ export component AppWindow inherits Window {
                 enabled: root.folder-open && !root.modal;
                 activated => {
                     filter.focus-field();
+                }
+            }
+        }
+
+        Menu {
+            title: @tr("Controls");
+
+            MenuItem {
+                title: root.player-playing ? @tr("Pause") : @tr("Play");
+                enabled: root.player-available && root.folder-open && !root.modal;
+                activated => {
+                    root.run(Command.play-pause);
+                }
+            }
+
+            MenuItem {
+                title: @tr("Next Track");
+                enabled: root.player-has-track && !root.modal;
+                activated => {
+                    root.run(Command.play-next);
+                }
+            }
+
+            MenuItem {
+                title: @tr("Previous Track");
+                enabled: root.player-has-track && !root.modal;
+                activated => {
+                    root.run(Command.play-previous);
                 }
             }
         }
@@ -414,12 +458,36 @@ export component AppWindow inherits Window {
                     sort-by(column) => {
                         root.sort-by(column);
                     }
+                    play-pause => {
+                        root.run(Command.play-pause);
+                    }
                 }
 
-                Region {
-                    height: 56px;
-                    label: @tr("Player");
-                    background: Theme.surface-2;
+                PlayerBar {
+                    available: root.player-available;
+                    has-track: root.player-has-track;
+                    playing: root.player-playing;
+                    title: root.player-title;
+                    artist: root.player-artist;
+                    progress: root.player-progress;
+                    position: root.player-position;
+                    duration: root.player-duration;
+                    volume: root.player-volume;
+                    play-pause => {
+                        root.run(Command.play-pause);
+                    }
+                    previous => {
+                        root.run(Command.play-previous);
+                    }
+                    next => {
+                        root.run(Command.play-next);
+                    }
+                    seek(progress) => {
+                        root.player-seek(progress);
+                    }
+                    set-volume(volume) => {
+                        root.player-set-volume(volume);
+                    }
                 }
             }
 

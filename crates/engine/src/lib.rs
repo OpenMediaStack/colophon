@@ -240,6 +240,11 @@ impl Engine {
         }
     }
 
+    /// A sound device exists, so tracks can play.
+    pub fn can_play(&self) -> bool {
+        self.output.is_some()
+    }
+
     pub fn playback(&self) -> Playback {
         self.playback
     }
