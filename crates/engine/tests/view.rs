@@ -130,6 +130,12 @@ fn command_ids_are_unique() {
         Command::Revert,
         Command::ChooseVersion(VersionChoice::Id3v1(None)),
         Command::Save,
+        Command::Play(0),
+        Command::PlayPause,
+        Command::PlayNext,
+        Command::PlayPrevious,
+        Command::Seek(std::time::Duration::ZERO),
+        Command::SetVolume(50),
     ];
 
     let ids: HashSet<_> = commands.iter().map(Command::id).collect();
