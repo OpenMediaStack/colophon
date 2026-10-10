@@ -1,6 +1,7 @@
 import { Theme } from "theme.slint";
 import { ListView, ScrollBar, ToolbarButton } from "widgets.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
+import { SuggestionList } from "suggestions.slint";
 
 export enum TrackStatus { normal, modified, unreadable }
 
@@ -159,18 +160,51 @@ component CellEditor inherits Rectangle {
     in property <string> label;
     in property <bool> mono;
     in property <TextHorizontalAlignment> text-alignment: left;
+    // Suggests genres as the user types, and all of them on the down arrow.
+    in property <bool> suggests;
+    // The suggestions shown under the cell, and the one the arrow keys reached.
+    out property <bool> suggesting: root.list-open && input.has-focus && root.suggestions.length > 0;
+    out property <[string]> suggestions: root.list-open ? TagEditing.genres(root.filter) : [];
+    out property <int> highlighted: -1;
     // Done editing, and whether the table takes the keyboard back.
     callback finished(bool);
 
     property <bool> invalid: TagEditing.invalid(root.tag, input.text);
     property <bool> typing;
+    property <bool> list-open;
+    // What the suggestions match: the text typed, or nothing for every genre.
+    property <string> filter;
 
     // Shows the cell's value, all of it selected, and takes the keyboard.
     public function start() {
         input.text = root.value;
         root.typing = false;
+        root.list-open = false;
         input.focus();
         input.select-all();
+    }
+
+    public function pick(value: string) {
+        input.text = value;
+        root.keep-text();
+        root.list-open = false;
+        root.typing = false;
+        root.finished(true);
+    }
+
+    function keep-text() {
+        if root.invalid {
+            root.cancel();
+        } else if input.text != root.value {
+            TagEditing.commit(root.tag, input.text, root.typing);
+            root.typing = true;
+        }
+    }
+
+    function open-list(filter: string) {
+        root.filter = filter;
+        root.highlighted = -1;
+        root.list-open = true;
     }
 
     function cancel() {
@@ -199,11 +233,9 @@ component CellEditor inherits Rectangle {
         accessible-label: root.label;
 
         edited => {
-            if root.invalid {
-                root.cancel();
-            } else if self.text != root.value {
-                TagEditing.commit(root.tag, self.text, root.typing);
-                root.typing = true;
+            root.keep-text();
+            if root.suggests {
+                root.open-list(self.text);
             }
         }
         accepted => {
@@ -213,6 +245,27 @@ component CellEditor inherits Rectangle {
             }
         }
         key-pressed(event) => {
+            if root.suggesting {
+                if event.text == Key.DownArrow {
+                    root.highlighted = min(root.highlighted + 1, root.suggestions.length - 1);
+                    return accept;
+                }
+                if event.text == Key.UpArrow {
+                    root.highlighted = max(root.highlighted - 1, -1);
+                    return accept;
+                }
+                if event.text == Key.Return && root.highlighted >= 0 {
+                    root.pick(root.suggestions[root.highlighted]);
+                    return accept;
+                }
+                if event.text == Key.Escape {
+                    root.list-open = false;
+                    return accept;
+                }
+            } else if root.suggests && event.text == Key.DownArrow {
+                root.open-list("");
+                return accept;
+            }
             if event.text == Key.Escape {
                 root.cancel();
                 root.finished(true);
@@ -227,6 +280,7 @@ component CellEditor inherits Rectangle {
                     root.cancel();
                 }
                 root.typing = false;
+                root.list-open = false;
                 root.finished(false);
             }
         }
@@ -245,15 +299,11 @@ component TableRow inherits Rectangle {
     in property <TrackColumnWidths> widths;
     // The table has the keyboard focus, which outlines each run of selected rows.
     in property <bool> table-focused;
-    // One of the row's cells is being edited, and which.
-    in property <bool> editing;
-    in property <TagField> editing-field;
     // A press of the left button, with Command (Ctrl elsewhere) or Shift held, and its release.
     callback pressed(bool, bool);
     callback released;
     // A double click on a cell that can be edited.
     callback edit(TagField);
-    callback finished-editing(bool);
 
     // Where the editable cells start, a hidden column taking no room.
     property <length> title-x: root.status-width + root.number-width;
@@ -262,35 +312,6 @@ component TableRow inherits Rectangle {
     property <length> year-x: root.album-x + root.widths.album;
     property <length> genre-x: root.year-x + root.widths.year;
     property <length> genre-end: root.genre-x + root.widths.genre;
-
-    pure function field-x(field: TagField) -> length {
-        return field == TagField.track ? root.status-width : field == TagField.title ? root.title-x : field == TagField.artist ? root.artist-x : field == TagField.album ? root.album-x : field == TagField.year ? root.year-x : root.genre-x;
-    }
-
-    pure function field-width(field: TagField) -> length {
-        return field == TagField.track ? root.number-width : field == TagField.title ? root.widths.title : field == TagField.artist ? root.widths.artist : field == TagField.album ? root.widths.album : field == TagField.year ? root.widths.year : root.widths.genre;
-    }
-
-    pure function field-value(field: TagField) -> string {
-        return field == TagField.track ? root.track.number : field == TagField.title ? root.track.title : field == TagField.artist ? root.track.artist : field == TagField.album ? root.track.album : field == TagField.year ? root.track.year : root.track.genre;
-    }
-
-    pure function field-name(field: TagField) -> string {
-        return field == TagField.track ? @tr("Track") : field == TagField.title ? @tr("Title") : field == TagField.artist ? @tr("Artist") : field == TagField.album ? @tr("Album") : field == TagField.year ? @tr("Year") : @tr("Genre");
-    }
-
-    // Slint runs changed handlers after the event that set the property, so the editor shows once
-    // it is visible.
-    changed editing => {
-        if root.editing {
-            editor.start();
-        }
-    }
-    changed editing-field => {
-        if root.editing {
-            editor.start();
-        }
-    }
 
     height: 26px;
     background: root.track.selected ? Theme.accent-selection : touch.has-hover ? Theme.surface-3 : transparent;
@@ -432,22 +453,6 @@ component TableRow inherits Rectangle {
             }
         }
     }
-
-    editor := CellEditor {
-        x: root.field-x(root.editing-field);
-        y: 1px;
-        width: root.field-width(root.editing-field) - 1px;
-        height: root.height - 2px;
-        visible: root.editing;
-        tag: root.editing-field;
-        value: root.field-value(root.editing-field);
-        label: root.field-name(root.editing-field);
-        mono: root.editing-field == TagField.track || root.editing-field == TagField.year;
-        text-alignment: self.mono ? right : left;
-        finished(take-keyboard) => {
-            root.finished-editing(take-keyboard);
-        }
-    }
 }
 
 // The tracks of the opened folder, in a list that scrolls sideways when its columns do not fit.
@@ -565,10 +570,35 @@ export component TrackTable inherits Rectangle {
     // a double click can no longer follow, since a double click edits the whole selection.
     property <int> shrink-to-row: -1;
 
+    property <TrackRow> editing-track: root.rows[root.editing-row];
+    // Where the editable cells start, a hidden column taking no room.
+    property <length> title-x: root.status-width + root.number-width;
+    property <length> artist-x: root.title-x + root.widths.title;
+    property <length> album-x: root.artist-x + root.widths.artist;
+    property <length> year-x: root.album-x + root.widths.album;
+    property <length> genre-x: root.year-x + root.widths.year;
+
+    pure function field-x(field: TagField) -> length {
+        return field == TagField.track ? root.status-width : field == TagField.title ? root.title-x : field == TagField.artist ? root.artist-x : field == TagField.album ? root.album-x : field == TagField.year ? root.year-x : root.genre-x;
+    }
+
+    pure function field-width(field: TagField) -> length {
+        return field == TagField.track ? root.number-width : field == TagField.title ? root.widths.title : field == TagField.artist ? root.widths.artist : field == TagField.album ? root.widths.album : field == TagField.year ? root.widths.year : root.widths.genre;
+    }
+
+    pure function field-value(field: TagField) -> string {
+        return field == TagField.track ? root.editing-track.number : field == TagField.title ? root.editing-track.title : field == TagField.artist ? root.editing-track.artist : field == TagField.album ? root.editing-track.album : field == TagField.year ? root.editing-track.year : root.editing-track.genre;
+    }
+
+    pure function field-name(field: TagField) -> string {
+        return field == TagField.track ? @tr("Track") : field == TagField.title ? @tr("Title") : field == TagField.artist ? @tr("Artist") : field == TagField.album ? @tr("Album") : field == TagField.year ? @tr("Year") : @tr("Genre");
+    }
+
     function start-editing(row: int, field: TagField) {
         root.reveal(row);
         root.editing-row = row;
         root.editing-field = field;
+        editor.start();
     }
 
     // Keeps the lists in bounds when the window grows or a new folder empties the table.
@@ -1043,8 +1073,6 @@ export component TrackTable inherits Rectangle {
             number-width: root.number-width;
             widths: root.widths;
             table-focused: keys.has-focus;
-            editing: index == root.editing-row;
-            editing-field: root.editing-field;
             pressed(toggle, extend) => {
                 keys.focus();
                 shrink-timer.running = false;
@@ -1065,10 +1093,29 @@ export component TrackTable inherits Rectangle {
                 root.shrink-to-row = -1;
                 root.start-editing(index, field);
             }
-            finished-editing(take-keyboard) => {
-                if root.editing-row == index {
-                    root.editing-row = -1;
-                }
+        }
+    }
+
+    // Over the list and clipped to it, as the rows are.
+    Rectangle {
+        y: root.header-height;
+        height: root.list-height;
+        clip: true;
+
+        editor := CellEditor {
+            x: root.scroll-x + root.field-x(root.editing-field);
+            y: root.scroll-y + root.editing-row * root.row-height + 1px;
+            width: root.field-width(root.editing-field) - 1px;
+            height: root.row-height - 2px;
+            visible: root.editing-row >= 0;
+            tag: root.editing-field;
+            value: root.field-value(root.editing-field);
+            label: root.field-name(root.editing-field);
+            mono: root.editing-field == TagField.track || root.editing-field == TagField.year;
+            text-alignment: self.mono ? right : left;
+            suggests: root.editing-field == TagField.genre;
+            finished(take-keyboard) => {
+                root.editing-row = -1;
                 if take-keyboard {
                     keys.focus();
                 }
@@ -1105,6 +1152,20 @@ export component TrackTable inherits Rectangle {
             visible-size: track-list.visible-width;
             position <=> root.scroll-x;
             accessible-label: @tr("Horizontal scroll bar");
+        }
+    }
+
+    // Under the cell, or above it when there is no room under it.
+    if editor.suggesting: SuggestionList {
+        property <length> cell-y: root.header-height + editor.y;
+
+        x: max(0px, min(editor.x, root.width - self.width));
+        y: self.cell-y + editor.height + 3px + self.height <= root.height ? self.cell-y + editor.height + 3px : self.cell-y - 3px - self.height;
+        width: max(editor.width, 180px);
+        items: editor.suggestions;
+        highlighted: editor.highlighted;
+        picked(genre) => {
+            editor.pick(genre);
         }
     }
 }

@@ -102,3 +102,23 @@ fn the_inspection_says_what_saving_will_write() -> TestResult {
     assert_eq!(summary.id3v1_losses, BTreeSet::from([Id3v1Loss::Title]));
     Ok(())
 }
+
+#[test]
+fn the_genres_to_suggest_are_id3v1_s_and_those_read() -> TestResult {
+    let (_folder, mut engine) = two_tracks()?;
+    engine.execute(Command::SelectAll);
+    engine.execute(Command::Edit(Edit::Genre(Some("Synthwave".into()))));
+
+    let genres = engine.genres();
+
+    assert!(genres.contains(&"Blues".to_string()));
+    assert_eq!(genres.iter().filter(|genre| *genre == "Folk").count(), 1);
+    assert!(!genres.contains(&"Synthwave".to_string()));
+    let lowercase: Vec<String> = genres.iter().map(|genre| genre.to_lowercase()).collect();
+    assert!(lowercase.is_sorted());
+
+    engine.execute(Command::Save);
+    common::poll_until_saved(&mut engine)?;
+    assert!(engine.genres().contains(&"Synthwave".to_string()));
+    Ok(())
+}

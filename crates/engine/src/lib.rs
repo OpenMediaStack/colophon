@@ -5,6 +5,7 @@ mod edits;
 mod inspection;
 mod selection;
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::mpsc::TryRecvError;
 
@@ -194,6 +195,22 @@ impl Engine {
             let metadata = self.library.tracks.get(track)?.metadata.as_ref().ok()?;
             Some(&metadata.tags)
         })
+    }
+
+    /// The genres to suggest: those an ID3v1 tag can name and those of the files read, once each
+    /// whatever their case, in alphabetical order. A genre only typed so far is not one of them.
+    pub fn genres(&self) -> Vec<String> {
+        let read = self.library.tracks.iter().filter_map(|track| {
+            let metadata = track.metadata.as_ref().ok()?;
+            metadata.tags.genre.as_deref()
+        });
+        let mut genres = BTreeMap::new();
+        for genre in tags::id3v1_genres().iter().copied().chain(read) {
+            genres
+                .entry(genre.to_lowercase())
+                .or_insert_with(|| genre.to_string());
+        }
+        genres.into_values().collect()
     }
 
     /// What the inspector shows of the selected tracks.

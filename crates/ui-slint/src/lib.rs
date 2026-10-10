@@ -1,6 +1,6 @@
 //! Colophon's user interface, written in Slint, and its bridge to the engine.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -54,6 +54,8 @@ pub fn main_window(
         poll_timer: Timer::default(),
         pick_folder: Box::new(pick_folder),
         departure: RefCell::default(),
+        genres: RefCell::default(),
+        genres_read_from: Cell::default(),
     });
     bridge.show();
     window.on_run({
@@ -86,6 +88,13 @@ pub fn main_window(
     editing.on_cancel_typing({
         let bridge = Rc::clone(&bridge);
         move || execute(&bridge, Command::Undo)
+    });
+    editing.on_genres({
+        let bridge = Rc::clone(&bridge);
+        move |text| {
+            let genres = suggested_genres(&bridge.genres.borrow(), &text);
+            ModelRc::new(VecModel::from(genres))
+        }
     });
     window.on_track_pressed({
         let bridge = Rc::clone(&bridge);
@@ -145,6 +154,17 @@ struct Bridge {
     poll_timer: Timer,
     pick_folder: Box<dyn Fn() -> Option<PathBuf>>,
     departure: RefCell<Option<Departure>>,
+    /// The genres to suggest, and the state of the library they were read from.
+    genres: RefCell<Vec<String>>,
+    genres_read_from: Cell<Option<GenreSource>>,
+}
+
+/// What changes the genres to suggest: tracks found, and files saved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct GenreSource {
+    tracks: usize,
+    status: ScanStatus,
+    saving: bool,
 }
 
 /// Where the user was going when pending changes stopped them.
@@ -323,6 +343,7 @@ impl Bridge {
             return;
         };
         let engine = self.engine.borrow();
+        self.read_genres(&engine);
         show_view(&window, engine.view());
         show_library(&window, engine.library());
         self.show_tracks(&window, &engine);
@@ -330,6 +351,17 @@ impl Bridge {
         show_inspection(&window, engine.library(), engine.inspection());
         show_saving(&window, &engine);
         self.show_departure(&window, &engine);
+    }
+
+    fn read_genres(&self, engine: &Engine) {
+        let source = Some(GenreSource {
+            tracks: engine.library().tracks.len(),
+            status: engine.library().status,
+            saving: engine.saving().is_some(),
+        });
+        if self.genres_read_from.replace(source) != source {
+            self.genres.replace(engine.genres());
+        }
     }
 
     /// Shows the unsaved changes dialog while it asks, naming the first modified tracks as the
@@ -567,6 +599,23 @@ fn field<T>(value: &Shared<T>, modified: bool, text: impl Fn(&T) -> String) -> I
         mixed,
         modified,
     }
+}
+
+/// The genres that start with `text`, then those that hold it further on, ignoring case.
+fn suggested_genres(genres: &[String], text: &str) -> Vec<SharedString> {
+    let text = text.trim().to_lowercase();
+    let (starting, holding): (Vec<_>, Vec<_>) = genres
+        .iter()
+        .filter_map(|genre| {
+            let at = genre.to_lowercase().find(&text)?;
+            Some((at == 0, SharedString::from(genre.as_str())))
+        })
+        .partition(|(starts, _)| *starts);
+    starting
+        .into_iter()
+        .chain(holding)
+        .map(|(_, genre)| genre)
+        .collect()
 }
 
 /// What a field's text sets, or `None` when the field cannot hold it: a year runs from 1 to
@@ -999,6 +1048,19 @@ mod tests {
         assert_eq!(parse_edit(TagField::Year, "10000"), None);
         assert_eq!(parse_edit(TagField::Track, "-3"), None);
         assert_eq!(parse_edit(TagField::TrackTotal, "0"), None);
+    }
+
+    #[test]
+    fn genres_that_start_with_the_text_come_first() {
+        let genres: Vec<String> = ["Acid Rock", "Rock", "Rock & Roll", "Pop", "Synthwave"]
+            .map(String::from)
+            .to_vec();
+        let suggested = |text| suggested_genres(&genres, text);
+
+        assert_eq!(suggested("rock"), ["Rock", "Rock & Roll", "Acid Rock"]);
+        assert_eq!(suggested(" SYNTH"), ["Synthwave"]);
+        assert_eq!(suggested("").len(), 5);
+        assert!(suggested("jazz").is_empty());
     }
 
     #[test]
