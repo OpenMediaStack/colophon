@@ -3,7 +3,9 @@ mod common;
 use std::collections::BTreeSet;
 
 use colophon_engine::tags::{Id3v1Loss, Id3v1Version, Id3v2Version, TagFormat};
-use colophon_engine::{Command, Edit, Engine, Field, Inspection, Shared, Summary, VersionChoice};
+use colophon_engine::{
+    Command, Edit, Engine, Field, Inspection, Shared, SortColumn, Summary, VersionChoice,
+};
 
 use common::{TestResult, engine_reading, folder_with_fixtures};
 
@@ -173,5 +175,48 @@ fn a_cover_is_an_edit_like_any_other() -> TestResult {
     assert_eq!(summary.cover, cover.map_or(Shared::Empty, Shared::Same));
     assert_eq!(summary.modified, BTreeSet::from([Field::Cover]));
     assert_eq!(engine.edits().modified_count(), 1);
+    Ok(())
+}
+
+/// The place in the library of the track of this file name.
+fn track_named(engine: &Engine, name: &str) -> Result<usize, String> {
+    engine
+        .library()
+        .tracks
+        .iter()
+        .position(|track| track.path.file_name().is_some_and(|file| file == name))
+        .ok_or(format!("no track {name}"))
+}
+
+fn number(engine: &Engine, name: &str) -> Result<(Option<u32>, Option<u32>), String> {
+    let tags = engine
+        .tags_of(track_named(engine, name)?)
+        .ok_or(format!("no tags for {name}"))?;
+    Ok((tags.track, tags.track_total))
+}
+
+#[test]
+fn tracks_are_numbered_in_the_table_order_disc_by_disc() -> TestResult {
+    let folder = folder_with_fixtures(&[
+        ("v23_full.mp3", "1.mp3"),
+        ("v24_full.mp3", "2.mp3"),
+        ("v24_unicode.mp3", "3.mp3"),
+    ])?;
+    let mut engine = engine_reading(&folder)?;
+    engine.execute(Command::SelectAll);
+    engine.execute(Command::Edit(Edit::Disc(Some(1))));
+    engine.execute(Command::Select(track_named(&engine, "3.mp3")?));
+    engine.execute(Command::Edit(Edit::Disc(Some(2))));
+    engine.execute(Command::SortBy(SortColumn::File));
+    engine.execute(Command::SortBy(SortColumn::File));
+    engine.execute(Command::SelectAll);
+
+    engine.execute(Command::NumberTracks);
+
+    assert_eq!(number(&engine, "2.mp3")?, (Some(1), Some(2)));
+    assert_eq!(number(&engine, "1.mp3")?, (Some(2), Some(2)));
+    assert_eq!(number(&engine, "3.mp3")?, (Some(1), Some(1)));
+    engine.execute(Command::Undo);
+    assert_eq!(number(&engine, "1.mp3")?, (Some(3), Some(12)));
     Ok(())
 }
