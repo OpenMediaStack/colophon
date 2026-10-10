@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::Duration;
 
-use colophon_engine::tags::{self, Id3v1Loss, Id3v1Version, Id3v2Version, ReadError};
+use colophon_engine::tags::{self, Id3v1Loss, Id3v1Version, Id3v2Version, ReadError, WritePolicy};
 use colophon_engine::{
     AlbumKey, AudioLine, Column, ColumnWidths, Command, Edit, Engine, Field, Inspection, Library,
     Preferences, ScanStatus, Selection, Shared, Sort, SortColumn, Source, Step, Summary, Track,
@@ -29,9 +29,9 @@ mod generated {
 /// What the window asks the engine to run, before the bridge turns it into a [`Command`].
 pub use generated::Command as WindowCommand;
 pub use generated::{
-    AppWindow, BitrateMode, ByteSize, CoverState, Id3v1Losses, InspectedTracks, InspectorField,
-    InspectorState, Kilohertz, ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit,
-    SourceKind, TagEditing, TagField, TagRemoval, Theme, TrackColumn, TrackColumnWidths,
+    AppWindow, BitrateMode, ByteSize, CoverState, Id3v1Losses, Id3v1Policy, InspectedTracks,
+    InspectorField, InspectorState, Kilohertz, ReadProblem, RemovedTag, ScanState, SidebarItem,
+    SizeUnit, SourceKind, TagEditing, TagField, TagRemoval, Theme, TrackColumn, TrackColumnWidths,
     TrackColumns, TrackRow, TrackSpectrum, TrackStatus, UnreadableFile, UnsavedChoice,
 };
 pub use slint::{ComponentHandle, PlatformError};
@@ -216,6 +216,36 @@ pub fn main_window_keeping(
             }
         }
     });
+    window.on_choose_id3v2_3({
+        let bridge = Rc::clone(&bridge);
+        move |older| {
+            let policy = bridge.engine.borrow().preferences().writing;
+            let id3v2 = if older {
+                Id3v2Version::V2_3
+            } else {
+                Id3v2Version::V2_4
+            };
+            execute(
+                &bridge,
+                Command::SetWritePolicy(WritePolicy { id3v2, ..policy }),
+            );
+        }
+    });
+    window.on_choose_id3v1_policy({
+        let bridge = Rc::clone(&bridge);
+        move |id3v1| {
+            let policy = bridge.engine.borrow().preferences().writing;
+            let id3v1 = match id3v1 {
+                Id3v1Policy::Keep => tags::Id3v1Policy::Keep,
+                Id3v1Policy::Always => tags::Id3v1Policy::Always,
+                Id3v1Policy::Never => tags::Id3v1Policy::Never,
+            };
+            execute(
+                &bridge,
+                Command::SetWritePolicy(WritePolicy { id3v1, ..policy }),
+            );
+        }
+    });
     window.on_removal_answered({
         let bridge = Rc::clone(&bridge);
         move |remove| {
@@ -223,8 +253,13 @@ pub fn main_window_keeping(
             if let Some(window) = bridge.window.upgrade() {
                 window.set_confirming_removal(false);
             }
-            if let Some(choice) = removal.filter(|_| remove) {
-                execute(&bridge, Command::ChooseVersion(choice));
+            match removal {
+                Some(Removal::Choice(choice)) if remove => {
+                    execute(&bridge, Command::ChooseVersion(choice));
+                }
+                Some(Removal::Save) if remove => execute(&bridge, Command::Save),
+                Some(Removal::Save) => execute(&bridge, Command::SaveKeepingId3v1),
+                _ => {}
             }
         }
     });
@@ -364,7 +399,7 @@ struct Bridge {
     genres: RefCell<Vec<String>>,
     genres_read_from: Cell<Option<GenreSource>>,
     /// A tag removal that waits for the user's answer.
-    removal: Cell<Option<VersionChoice>>,
+    removal: Cell<Option<Removal>>,
     /// The folders, albums and artists the sidebar lists, by their place in it.
     sources: RefCell<Sources>,
     /// The cover drawn last, so that a selection shown again does not decode it again.
@@ -453,6 +488,15 @@ struct GenreSource {
     saving: bool,
 }
 
+/// What removes a tag once the user agrees.
+#[derive(Debug, Clone, Copy)]
+enum Removal {
+    /// A version choice of the inspector's Tag format section.
+    Choice(VersionChoice),
+    /// A save while the write policy never writes ID3v1; refused, the files keep theirs.
+    Save,
+}
+
 /// Quitting, held up by pending changes.
 enum Departure {
     /// The window asks what to do with them.
@@ -475,7 +519,7 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         generated::Command::SelectNext => Command::MoveSelection(Step::Down),
         generated::Command::ExtendSelectionUp => Command::ExtendSelection(Step::Up),
         generated::Command::ExtendSelectionDown => Command::ExtendSelection(Step::Down),
-        generated::Command::Save => Command::Save,
+        generated::Command::Save => return save(bridge),
         generated::Command::Undo => Command::Undo,
         generated::Command::Redo => Command::Redo,
         generated::Command::Revert => Command::Revert,
@@ -508,8 +552,40 @@ fn choose_version(bridge: &Rc<Bridge>, choice: VersionChoice) {
         _ => return execute(bridge, Command::ChooseVersion(choice)),
     };
     let files = bridge.files_losing(tag);
+    if !confirm_removal(bridge, tag, files, Removal::Choice(choice)) {
+        execute(bridge, Command::ChooseVersion(choice));
+    }
+}
+
+/// Saves, after asking first when the write policy would strip files of their ID3v1 tag.
+fn save(bridge: &Rc<Bridge>) {
+    let files: Vec<String> = {
+        let engine = bridge.engine.borrow();
+        let tracks = &engine.library().tracks;
+        engine
+            .losing_id3v1_to_policy()
+            .into_iter()
+            .filter_map(|track| {
+                let name = tracks.get(track)?.path.file_name()?;
+                Some(name.to_string_lossy().into_owned())
+            })
+            .collect()
+    };
+    if !confirm_removal(bridge, RemovedTag::Id3v1, files, Removal::Save) {
+        execute(bridge, Command::Save);
+    }
+}
+
+/// Asks before `removal` strips `tag` from `files`, and says whether it asked: with no files to
+/// lose it, there is nothing to ask.
+fn confirm_removal(
+    bridge: &Rc<Bridge>,
+    tag: RemovedTag,
+    files: Vec<String>,
+    removal: Removal,
+) -> bool {
     let Some(window) = bridge.window.upgrade().filter(|_| !files.is_empty()) else {
-        return execute(bridge, Command::ChooseVersion(choice));
+        return false;
     };
     window.set_removal(TagRemoval {
         tag,
@@ -523,8 +599,9 @@ fn choose_version(bridge: &Rc<Bridge>, choice: VersionChoice) {
                 .collect::<Vec<_>>(),
         )),
     });
-    bridge.removal.set(Some(choice));
+    bridge.removal.set(Some(removal));
     window.set_confirming_removal(true);
+    true
 }
 
 fn ask(bridge: &Rc<Bridge>) {
@@ -551,8 +628,9 @@ fn answer(bridge: &Rc<Bridge>, choice: UnsavedChoice) {
     }
 }
 
+/// Quitting asks nothing more: files the write policy would strip of their ID3v1 tag keep it.
 fn save_then_quit(bridge: &Rc<Bridge>) {
-    execute(bridge, Command::Save);
+    execute(bridge, Command::SaveKeepingId3v1);
     let (saving, failed) = {
         let engine = bridge.engine.borrow();
         (
@@ -689,6 +767,7 @@ impl Bridge {
         self.read_genres(&engine);
         self.show_sources(&window, &engine);
         show_view(&window, engine.view());
+        show_writing(&window, engine.preferences().writing);
         show_sort(&window, engine.sort());
         show_library(&window, engine.library());
         self.show_tracks(&window, &engine);
@@ -1722,6 +1801,15 @@ fn show_saving(window: &AppWindow, engine: &Engine) {
     window.set_save_done(progress.map_or(0, |progress| count(progress.done)));
     window.set_save_total(progress.map_or(0, |progress| count(progress.total)));
     window.set_save_failures(count(engine.save_failures().len()));
+}
+
+fn show_writing(window: &AppWindow, policy: WritePolicy) {
+    window.set_id3v2_3(policy.id3v2 == Id3v2Version::V2_3);
+    window.set_id3v1_policy(match policy.id3v1 {
+        tags::Id3v1Policy::Keep => Id3v1Policy::Keep,
+        tags::Id3v1Policy::Always => Id3v1Policy::Always,
+        tags::Id3v1Policy::Never => Id3v1Policy::Never,
+    });
 }
 
 fn show_view(window: &AppWindow, view: &ViewState) {

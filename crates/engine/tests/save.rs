@@ -4,7 +4,9 @@ use std::error::Error;
 use std::fs;
 use std::path::Path;
 
-use colophon_engine::tags::{Id3v1Version, Id3v2Version, TagFormat, WriteError, read};
+use colophon_engine::tags::{
+    Id3v1Policy, Id3v1Version, Id3v2Version, TagFormat, WriteError, WritePolicy, read,
+};
 use colophon_engine::{Command, Edit, Engine, SaveProgress, VersionChoice};
 use tempfile::TempDir;
 
@@ -164,5 +166,78 @@ fn saving_writes_the_versions_chosen() -> TestResult {
         );
     }
     assert_eq!(engine.edits().modified_count(), 0);
+    Ok(())
+}
+
+fn formats_on_disk(path: &Path) -> Result<Vec<TagFormat>, Box<dyn Error>> {
+    Ok(read(path)?.formats)
+}
+
+/// Whether a file has an ID3v1 tag, which reads as ID3v1.1 when it holds a track number.
+fn has_id3v1(path: &Path) -> Result<bool, Box<dyn Error>> {
+    Ok(formats_on_disk(path)?
+        .iter()
+        .any(|format| matches!(format, TagFormat::Id3v1(_))))
+}
+
+#[test]
+fn the_write_policy_chooses_the_versions_saved() -> TestResult {
+    let folder = folder_with_fixtures(&[("v24_unicode.mp3", "1.mp3")])?;
+    let mut engine = engine_reading(&folder)?;
+    engine.execute(Command::SetWritePolicy(WritePolicy {
+        id3v2: Id3v2Version::V2_3,
+        id3v1: Id3v1Policy::Always,
+    }));
+    engine.execute(Command::Select(0));
+    engine.execute(Command::Edit(Edit::Album(Some("Analog Hearts".into()))));
+
+    engine.execute(Command::Save);
+    poll_until_saved(&mut engine)?;
+
+    let path = folder.path().join("1.mp3");
+    assert_eq!(
+        formats_on_disk(&path)?[0],
+        TagFormat::Id3v2(Id3v2Version::V2_3)
+    );
+    assert!(has_id3v1(&path)?);
+    Ok(())
+}
+
+/// A file with an ID3v1 tag, edited while the policy never writes one.
+fn edited_while_never_writing_id3v1() -> Result<(TempDir, Engine), Box<dyn Error>> {
+    let folder = folder_with_fixtures(&[("v23_v1_long_title.mp3", "1.mp3")])?;
+    let mut engine = engine_reading(&folder)?;
+    engine.execute(Command::SetWritePolicy(WritePolicy {
+        id3v1: Id3v1Policy::Never,
+        ..WritePolicy::default()
+    }));
+    engine.execute(Command::Select(0));
+    engine.execute(Command::Edit(Edit::Album(Some("Analog Hearts".into()))));
+    Ok((folder, engine))
+}
+
+#[test]
+fn never_writing_id3v1_strips_it_from_the_files_saved() -> TestResult {
+    let (folder, mut engine) = edited_while_never_writing_id3v1()?;
+    assert_eq!(engine.losing_id3v1_to_policy(), [0]);
+
+    engine.execute(Command::Save);
+    poll_until_saved(&mut engine)?;
+
+    assert_eq!(
+        formats_on_disk(&folder.path().join("1.mp3"))?,
+        [TagFormat::Id3v2(Id3v2Version::V2_4)]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_file_can_keep_the_id3v1_tag_the_policy_would_strip() -> TestResult {
+    let (folder, mut engine) = edited_while_never_writing_id3v1()?;
+
+    engine.execute(Command::SaveKeepingId3v1);
+    poll_until_saved(&mut engine)?;
+
+    assert!(has_id3v1(&folder.path().join("1.mp3"))?);
     Ok(())
 }

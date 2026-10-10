@@ -1,3 +1,4 @@
+use colophon_library::tags::{Id3v1Policy, Id3v2Version, WritePolicy};
 use serde::{Deserialize, Serialize};
 
 use crate::columns::{Column, ColumnWidths};
@@ -9,6 +10,7 @@ pub struct Preferences {
     pub view: ViewState,
     /// From 0, silent, to 100, as loud as the file.
     pub volume: u8,
+    pub writing: WritePolicy,
 }
 
 impl Default for Preferences {
@@ -16,6 +18,7 @@ impl Default for Preferences {
         Self {
             view: ViewState::default(),
             volume: 80,
+            writing: WritePolicy::default(),
         }
     }
 }
@@ -36,11 +39,23 @@ impl Preferences {
             developer_mode: file.developer_mode.unwrap_or_default(),
             window_size: file.window,
         };
+        let writing = WritePolicy {
+            id3v2: match file.id3v2.as_deref() {
+                Some("2.3") => Id3v2Version::V2_3,
+                _ => defaults.writing.id3v2,
+            },
+            id3v1: match file.id3v1.as_deref() {
+                Some("always") => Id3v1Policy::Always,
+                Some("never") => Id3v1Policy::Never,
+                _ => defaults.writing.id3v1,
+            },
+        };
         Self {
             view,
             volume: file
                 .volume
                 .map_or(defaults.volume, |volume| volume.min(100)),
+            writing,
         }
     }
 
@@ -57,6 +72,21 @@ impl Preferences {
                     .collect(),
             ),
             volume: Some(self.volume),
+            id3v2: Some(
+                match self.writing.id3v2 {
+                    Id3v2Version::V2_3 => "2.3",
+                    Id3v2Version::V2_2 | Id3v2Version::V2_4 => "2.4",
+                }
+                .to_owned(),
+            ),
+            id3v1: Some(
+                match self.writing.id3v1 {
+                    Id3v1Policy::Keep => "keep",
+                    Id3v1Policy::Always => "always",
+                    Id3v1Policy::Never => "never",
+                }
+                .to_owned(),
+            ),
             developer_mode: Some(view.developer_mode),
             window: view.window_size,
             column_widths: view.column_widths,
@@ -74,6 +104,10 @@ struct File {
     inspector: Option<bool>,
     columns: Option<Vec<String>>,
     volume: Option<u8>,
+    /// The ID3v2 version to write: "2.3" or "2.4".
+    id3v2: Option<String>,
+    /// Which files get an ID3v1 tag: "keep", "always" or "never".
+    id3v1: Option<String>,
     developer_mode: Option<bool>,
     window: Option<WindowSize>,
     column_widths: Option<ColumnWidths>,
@@ -122,6 +156,10 @@ mod tests {
                 }),
             },
             volume: 35,
+            writing: WritePolicy {
+                id3v2: Id3v2Version::V2_3,
+                id3v1: Id3v1Policy::Never,
+            },
         }
     }
 

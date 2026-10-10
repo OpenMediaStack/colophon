@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
-"POT-Creation-Date: 2026-10-10 19:35+0000\n"
+"POT-Creation-Date: 2026-10-10 19:50+0000\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -9,144 +9,155 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
 #. The application's name, then the source the table lists.
-#: ui/app-window.slint:148
+#: ui/app-window.slint:157
 msgctxt "AppWindow"
 msgid "All tracks"
 msgstr "Toutes les pistes"
 
 #. The application's name, then the source the table lists.
-#: ui/app-window.slint:148
+#: ui/app-window.slint:157
 msgctxt "AppWindow"
 msgid "Recently changed"
 msgstr "Modifiés récemment"
 
 #. The application's name, then the source the table lists.
-#: ui/app-window.slint:148
+#: ui/app-window.slint:157
 msgctxt "AppWindow"
 msgid "Unreadable files"
 msgstr "Fichiers illisibles"
 
-#: ui/app-window.slint:188
+#: ui/app-window.slint:197
 msgctxt "AppWindow"
 msgid "File"
 msgstr "Fichier"
 
-#: ui/app-window.slint:191
+#: ui/app-window.slint:200
 msgctxt "AppWindow"
 msgid "Open Folder…"
 msgstr "Ouvrir un dossier…"
 
-#: ui/app-window.slint:200
+#: ui/app-window.slint:209
 msgctxt "AppWindow"
 msgid "Open Files…"
 msgstr "Ouvrir des fichiers…"
 
-#: ui/app-window.slint:211
+#: ui/app-window.slint:220
 msgctxt "AppWindow"
 msgid "Save"
 msgstr "Enregistrer"
 
-#: ui/app-window.slint:221
+#: ui/app-window.slint:233
+msgctxt "AppWindow"
+msgid "Options…"
+msgstr "Options…"
+
+#: ui/app-window.slint:233
+msgctxt "AppWindow"
+msgid "Settings…"
+msgstr "Réglages…"
+
+#: ui/app-window.slint:243
 msgctxt "AppWindow"
 msgid "Edit"
 msgstr "Édition"
 
-#: ui/app-window.slint:224 ui/app-window.slint:374
+#: ui/app-window.slint:246 ui/app-window.slint:396
 msgctxt "AppWindow"
 msgid "Undo"
 msgstr "Annuler"
 
-#: ui/app-window.slint:233 ui/app-window.slint:383
+#: ui/app-window.slint:255 ui/app-window.slint:405
 msgctxt "AppWindow"
 msgid "Redo"
 msgstr "Rétablir"
 
-#: ui/app-window.slint:244
+#: ui/app-window.slint:266
 msgctxt "AppWindow"
 msgid "Find"
 msgstr "Rechercher"
 
-#: ui/app-window.slint:255
+#: ui/app-window.slint:277
 msgctxt "AppWindow"
 msgid "Select Album"
 msgstr "Sélectionner l’album"
 
-#: ui/app-window.slint:263
+#: ui/app-window.slint:285
 msgctxt "AppWindow"
 msgid "Number Tracks"
 msgstr "Numéroter les pistes"
 
-#: ui/app-window.slint:272
+#: ui/app-window.slint:295
+msgctxt "AppWindow"
+msgid "Preferences…"
+msgstr "Préférences…"
+
+#: ui/app-window.slint:305
 msgctxt "AppWindow"
 msgid "Controls"
 msgstr "Commandes"
 
-#: ui/app-window.slint:275
+#: ui/app-window.slint:308
 msgctxt "AppWindow"
 msgid "Pause"
 msgstr "Pause"
 
-#: ui/app-window.slint:275
+#: ui/app-window.slint:308
 msgctxt "AppWindow"
 msgid "Play"
 msgstr "Lecture"
 
-#: ui/app-window.slint:283
+#: ui/app-window.slint:316
 msgctxt "AppWindow"
 msgid "Next Track"
 msgstr "Piste suivante"
 
-#: ui/app-window.slint:291
+#: ui/app-window.slint:324
 msgctxt "AppWindow"
 msgid "Previous Track"
 msgstr "Piste précédente"
 
-#: ui/app-window.slint:300
+#: ui/app-window.slint:333
 msgctxt "AppWindow"
 msgid "View"
 msgstr "Présentation"
 
-#: ui/app-window.slint:303
+#: ui/app-window.slint:336
 msgctxt "AppWindow"
 msgid "Hide Sidebar"
 msgstr "Masquer la barre latérale"
 
-#: ui/app-window.slint:303
+#: ui/app-window.slint:336
 msgctxt "AppWindow"
 msgid "Show Sidebar"
 msgstr "Afficher la barre latérale"
 
-#: ui/app-window.slint:311
+#: ui/app-window.slint:344
 msgctxt "AppWindow"
 msgid "Hide Inspector"
 msgstr "Masquer l’inspecteur"
 
-#: ui/app-window.slint:311
+#: ui/app-window.slint:344
 msgctxt "AppWindow"
 msgid "Show Inspector"
 msgstr "Afficher l’inspecteur"
 
-#: ui/app-window.slint:322
-msgctxt "AppWindow"
-msgid "Developer Mode"
-msgstr "Mode développeur"
-
-#: ui/app-window.slint:348
+#: ui/app-window.slint:370
 msgctxt "AppWindow"
 msgid "Open folder"
 msgstr "Ouvrir un dossier"
 
-#: ui/app-window.slint:409
+#: ui/app-window.slint:431
 msgctxt "AppWindow"
 msgid "Toggle sidebar"
 msgstr "Afficher ou masquer la barre latérale"
 
-#: ui/app-window.slint:419
+#: ui/app-window.slint:441
 msgctxt "AppWindow"
 msgid "Toggle inspector"
 msgstr "Afficher ou masquer l’inspecteur"
 
-#: ui/dialog.slint:13
+#. No Cancel button when empty: Escape still cancels.
+#: ui/dialog.slint:14
 msgctxt "Dialog"
 msgid "Cancel"
 msgstr "Annuler"
@@ -536,6 +547,81 @@ msgstr "Position"
 msgctxt "PlayerBar"
 msgid "Volume"
 msgstr "Volume"
+
+#: ui/settings.slint:30
+msgctxt "Settings"
+msgid "Settings"
+msgstr "Réglages"
+
+#: ui/settings.slint:31
+msgctxt "Settings"
+msgid "Done"
+msgstr "Terminé"
+
+#: ui/settings.slint:46 ui/settings.slint:50
+msgctxt "Settings"
+msgid "ID3v2 version"
+msgstr "Version ID3v2"
+
+#: ui/settings.slint:63
+msgctxt "Settings"
+msgid "Read by every player, the oldest included."
+msgstr "Lue par tous les lecteurs, même les plus anciens."
+
+#: ui/settings.slint:63
+msgctxt "Settings"
+msgid "The current version, with UTF-8 text."
+msgstr "La version actuelle, avec du texte en UTF-8."
+
+#: ui/settings.slint:69 ui/settings.slint:73
+msgctxt "Settings"
+msgid "ID3v1 tag"
+msgstr "Tag ID3v1"
+
+#: ui/settings.slint:74
+msgctxt "Settings"
+msgid "Keep"
+msgstr "Garder"
+
+#: ui/settings.slint:74
+msgctxt "Settings"
+msgid "Always"
+msgstr "Toujours"
+
+#: ui/settings.slint:74
+msgctxt "Settings"
+msgid "Never"
+msgstr "Jamais"
+
+#: ui/settings.slint:86
+msgctxt "Settings"
+msgid "Rewritten in the files that have one, added to none."
+msgstr "Réécrit dans les fichiers qui en ont un, ajouté à aucun."
+
+#: ui/settings.slint:86
+msgctxt "Settings"
+msgid "Written in every file saved."
+msgstr "Écrit dans chaque fichier enregistré."
+
+#: ui/settings.slint:86
+msgctxt "Settings"
+msgid "Removed from the files saved, after asking."
+msgstr "Retiré des fichiers enregistrés, après confirmation."
+
+#: ui/settings.slint:92
+msgctxt "Settings"
+msgid "Developer"
+msgstr "Développeur"
+
+#: ui/settings.slint:96
+msgctxt "Settings"
+msgid "Developer mode"
+msgstr "Mode développeur"
+
+#: ui/settings.slint:108
+msgctxt "Settings"
+msgid "Choose the tag versions of each file in the inspector, ID3v2.2 included."
+msgstr "Choisir les versions des tags de chaque fichier dans l’inspecteur, ID3v2.2 compris."
 
 #: ui/sidebar.slint:116
 msgctxt "Sidebar"

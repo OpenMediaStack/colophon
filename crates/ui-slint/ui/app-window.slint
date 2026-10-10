@@ -15,8 +15,9 @@ import { ConfirmTagRemoval, RemovedTag, TagRemoval } from "tag-removal.slint";
 import { Sidebar, SidebarItem, SourceKind } from "sidebar.slint";
 import { BitrateMode, ByteSize, CoverState, Id3v1Losses, Kilohertz, TrackSpectrum, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
+import { Id3v1Policy, Settings } from "settings.slint";
 
-export { Theme, CoverState, Kilohertz, TrackSpectrum, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, Id3v1Policy, CoverState, Kilohertz, TrackSpectrum, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
@@ -98,7 +99,15 @@ export component AppWindow inherits Window {
     in property <TagRemoval> removal;
     callback removal-answered(bool);
     // A dialog is up: the menu items that act on the library wait for it.
-    property <bool> modal: root.asking-to-save || root.confirming-removal;
+    property <bool> modal: root.asking-to-save || root.confirming-removal || root.settings-open;
+    // The settings: the ID3v2 version written by default is 2.3 rather than 2.4, and the files
+    // that get an ID3v1 tag.
+    in-out property <bool> settings-open;
+    in property <bool> id3v2-3;
+    in property <Id3v1Policy> id3v1-policy;
+    callback choose-id3v2-3(bool);
+    callback choose-id3v1-policy(Id3v1Policy);
+    property <bool> linux: Platform.os == OperatingSystemType.linux;
     // Dialog buttons in the order of Windows. Tests set it so that their captures do not depend
     // on the machine.
     in property <bool> windows-buttons: Platform.os == OperatingSystemType.windows;
@@ -215,6 +224,19 @@ export component AppWindow inherits Window {
                     root.run(Command.save);
                 }
             }
+
+            // Settings live in the File menu on macOS and Windows, where Windows calls them
+            // Options, and in the Edit menu on Linux, as Preferences.
+            if !root.linux: MenuSeparator { }
+
+            if !root.linux: MenuItem {
+                title: root.windows-buttons ? @tr("Options…") : @tr("Settings…");
+                shortcut: @keys(Control + ",");
+                enabled: !root.modal;
+                activated => {
+                    root.settings-open = true;
+                }
+            }
         }
 
         Menu {
@@ -266,6 +288,17 @@ export component AppWindow inherits Window {
                     root.run(Command.number-tracks);
                 }
             }
+
+            if root.linux: MenuSeparator { }
+
+            if root.linux: MenuItem {
+                title: @tr("Preferences…");
+                shortcut: @keys(Control + ",");
+                enabled: !root.modal;
+                activated => {
+                    root.settings-open = true;
+                }
+            }
         }
 
         Menu {
@@ -315,17 +348,6 @@ export component AppWindow inherits Window {
                 }
             }
 
-            MenuSeparator { }
-
-            // Settings will hold the switch; until they exist, the View menu does.
-            MenuItem {
-                title: @tr("Developer Mode");
-                checkable: true;
-                checked: root.developer-mode;
-                activated => {
-                    root.run(Command.toggle-developer-mode);
-                }
-            }
         }
     }
 
@@ -585,6 +607,27 @@ export component AppWindow inherits Window {
             stop-scan => {
                 root.run(Command.stop-scan);
             }
+        }
+    }
+
+    if root.settings-open: Settings {
+        width: root.width;
+        height: root.height;
+        windows-order: root.windows-buttons;
+        id3v2-3: root.id3v2-3;
+        id3v1-policy: root.id3v1-policy;
+        developer-mode: root.developer-mode;
+        choose-id3v2-3(older) => {
+            root.choose-id3v2-3(older);
+        }
+        choose-id3v1-policy(policy) => {
+            root.choose-id3v1-policy(policy);
+        }
+        toggle-developer-mode => {
+            root.run(Command.toggle-developer-mode);
+        }
+        close => {
+            root.settings-open = false;
         }
     }
 

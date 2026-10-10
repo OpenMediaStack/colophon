@@ -10,6 +10,7 @@ export component Dialog inherits Rectangle {
     in property <string> primary-text;
     // The primary button removes or loses something, in the error colour.
     in property <bool> destructive;
+    // No Cancel button when empty: Escape still cancels.
     in property <string> cancel-text: @tr("Cancel");
     // A choice that loses something, such as not saving; none when empty.
     in property <string> discard-text;
@@ -67,7 +68,7 @@ export component Dialog inherits Rectangle {
                 color: Theme.text-primary;
             }
 
-            Text {
+            if root.message != "": Text {
                 text: root.message;
                 wrap: word-wrap;
                 color: Theme.text-secondary;
@@ -109,7 +110,7 @@ export component Dialog inherits Rectangle {
                     }
                 }
 
-                Button {
+                if root.cancel-text != "": Button {
                     horizontal-stretch: 0;
                     text: root.cancel-text;
                     clicked => {
