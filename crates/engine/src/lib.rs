@@ -3,9 +3,10 @@
 mod columns;
 mod edits;
 mod inspection;
+mod listing;
 mod selection;
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::PathBuf;
 use std::sync::mpsc::TryRecvError;
 
@@ -19,6 +20,7 @@ pub use colophon_library::{AUDIO_EXTENSIONS, Track, tags};
 pub use columns::{Column, ColumnWidths, Columns};
 pub use edits::{Edit, Edits, Field, VersionChoice};
 pub use inspection::{AudioLine, Inspection, Shared, Summary};
+pub use listing::{AlbumKey, Groups, Sort, SortColumn, Source};
 pub use selection::{Selection, Step};
 
 /// A user action. The UI turns buttons, menu items and shortcuts into commands.
@@ -60,6 +62,12 @@ pub enum Command {
     ChooseVersion(VersionChoice),
     /// Writes every pending change to its file, in the background.
     Save,
+    /// Lists the tracks of a source in the table.
+    ShowSource(Source),
+    /// Lists only the tracks whose title, artist, album or file name holds this text.
+    Filter(String),
+    /// Sorts the table by a column, or the other way round when it is sorted by it already.
+    SortBy(SortColumn),
 }
 
 impl Command {
@@ -88,6 +96,9 @@ impl Command {
             Command::Revert => "tags.revert",
             Command::ChooseVersion(_) => "tags.choose_version",
             Command::Save => "tags.save",
+            Command::ShowSource(_) => "view.show_source",
+            Command::Filter(_) => "view.filter",
+            Command::SortBy(_) => "view.sort_by",
         }
     }
 }
@@ -171,6 +182,13 @@ pub struct Engine {
     scans: Vec<ScanHandle>,
     /// The paths of the tracks found, so that opening a file twice lists it once.
     found: HashSet<PathBuf>,
+    /// The tracks saved since Colophon started.
+    saved: BTreeSet<usize>,
+    source: Source,
+    filter: String,
+    sort: Option<Sort>,
+    /// The tracks the table lists, in its order.
+    listed: Vec<usize>,
 }
 
 impl Engine {
@@ -203,6 +221,40 @@ impl Engine {
     /// The files the last save could not write.
     pub fn save_failures(&self) -> &[SaveFailure] {
         &self.save_failures
+    }
+
+    /// The source of the table's tracks, its filter and its order.
+    pub fn source(&self) -> &Source {
+        &self.source
+    }
+
+    pub fn filter(&self) -> &str {
+        &self.filter
+    }
+
+    pub fn sort(&self) -> Option<Sort> {
+        self.sort
+    }
+
+    /// The tracks the table lists, by their place in the library, in its order. Edits leave it as
+    /// it is until the source, the filter, the order or the library changes, so that a track does
+    /// not move away while it is being edited.
+    pub fn listed(&self) -> &[usize] {
+        &self.listed
+    }
+
+    /// The tracks with changes waiting to be saved, or saved since Colophon started.
+    pub fn changed(&self) -> BTreeSet<usize> {
+        self.edits
+            .modified()
+            .map(|(track, _)| track)
+            .chain(self.saved.iter().copied())
+            .collect()
+    }
+
+    /// The albums and artists of the library.
+    pub fn groups(&self) -> Groups {
+        listing::groups(&self.library.tracks)
     }
 
     /// The tags a track shows: those waiting to be saved, or else its file's.
@@ -259,16 +311,12 @@ impl Engine {
                 self.selection.toggle(track);
             }
             Command::SelectRange(track) if self.has_track(track) => {
-                self.selection.select_range(track);
+                self.selection.select_range(track, &self.listed);
             }
             Command::Select(_) | Command::ToggleSelected(_) | Command::SelectRange(_) => {}
-            Command::SelectAll => self.selection.select_all(self.library.tracks.len()),
-            Command::MoveSelection(step) => {
-                self.selection.step(step, self.library.tracks.len(), false);
-            }
-            Command::ExtendSelection(step) => {
-                self.selection.step(step, self.library.tracks.len(), true);
-            }
+            Command::SelectAll => self.selection.select_all(&self.listed),
+            Command::MoveSelection(step) => self.selection.step(step, &self.listed, false),
+            Command::ExtendSelection(step) => self.selection.step(step, &self.listed, true),
             Command::Edit(edit) => {
                 self.edits
                     .edit(&self.library.tracks, self.selection.iter(), &edit, false);
@@ -287,6 +335,23 @@ impl Engine {
                     .choose_versions(&self.library.tracks, self.selection.iter(), choice);
             }
             Command::Save => self.save(),
+            Command::ShowSource(source) => {
+                self.source = source;
+                self.relist();
+            }
+            Command::Filter(filter) => {
+                self.filter = filter;
+                self.relist();
+            }
+            Command::SortBy(column) => {
+                self.sort = Some(Sort {
+                    column,
+                    descending: self
+                        .sort
+                        .is_some_and(|sort| sort.column == column && !sort.descending),
+                });
+                self.relist();
+            }
         }
     }
 
@@ -295,7 +360,33 @@ impl Engine {
     pub fn poll(&mut self) -> bool {
         let scanned = self.poll_scan();
         let saved = self.poll_save();
+        if scanned || saved {
+            self.relist();
+        }
         scanned || saved
+    }
+
+    /// Lists the tracks of the source again, filtered and sorted.
+    fn relist(&mut self) {
+        let changed = self.changed();
+        let edits = &self.edits;
+        let tracks = &self.library.tracks;
+        let shown = |track: usize| {
+            edits.pending(track).or_else(|| {
+                tracks
+                    .get(track)?
+                    .metadata
+                    .as_ref()
+                    .ok()
+                    .map(|metadata| &metadata.tags)
+            })
+        };
+        let context = listing::Context {
+            tracks,
+            shown: &shown,
+            changed: &changed,
+        };
+        self.listed = listing::list(&context, &self.source, &self.filter, self.sort);
     }
 
     fn poll_scan(&mut self) -> bool {
@@ -415,6 +506,7 @@ impl Engine {
                         saved.metadata = Ok(written.metadata);
                         saved.size = written.size;
                     }
+                    self.saved.insert(track);
                     self.edits.settle(&self.library.tracks, track);
                 }
                 Err(error) => self.save_failures.push(SaveFailure { track, error }),

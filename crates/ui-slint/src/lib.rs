@@ -1,7 +1,7 @@
 //! Colophon's user interface, written in Slint, and its bridge to the engine.
 
 use std::cell::{Cell, RefCell};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
@@ -10,7 +10,7 @@ use std::time::Duration;
 use colophon_engine::tags::{self, Id3v1Loss, Id3v1Version, Id3v2Version, ReadError};
 use colophon_engine::{
     AudioLine, Column, ColumnWidths, Command, Edit, Engine, Field, Inspection, Library, ScanStatus,
-    Selection, Shared, Step, Summary, Track, VersionChoice, ViewState,
+    Selection, Shared, Sort, SortColumn, Step, Summary, Track, VersionChoice, ViewState,
 };
 use slint::{CloseRequestResponse, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
@@ -81,6 +81,8 @@ pub fn main_window(
         tracks,
         longest: RefCell::default(),
         shown_modified: RefCell::default(),
+        listed: RefCell::default(),
+        row_of: RefCell::default(),
         poll_timer: Timer::default(),
         dialogs: Box::new(dialogs),
         departure: RefCell::default(),
@@ -130,7 +132,7 @@ pub fn main_window(
     window.on_track_pressed({
         let bridge = Rc::clone(&bridge);
         move |row, toggle, extend| {
-            let Ok(track) = usize::try_from(row) else {
+            let Some(track) = bridge.track_at(row) else {
                 return;
             };
             let command = if extend {
@@ -171,6 +173,10 @@ pub fn main_window(
             }
         }
     });
+    window.on_sort_by({
+        let bridge = Rc::clone(&bridge);
+        move |column| execute(&bridge, Command::SortBy(engine_sort_column(column)))
+    });
     window.on_resize_columns({
         let bridge = Rc::clone(&bridge);
         move |widths| execute(&bridge, Command::ResizeColumns(engine_widths(widths)))
@@ -210,6 +216,9 @@ struct Bridge {
     longest: RefCell<TrackRow>,
     /// The tracks shown with pending changes, whose rows change again when the changes go.
     shown_modified: RefCell<BTreeSet<usize>>,
+    /// The tracks the table lists, row by row, and the row of each track listed.
+    listed: RefCell<Vec<usize>>,
+    row_of: RefCell<HashMap<usize, usize>>,
     poll_timer: Timer,
     dialogs: Box<dyn Dialogs>,
     departure: RefCell<Option<Departure>>,
@@ -445,6 +454,7 @@ impl Bridge {
         let engine = self.engine.borrow();
         self.read_genres(&engine);
         show_view(&window, engine.view());
+        show_sort(&window, engine.sort());
         show_library(&window, engine.library());
         self.show_tracks(&window, &engine);
         self.show_selection(&window, engine.selection());
@@ -476,69 +486,104 @@ impl Bridge {
             .edits()
             .modified()
             .take(NAMED_TRACKS)
-            .filter_map(|(track, _)| self.tracks.row_data(track))
-            .map(|row| row.title)
+            .filter_map(|(track, pending)| {
+                Some(track_row(engine.library().tracks.get(track)?, Some(pending)).title)
+            })
             .collect();
         window.set_unsaved_titles(ModelRc::new(VecModel::from(titles)));
         window.set_asking_to_save(true);
     }
 
     /// Marks the selected rows, touching only the rows that change.
+    /// The track a row of the table shows.
+    fn track_at(&self, row: i32) -> Option<usize> {
+        let row = usize::try_from(row).ok()?;
+        self.listed.borrow().get(row).copied()
+    }
+
+    /// Marks the selected rows, touching only the rows that change.
     fn show_selection(&self, window: &AppWindow, selection: &Selection) {
+        let listed = self.listed.borrow();
+        let is_selected = |row: usize| {
+            listed
+                .get(row)
+                .is_some_and(|track| selection.contains(*track))
+        };
         for index in 0..self.tracks.row_count() {
             let Some(row) = self.tracks.row_data(index) else {
                 continue;
             };
-            let marks = SelectionMarks::of(index, |track| selection.contains(track));
+            let marks = SelectionMarks::of(index, is_selected);
             if SelectionMarks::from(&row) != marks {
                 self.tracks.set_row_data(index, marks.on(row));
             }
         }
-        window.set_focused_row(selection.focus().map_or(-1, count));
+        let focused = selection
+            .focus()
+            .and_then(|track| self.row_of.borrow().get(&track).copied());
+        window.set_focused_row(focused.map_or(-1, count));
         window.set_selected_count(count(selection.len()));
     }
 
-    /// Adds the tracks found since the last call, and redraws those whose pending changes came or
-    /// went. A newly opened folder has fewer tracks than the table, which empties it first.
+    /// Lists the tracks the engine lists, adding rows when it only lists more, and redraws those
+    /// whose pending changes came or went.
     fn show_tracks(&self, window: &AppWindow, engine: &Engine) {
         let library = engine.library();
-        if library.tracks.len() < self.tracks.row_count() {
-            self.tracks.clear();
-            self.longest.take();
-            self.shown_modified.take();
-        }
-        let found = library
-            .tracks
-            .get(self.tracks.row_count()..)
-            .unwrap_or_default();
-        let rows: Vec<TrackRow> = found.iter().map(|track| track_row(track, None)).collect();
+        let edits = engine.edits();
+        let row = |track: usize| {
+            library
+                .tracks
+                .get(track)
+                .map(|listed| track_row(listed, edits.pending(track)))
+        };
+        let mut listed = self.listed.borrow_mut();
         let mut longest = self.longest.borrow_mut();
-        for row in &rows {
-            keep_longest(&mut longest, row);
+        if engine.listed() != listed.as_slice() {
+            let more = engine.listed().starts_with(&listed);
+            if !more {
+                listed.clear();
+                *longest = TrackRow::default();
+                self.tracks.clear();
+            }
+            let added = &engine.listed()[listed.len()..];
+            let rows: Vec<TrackRow> = added.iter().filter_map(|track| row(*track)).collect();
+            for row in &rows {
+                keep_longest(&mut longest, row);
+            }
+            self.tracks.extend(rows);
+            listed.extend_from_slice(added);
+            let mut row_of = self.row_of.borrow_mut();
+            if !more {
+                row_of.clear();
+            }
+            for (place, track) in listed.iter().enumerate().skip(row_of.len()) {
+                row_of.insert(*track, place);
+            }
         }
-        self.tracks.extend(rows);
 
-        let modified: BTreeSet<usize> = engine.edits().modified().map(|(track, _)| track).collect();
+        let modified: BTreeSet<usize> = edits.modified().map(|(track, _)| track).collect();
         let changed = self.shown_modified.replace(modified.clone());
-        for index in changed.union(&modified) {
-            let (Some(track), Some(old)) =
-                (library.tracks.get(*index), self.tracks.row_data(*index))
-            else {
+        let row_of = self.row_of.borrow();
+        for track in changed.union(&modified) {
+            let (Some(place), Some(new)) = (row_of.get(track).copied(), row(*track)) else {
                 continue;
             };
-            let row = TrackRow {
+            let Some(old) = self.tracks.row_data(place) else {
+                continue;
+            };
+            let new = TrackRow {
                 selected: old.selected,
                 selected_above: old.selected_above,
                 selected_below: old.selected_below,
-                ..track_row(track, engine.edits().pending(*index))
+                ..new
             };
-            if row != old {
-                keep_longest(&mut longest, &row);
-                self.tracks.set_row_data(*index, row);
+            if new != old {
+                keep_longest(&mut longest, &new);
+                self.tracks.set_row_data(place, new);
             }
         }
         window.set_longest(longest.clone());
-        window.set_modified_count(count(engine.edits().modified_count()));
+        window.set_modified_count(count(edits.modified_count()));
     }
 }
 
@@ -831,6 +876,42 @@ fn show_view(window: &AppWindow, view: &ViewState) {
     if let Some(widths) = view.column_widths {
         window.set_column_widths(slint_widths(widths));
     }
+}
+
+fn show_sort(window: &AppWindow, sort: Option<Sort>) {
+    window.set_sorted(sort.is_some());
+    if let Some(sort) = sort {
+        window.set_sorted_by(slint_sort_column(sort.column));
+        window.set_sort_descending(sort.descending);
+    }
+}
+
+const SORT_COLUMNS: [(generated::SortColumn, SortColumn); 11] = [
+    (generated::SortColumn::Number, SortColumn::Number),
+    (generated::SortColumn::Title, SortColumn::Title),
+    (generated::SortColumn::Artist, SortColumn::Artist),
+    (generated::SortColumn::Album, SortColumn::Album),
+    (generated::SortColumn::Year, SortColumn::Year),
+    (generated::SortColumn::Genre, SortColumn::Genre),
+    (generated::SortColumn::Time, SortColumn::Time),
+    (generated::SortColumn::Bitrate, SortColumn::Bitrate),
+    (generated::SortColumn::Tags, SortColumn::Tags),
+    (generated::SortColumn::File, SortColumn::File),
+    (generated::SortColumn::Folder, SortColumn::Folder),
+];
+
+fn engine_sort_column(column: generated::SortColumn) -> SortColumn {
+    SORT_COLUMNS
+        .iter()
+        .find(|(slint, _)| *slint == column)
+        .map_or(SortColumn::Title, |(_, engine)| *engine)
+}
+
+fn slint_sort_column(column: SortColumn) -> generated::SortColumn {
+    SORT_COLUMNS
+        .iter()
+        .find(|(_, engine)| *engine == column)
+        .map_or(generated::SortColumn::Title, |(slint, _)| *slint)
 }
 
 /// The title cannot be hidden, so it is not a column of the chooser.

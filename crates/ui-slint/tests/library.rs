@@ -225,3 +225,23 @@ fn files_open_without_their_folder() -> TestResult {
     assert!(!shows(&window, "01"));
     Ok(())
 }
+
+#[test]
+fn a_click_on_a_column_name_sorts_by_it() -> TestResult {
+    let folder = folder_with_files(&["b.mp3", "c.mp3", "a.mp3"])?;
+    let window = open_main_window(Some(folder.path().to_path_buf()))?;
+    find(&window, "Open folder")?.invoke_accessible_default_action();
+    wait_until_shown(&window, "3 tracks")?;
+    let first = |window: &AppWindow| {
+        slint::Model::row_data(&window.get_tracks(), 0)
+            .map(|row| row.title.to_string())
+            .unwrap_or_default()
+    };
+
+    find(&window, "Sort by Title")?.invoke_accessible_default_action();
+    assert_eq!(first(&window), "a");
+
+    find(&window, "Sort by Title")?.invoke_accessible_default_action();
+    assert_eq!(first(&window), "c");
+    Ok(())
+}

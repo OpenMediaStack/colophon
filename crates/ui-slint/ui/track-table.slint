@@ -7,6 +7,9 @@ export enum TrackStatus { normal, modified, unreadable }
 
 export enum TrackColumn { title, artist, album, year, genre, time, bitrate, tags, file, folder }
 
+// What the table can be sorted by: the columns, the number included.
+export enum SortColumn { number, title, artist, album, year, genre, time, bitrate, tags, file, folder }
+
 // One file of the opened folder, as the table shows it.
 export struct TrackRow {
     status: TrackStatus,
@@ -65,10 +68,15 @@ component Cell inherits Rectangle {
     in property <int> weight: 400;
     // The line at the right edge, where the column can be resized.
     in property <color> separator: Theme.border-row;
+    // An icon right after the text, such as the order of a sorted column.
+    in property <image> marker;
 
     HorizontalLayout {
         padding-left: 8px;
         padding-right: 8px;
+        spacing: 4px;
+        // Across the whole cell, or next to its marker.
+        alignment: root.marker.width == 0 ? LayoutAlignment.stretch : root.text-alignment == TextHorizontalAlignment.right ? LayoutAlignment.end : LayoutAlignment.start;
 
         Text {
             vertical-alignment: center;
@@ -79,6 +87,12 @@ component Cell inherits Rectangle {
             font-size: root.size;
             font-weight: root.weight;
             color: root.text-color;
+        }
+
+        if root.marker.width > 0: Image {
+            width: 10px;
+            source: root.marker;
+            colorize: root.text-color;
         }
     }
 
@@ -95,16 +109,48 @@ component NumberCell inherits Cell {
     text-alignment: right;
 }
 
-// A column's name. Dragging its last pixels resizes the column, and a double click there fits the
-// column to its longest value.
+// A column's name. A click sorts the table by it; dragging its last pixels resizes the column,
+// and a double click there fits the column to its longest value.
 component HeaderCell inherits Cell {
     in property <bool> resizable: true;
+    // The table is sorted by this column, and which way.
+    in property <bool> sorted;
+    in property <bool> descending;
     callback resized(length);
     callback fitted;
+    callback sort;
+    // A right click, or a Control click on macOS, where the window's coordinates say.
+    callback open-menu(length, length);
 
     size: 12px;
     weight: 500;
     separator: root.resizable ? Theme.border-subtle : transparent;
+    text-color: root.sorted ? Theme.text-primary : Theme.text-secondary;
+    marker: !root.sorted ? @image-url("") : root.descending ? @image-url("images/chevron-down.svg") : @image-url("images/chevron-up.svg");
+    accessible-role: button;
+    accessible-label: @tr("Sort by {}", root.text);
+    accessible-action-default => {
+        root.sort();
+    }
+
+    // The column chooser's area lies under the cells, and a right click would not reach it.
+    TouchArea {
+        property <bool> for-menu;
+
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down {
+                self.for-menu = event.button == PointerEventButton.right || event.modifiers.meta;
+                if self.for-menu {
+                    root.open-menu(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                }
+            }
+        }
+        clicked => {
+            if !self.for-menu {
+                root.sort();
+            }
+        }
+    }
 
     if root.resizable: TouchArea {
         // The pointer and the width when the drag started. The handle moves with the column's edge, so
@@ -474,6 +520,11 @@ export component TrackTable inherits Rectangle {
     callback step-selection(bool, bool);
     callback toggle-column(TrackColumn);
     callback reset-columns;
+    // The column the table is sorted by, if it is, and which way; a click on a column's name sorts by it.
+    in property <bool> sorted;
+    in property <SortColumn> sorted-by;
+    in property <bool> sort-descending;
+    callback sort-by(SortColumn);
     callback columns-resized(TrackColumnWidths);
 
     property <length> header-height: 28px;
@@ -918,6 +969,14 @@ export component TrackTable inherits Rectangle {
                     HeaderCell {
                         width: root.number-width;
                         text: "#";
+                        sorted: root.sorted && root.sorted-by == SortColumn.number;
+                        descending: root.sort-descending;
+                        sort => {
+                            root.sort-by(SortColumn.number);
+                        }
+                        open-menu(x, y) => {
+                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
+                        }
                         text-alignment: right;
                         resizable: false;
                     }
@@ -925,6 +984,14 @@ export component TrackTable inherits Rectangle {
                     HeaderCell {
                         width: root.widths.title;
                         text: @tr("Title");
+                        sorted: root.sorted && root.sorted-by == SortColumn.title;
+                        descending: root.sort-descending;
+                        sort => {
+                            root.sort-by(SortColumn.title);
+                        }
+                        open-menu(x, y) => {
+                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
+                        }
                         resized(width) => {
                             root.resize(TrackColumn.title, width);
                         }
@@ -936,6 +1003,14 @@ export component TrackTable inherits Rectangle {
                     if root.columns.artist: HeaderCell {
                         width: root.widths.artist;
                         text: @tr("Artist");
+                        sorted: root.sorted && root.sorted-by == SortColumn.artist;
+                        descending: root.sort-descending;
+                        sort => {
+                            root.sort-by(SortColumn.artist);
+                        }
+                        open-menu(x, y) => {
+                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
+                        }
                         resized(width) => {
                             root.resize(TrackColumn.artist, width);
                         }
@@ -946,6 +1021,14 @@ export component TrackTable inherits Rectangle {
                     if root.columns.album: HeaderCell {
                         width: root.widths.album;
                         text: @tr("Album");
+                        sorted: root.sorted && root.sorted-by == SortColumn.album;
+                        descending: root.sort-descending;
+                        sort => {
+                            root.sort-by(SortColumn.album);
+                        }
+                        open-menu(x, y) => {
+                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
+                        }
                         resized(width) => {
                             root.resize(TrackColumn.album, width);
                         }
@@ -956,6 +1039,14 @@ export component TrackTable inherits Rectangle {
                     if root.columns.year: HeaderCell {
                         width: root.widths.year;
                         text: @tr("Year");
+                        sorted: root.sorted && root.sorted-by == SortColumn.year;
+                        descending: root.sort-descending;
+                        sort => {
+                            root.sort-by(SortColumn.year);
+                        }
+                        open-menu(x, y) => {
+                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
+                        }
                         text-alignment: right;
                         resized(width) => {
                             root.resize(TrackColumn.year, width);
@@ -967,6 +1058,14 @@ export component TrackTable inherits Rectangle {
                     if root.columns.genre: HeaderCell {
                         width: root.widths.genre;
                         text: @tr("Genre");
+                        sorted: root.sorted && root.sorted-by == SortColumn.genre;
+                        descending: root.sort-descending;
+                        sort => {
+                            root.sort-by(SortColumn.genre);
+                        }
+                        open-menu(x, y) => {
+                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
+                        }
                         resized(width) => {
                             root.resize(TrackColumn.genre, width);
                         }
@@ -977,6 +1076,14 @@ export component TrackTable inherits Rectangle {
                     if root.columns.time: HeaderCell {
                         width: root.widths.time;
                         text: @tr("Time");
+                        sorted: root.sorted && root.sorted-by == SortColumn.time;
+                        descending: root.sort-descending;
+                        sort => {
+                            root.sort-by(SortColumn.time);
+                        }
+                        open-menu(x, y) => {
+                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
+                        }
                         text-alignment: right;
                         resized(width) => {
                             root.resize(TrackColumn.time, width);
@@ -988,6 +1095,14 @@ export component TrackTable inherits Rectangle {
                     if root.columns.bitrate: HeaderCell {
                         width: root.widths.bitrate;
                         text: @tr("Bitrate");
+                        sorted: root.sorted && root.sorted-by == SortColumn.bitrate;
+                        descending: root.sort-descending;
+                        sort => {
+                            root.sort-by(SortColumn.bitrate);
+                        }
+                        open-menu(x, y) => {
+                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
+                        }
                         text-alignment: right;
                         resized(width) => {
                             root.resize(TrackColumn.bitrate, width);
@@ -999,6 +1114,14 @@ export component TrackTable inherits Rectangle {
                     if root.columns.tags: HeaderCell {
                         width: root.widths.tags;
                         text: @tr("Tags");
+                        sorted: root.sorted && root.sorted-by == SortColumn.tags;
+                        descending: root.sort-descending;
+                        sort => {
+                            root.sort-by(SortColumn.tags);
+                        }
+                        open-menu(x, y) => {
+                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
+                        }
                         resized(width) => {
                             root.resize(TrackColumn.tags, width);
                         }
@@ -1009,6 +1132,14 @@ export component TrackTable inherits Rectangle {
                     if root.columns.file: HeaderCell {
                         width: root.widths.file;
                         text: @tr("File");
+                        sorted: root.sorted && root.sorted-by == SortColumn.file;
+                        descending: root.sort-descending;
+                        sort => {
+                            root.sort-by(SortColumn.file);
+                        }
+                        open-menu(x, y) => {
+                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
+                        }
                         resized(width) => {
                             root.resize(TrackColumn.file, width);
                         }
@@ -1019,6 +1150,14 @@ export component TrackTable inherits Rectangle {
                     if root.columns.folder: HeaderCell {
                         width: root.widths.folder;
                         text: @tr("Folder");
+                        sorted: root.sorted && root.sorted-by == SortColumn.folder;
+                        descending: root.sort-descending;
+                        sort => {
+                            root.sort-by(SortColumn.folder);
+                        }
+                        open-menu(x, y) => {
+                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
+                        }
                         resized(width) => {
                             root.resize(TrackColumn.folder, width);
                         }

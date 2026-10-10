@@ -7,13 +7,13 @@ import { Theme } from "theme.slint";
 import { Region, ToolbarButton } from "widgets.slint";
 import { EmptyState } from "empty-state.slint";
 import { ScanState, StatusBar } from "status-bar.slint";
-import { TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
+import { SortColumn, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
 import { UnsavedChanges, UnsavedChoice } from "unsaved-changes.slint";
 import { ConfirmTagRemoval, RemovedTag, TagRemoval } from "tag-removal.slint";
 import { BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
 
-export { Theme, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
@@ -97,6 +97,11 @@ export component AppWindow inherits Window {
     callback choose-id3v2(int);
     callback choose-id3v1(int);
     callback resize-columns(TrackColumnWidths);
+    // The column the table is sorted by, if it is, and which way.
+    in property <bool> sorted;
+    in property <SortColumn> sorted-by;
+    in property <bool> sort-descending;
+    callback sort-by(SortColumn);
     // A click on a track, by its row, with Command (Ctrl elsewhere) or Shift held.
     callback track-pressed(int, bool, bool);
 
@@ -318,6 +323,12 @@ export component AppWindow inherits Window {
                     }
                     reset-columns => {
                         root.run(Command.reset-columns);
+                    }
+                    sorted: root.sorted;
+                    sorted-by: root.sorted-by;
+                    sort-descending: root.sort-descending;
+                    sort-by(column) => {
+                        root.sort-by(column);
                     }
                 }
 
