@@ -171,5 +171,7 @@ fn the_waveform_shows_once_read() -> TestResult {
         window.get_player_has_waveform()
     })?;
     assert!(window.get_player_waveform().size().width > 0);
+    assert!(window.get_player_bass().size().width > 0);
+    assert!(window.get_player_treble().size().width > 0);
     Ok(())
 }
