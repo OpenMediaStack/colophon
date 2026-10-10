@@ -114,6 +114,7 @@ pub fn main_window(
         drawn_cover: RefCell::default(),
         thumbnails: RefCell::default(),
         thumbnail_timer: Timer::default(),
+        shown_playing: Cell::default(),
     });
     bridge.show();
     window.on_run({
@@ -259,6 +260,25 @@ pub fn main_window(
             }
         }
     });
+    window.on_player_seek({
+        let bridge = Rc::clone(&bridge);
+        move |progress| {
+            let duration = bridge.playing_duration();
+            if let Some(duration) = duration {
+                execute(
+                    &bridge,
+                    Command::Seek(duration.mul_f32(progress.clamp(0.0, 1.0))),
+                );
+            }
+        }
+    });
+    window.on_player_set_volume({
+        let bridge = Rc::clone(&bridge);
+        move |volume| {
+            let percent = (volume.clamp(0.0, 1.0) * 100.0).round() as u8;
+            execute(&bridge, Command::SetVolume(percent));
+        }
+    });
     window.on_sort_by({
         let bridge = Rc::clone(&bridge);
         move |column| execute(&bridge, Command::SortBy(engine_sort_column(column)))
@@ -322,6 +342,8 @@ struct Bridge {
     /// The album covers of the sidebar, drawn small on a thread of their own.
     thumbnails: RefCell<Thumbnails>,
     thumbnail_timer: Timer,
+    /// The track marked as playing in the table.
+    shown_playing: Cell<Option<usize>>,
 }
 
 /// Album covers drawn small, by the address of their shared bytes, and those being drawn.
@@ -390,6 +412,9 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         generated::Command::Undo => Command::Undo,
         generated::Command::Redo => Command::Redo,
         generated::Command::Revert => Command::Revert,
+        generated::Command::PlayPause => Command::PlayPause,
+        generated::Command::PlayNext => Command::PlayNext,
+        generated::Command::PlayPrevious => Command::PlayPrevious,
         generated::Command::OpenFolder => match bridge.dialogs.pick_folder() {
             Some(folder) => Command::OpenFolder(folder),
             None => return,
@@ -524,6 +549,8 @@ fn poll_engine(bridge: &Rc<Bridge>) {
     let changed = bridge.engine.borrow_mut().poll();
     if changed {
         bridge.show();
+    } else if let Some(window) = bridge.window.upgrade() {
+        show_playback(&window, &bridge.engine.borrow());
     }
     if bridge.engine.borrow().saving().is_none() {
         after_save(bridge);
@@ -536,7 +563,16 @@ fn poll_engine(bridge: &Rc<Bridge>) {
 impl Bridge {
     fn engine_busy(&self) -> bool {
         let engine = self.engine.borrow();
-        engine.library().status == ScanStatus::Scanning || engine.saving().is_some()
+        engine.library().status == ScanStatus::Scanning
+            || engine.saving().is_some()
+            || engine.playback().playing()
+    }
+
+    /// How long the playing track lasts.
+    fn playing_duration(&self) -> Option<Duration> {
+        let engine = self.engine.borrow();
+        let track = engine.library().tracks.get(engine.playback().track?)?;
+        track.metadata.as_ref().ok()?.audio.duration
     }
 
     /// The names of the selected files that have `tag` and would keep it when saved.
@@ -590,6 +626,7 @@ impl Bridge {
             self.cover_image(cover)
         });
         show_saving(&window, &engine);
+        show_playback(&window, &engine);
         self.show_departure(&window, &engine);
     }
 
@@ -956,6 +993,29 @@ impl Bridge {
         }
         window.set_longest(longest.clone());
         window.set_modified_count(count(edits.modified_count()));
+
+        // The rows of the track that played and of the one that plays; rows listed again lose
+        // their mark, which this puts back.
+        let playing = engine.playback().track;
+        let played = self.shown_playing.replace(playing);
+        for track in [played, playing].into_iter().flatten() {
+            let Some(place) = row_of.get(&track).copied() else {
+                continue;
+            };
+            let Some(row) = self.tracks.row_data(place) else {
+                continue;
+            };
+            let marked = Some(track) == playing;
+            if row.playing != marked {
+                self.tracks.set_row_data(
+                    place,
+                    TrackRow {
+                        playing: marked,
+                        ..row
+                    },
+                );
+            }
+        }
     }
 }
 
@@ -1291,6 +1351,42 @@ fn sized(whole: u64, tenth: u64, unit: SizeUnit) -> ByteSize {
 
 fn number(value: impl TryInto<i32>) -> i32 {
     value.try_into().unwrap_or(i32::MAX)
+}
+
+fn show_playback(window: &AppWindow, engine: &Engine) {
+    let playback = engine.playback();
+    let track = playback
+        .track
+        .and_then(|track| Some((track, engine.library().tracks.get(track)?)));
+    window.set_player_available(engine.can_play());
+    window.set_player_has_track(track.is_some());
+    window.set_player_playing(playback.playing());
+    window.set_player_volume(playback.volume);
+    let Some((index, track)) = track else {
+        window.set_player_title(SharedString::default());
+        window.set_player_artist(SharedString::default());
+        window.set_player_progress(0.0);
+        window.set_player_position(SharedString::default());
+        window.set_player_duration(SharedString::default());
+        return;
+    };
+    let row = track_row(track, engine.edits().pending(index));
+    let position = engine.position();
+    let duration = track
+        .metadata
+        .as_ref()
+        .ok()
+        .and_then(|metadata| metadata.audio.duration)
+        .unwrap_or_default();
+    window.set_player_title(row.title);
+    window.set_player_artist(row.artist);
+    window.set_player_progress(if duration.is_zero() {
+        0.0
+    } else {
+        (position.as_secs_f32() / duration.as_secs_f32()).min(1.0)
+    });
+    window.set_player_position(duration_text(position).into());
+    window.set_player_duration(duration_text(duration).into());
 }
 
 fn show_saving(window: &AppWindow, engine: &Engine) {

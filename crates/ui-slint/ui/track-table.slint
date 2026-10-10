@@ -17,6 +17,8 @@ export struct TrackRow {
     title: string,
     // The file has no title tag: the title shown is its file name.
     untitled: bool,
+    // The track the player plays.
+    playing: bool,
     artist: string,
     album: string,
     year: string,
@@ -377,13 +379,22 @@ component TableRow inherits Rectangle {
                 accessible-label: @tr("Unreadable");
             }
 
-            if root.track.status == TrackStatus.modified: Rectangle {
+            if root.track.status == TrackStatus.modified && !root.track.playing: Rectangle {
                 width: 6px;
                 height: 6px;
                 border-radius: 3px;
                 background: Theme.accent;
                 accessible-role: image;
                 accessible-label: @tr("Unsaved changes");
+            }
+
+            if root.track.playing: Image {
+                width: 14px;
+                height: 14px;
+                source: @image-url("images/volume.svg");
+                colorize: Theme.accent-text;
+                accessible-role: image;
+                accessible-label: @tr("Playing");
             }
         }
 
@@ -397,7 +408,7 @@ component TableRow inherits Rectangle {
         Cell {
             width: root.widths.title;
             text: root.track.title;
-            text-color: root.track.status == TrackStatus.unreadable ? Theme.error : root.track.untitled ? Theme.text-tertiary : Theme.text-primary;
+            text-color: root.track.status == TrackStatus.unreadable ? Theme.error : root.track.playing ? Theme.accent-text : root.track.untitled ? Theme.text-tertiary : Theme.text-primary;
         }
 
         if root.widths.artist > 0: Cell {
@@ -525,6 +536,8 @@ export component TrackTable inherits Rectangle {
     in property <SortColumn> sorted-by;
     in property <bool> sort-descending;
     callback sort-by(SortColumn);
+    // Space: plays the focused track, or pauses.
+    callback play-pause;
     callback columns-resized(TrackColumnWidths);
 
     property <length> header-height: 28px;
@@ -767,6 +780,10 @@ export component TrackTable inherits Rectangle {
             }
             if event.modifiers.control && (event.text == "a" || event.text == "A") {
                 root.select-all();
+                return accept;
+            }
+            if event.text == " " {
+                root.play-pause();
                 return accept;
             }
             // Return edits the title of the one selected track, as Return renames a file in the Finder.
