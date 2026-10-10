@@ -9,7 +9,7 @@ use common::{TestResult, assert_matches_reference, select_language, shows};
 
 /// What a fresh window shows: the regions not built yet, the first launch screen and the status bar.
 const REGIONS: [&str; 6] = [
-    "Toolbar",
+    "Filter",
     "Sidebar",
     "Open your music folder",
     "Player",

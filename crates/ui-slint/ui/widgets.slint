@@ -17,30 +17,35 @@ export component ToolbarButton inherits Rectangle {
     in property <string> label;
     in property <bool> checkable;
     in property <bool> checked;
+    in property <bool> enabled: true;
     in property <length> icon-size: 16px;
     callback clicked;
 
     width: 28px;
     height: 28px;
     border-radius: 4px;
-    background: root.checked || touch.has-hover ? Theme.surface-3 : transparent;
+    background: root.checked || (touch.has-hover && root.enabled) ? Theme.surface-3 : transparent;
     animate background { duration: 100ms; }
     accessible-role: button;
     accessible-label: root.label;
+    accessible-enabled: root.enabled;
     accessible-checkable: root.checkable;
     accessible-checked: root.checked;
     accessible-action-default => {
-        root.clicked();
+        if root.enabled {
+            root.clicked();
+        }
     }
 
     Image {
         width: root.icon-size;
         height: root.icon-size;
         source: root.icon;
-        colorize: root.checked ? Theme.text-primary : Theme.text-secondary;
+        colorize: !root.enabled ? Theme.text-disabled : root.checked ? Theme.text-primary : Theme.text-secondary;
     }
 
     touch := TouchArea {
+        enabled: root.enabled;
         clicked => {
             root.clicked();
         }

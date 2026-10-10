@@ -198,6 +198,10 @@ pub fn main_window(
             }
         }
     });
+    window.on_filter_edited({
+        let bridge = Rc::clone(&bridge);
+        move |text| execute(&bridge, Command::Filter(text.into()))
+    });
     window.on_sort_by({
         let bridge = Rc::clone(&bridge);
         move |column| execute(&bridge, Command::SortBy(engine_sort_column(column)))
