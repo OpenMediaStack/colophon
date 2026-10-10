@@ -13,7 +13,9 @@ pub use layout::{
     FrameFlags, FrameLayout, FrameValue, Id3v2Layout, Layout, LayoutError, TextEncoding, layout,
 };
 pub use read::{ReadError, read};
-pub use write::{Id3v1Loss, WriteError, formats_after_write, id3v1_losses, write};
+pub use write::{
+    Id3v1Loss, WriteDetails, WriteError, formats_after_write, id3v1_losses, write, write_with,
+};
 
 /// The genres an ID3v1 tag can name, Winamp's extensions included: any other genre does not fit it.
 pub fn id3v1_genres() -> &'static [&'static str] {

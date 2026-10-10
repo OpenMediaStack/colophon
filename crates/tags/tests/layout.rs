@@ -139,3 +139,75 @@ fn a_compressed_frame_says_so() -> TestResult {
     assert_eq!(tag.padding, 0);
     Ok(())
 }
+
+/// Writes the tags of `v23_full.mp3` back into a copy, in `version`, encoded as `details` say.
+fn written_with(
+    version: Id3v2Version,
+    details: colophon_tags::WriteDetails,
+) -> Result<(tempfile::TempDir, colophon_tags::Id3v2Layout), Box<dyn std::error::Error>> {
+    let folder = tempfile::tempdir()?;
+    let path = folder.path().join("1.mp3");
+    std::fs::copy(fixture("v23_full.mp3"), &path)?;
+    let tags = colophon_tags::Tags {
+        title: Some("Ÿes, café".into()),
+        ..colophon_tags::read(&path)?.tags
+    };
+    let versions = colophon_tags::TagVersions {
+        id3v2: Some(version),
+        id3v1: None,
+    };
+
+    let written = colophon_tags::write_with(&path, &tags, versions, details)?;
+
+    assert_eq!(written.tags, tags, "the tags read back as written");
+    let layout = layout(&path)?.id3v2.ok_or("no ID3v2 tag")?;
+    Ok((folder, layout))
+}
+
+fn encodings(layout: &colophon_tags::Id3v2Layout) -> Vec<TextEncoding> {
+    layout
+        .frames
+        .iter()
+        .filter_map(|frame| frame.encoding)
+        .collect()
+}
+
+#[test]
+fn every_frame_takes_the_encoding_asked_for() -> TestResult {
+    let utf8 = colophon_tags::WriteDetails {
+        encoding: Some(TextEncoding::Utf8),
+        ..Default::default()
+    };
+
+    let (_folder, v24) = written_with(Id3v2Version::V2_4, utf8)?;
+    assert!(
+        encodings(&v24)
+            .iter()
+            .all(|encoding| *encoding == TextEncoding::Utf8)
+    );
+
+    // ID3v2.3 has no UTF-8: UTF-16 it is.
+    let (_folder, v23) = written_with(Id3v2Version::V2_3, utf8)?;
+    assert!(
+        encodings(&v23)
+            .iter()
+            .all(|encoding| *encoding == TextEncoding::Utf16)
+    );
+    Ok(())
+}
+
+#[test]
+fn padding_and_unsynchronisation_are_written_as_asked() -> TestResult {
+    let (_folder, layout) = written_with(
+        Id3v2Version::V2_3,
+        colophon_tags::WriteDetails {
+            padding: Some(512),
+            unsynchronisation: true,
+            ..Default::default()
+        },
+    )?;
+
+    assert_eq!(layout.padding, 512);
+    assert!(layout.unsynchronisation);
+    Ok(())
+}

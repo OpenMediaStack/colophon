@@ -47,6 +47,21 @@ pub enum WriteError {
     /// lofty does not write ID3v2.2, so the `id3` crate rewrites the tag lofty wrote.
     #[error("could not write the ID3v2.2 tag")]
     Id3v2_2(#[source] id3::Error),
+    /// The `id3` crate rewrites the tag lofty wrote with the details asked for.
+    #[error("could not write the ID3v2 tag with these details")]
+    Details(#[source] id3::Error),
+}
+
+/// How an ID3v2 tag is encoded, for people who make test files: lofty's choices unless asked
+/// otherwise.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct WriteDetails {
+    /// The encoding of every frame's text. A version without it writes UTF-16 instead: ID3v2.2
+    /// and 2.3 know neither UTF-16BE nor UTF-8.
+    pub encoding: Option<crate::TextEncoding>,
+    /// The zeros after the last frame, in bytes.
+    pub padding: Option<u32>,
+    pub unsynchronisation: bool,
 }
 
 /// Writes `tags` into an MP3, in the tags and versions of `versions`, and removes the ID3 tags it
@@ -54,12 +69,22 @@ pub enum WriteError {
 /// copy of the file in the same folder, which replaces the original only once complete on disk: a
 /// failed write leaves the original untouched. Gives back what the written file holds.
 pub fn write(path: &Path, tags: &Tags, versions: TagVersions) -> Result<Metadata, WriteError> {
+    write_with(path, tags, versions, WriteDetails::default())
+}
+
+/// The same, with the ID3v2 tag encoded as `details` say.
+pub fn write_with(
+    path: &Path,
+    tags: &Tags,
+    versions: TagVersions,
+    details: WriteDetails,
+) -> Result<Metadata, WriteError> {
     if fs::metadata(path)?.permissions().readonly() {
         return Err(WriteError::ReadOnly);
     }
     let copy = copy_path(path);
-    let written =
-        write_copy(path, &copy, tags, versions).and_then(|()| Ok(fs::rename(&copy, path)?));
+    let written = write_copy(path, &copy, tags, versions, details)
+        .and_then(|()| Ok(fs::rename(&copy, path)?));
     if written.is_err() {
         // The original is untouched; the copy is all there is to clean up, if it was made at all.
         let _ = fs::remove_file(&copy);
@@ -81,6 +106,7 @@ fn write_copy(
     copy: &Path,
     tags: &Tags,
     versions: TagVersions,
+    details: WriteDetails,
 ) -> Result<(), WriteError> {
     fs::copy(path, copy)?;
     let mut file = OpenOptions::new().read(true).write(true).open(copy)?;
@@ -117,8 +143,56 @@ fn write_copy(
     if versions.id3v2 == Some(Id3v2Version::V2_2) {
         downgrade_to_id3v2_2(&mut file)?;
     }
+    if let Some(version) = versions.id3v2
+        && details != WriteDetails::default()
+    {
+        reencode(&mut file, version, details)?;
+    }
     file.sync_all()?;
     Ok(())
+}
+
+/// Rewrites the ID3v2 tag lofty wrote with the encoding, padding and unsynchronisation of
+/// `details`.
+fn reencode(
+    file: &mut fs::File,
+    version: Id3v2Version,
+    details: WriteDetails,
+) -> Result<(), WriteError> {
+    let id3_version = match version {
+        Id3v2Version::V2_2 => id3::Version::Id3v22,
+        Id3v2Version::V2_3 => id3::Version::Id3v23,
+        Id3v2Version::V2_4 => id3::Version::Id3v24,
+    };
+    file.rewind()?;
+    let written = id3::Tag::read_from2(&mut *file).map_err(WriteError::Details)?;
+    let mut tag = id3::Tag::with_version(id3_version);
+    for frame in written.frames() {
+        let encoding =
+            details
+                .encoding
+                .filter(|_| frame.encoding().is_some())
+                .map(|encoding| match (encoding, version) {
+                    (crate::TextEncoding::Latin1, _) => id3::Encoding::Latin1,
+                    (crate::TextEncoding::Utf16Be, Id3v2Version::V2_4) => id3::Encoding::UTF16BE,
+                    (crate::TextEncoding::Utf8, Id3v2Version::V2_4) => id3::Encoding::UTF8,
+                    _ => id3::Encoding::UTF16,
+                });
+        tag.add_frame(match encoding {
+            Some(encoding) => frame.clone().set_encoding(Some(encoding)),
+            None => frame.clone(),
+        });
+    }
+    let mut encoder = id3::Encoder::new()
+        .version(id3_version)
+        .unsynchronisation(details.unsynchronisation);
+    if let Some(padding) = details.padding {
+        encoder = encoder.padding(usize::try_from(padding).unwrap_or(usize::MAX));
+    }
+    file.rewind()?;
+    encoder
+        .write_to_file(&tag, &mut *file)
+        .map_err(WriteError::Details)
 }
 
 /// Rewrites as ID3v2.2 the ID3v2.3 tag lofty wrote, which ID3v2.2 is closest to. A frame

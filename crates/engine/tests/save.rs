@@ -5,7 +5,7 @@ use std::fs;
 use std::path::Path;
 
 use colophon_engine::tags::{
-    Id3v1Policy, Id3v1Version, Id3v2Version, TagFormat, WriteError, WritePolicy, read,
+    Id3v1Policy, Id3v1Version, Id3v2Version, TagFormat, WriteDetails, WriteError, WritePolicy, read,
 };
 use colophon_engine::{Command, Edit, Engine, SaveProgress, VersionChoice};
 use tempfile::TempDir;
@@ -239,5 +239,63 @@ fn a_file_can_keep_the_id3v1_tag_the_policy_would_strip() -> TestResult {
     poll_until_saved(&mut engine)?;
 
     assert!(has_id3v1(&folder.path().join("1.mp3"))?);
+    Ok(())
+}
+
+fn padding_on_disk(path: &Path) -> Result<Option<u32>, Box<dyn Error>> {
+    Ok(colophon_engine::tags::layout(path)?
+        .id3v2
+        .map(|tag| tag.padding))
+}
+
+#[test]
+fn a_rewrite_writes_a_file_again_with_the_details_of_developer_mode() -> TestResult {
+    let folder = folder_with_fixtures(&[("v23_full.mp3", "1.mp3")])?;
+    let mut engine = engine_reading(&folder)?;
+    engine.execute(Command::ToggleDeveloperMode);
+    engine.execute(Command::SetWriteDetails(WriteDetails {
+        padding: Some(300),
+        ..WriteDetails::default()
+    }));
+    engine.execute(Command::Select(0));
+
+    engine.execute(Command::Rewrite);
+    assert_eq!(engine.edits().modified_count(), 1);
+    engine.execute(Command::Save);
+    poll_until_saved(&mut engine)?;
+
+    assert_eq!(padding_on_disk(&folder.path().join("1.mp3"))?, Some(300));
+    assert_eq!(engine.edits().modified_count(), 0);
+    Ok(())
+}
+
+#[test]
+fn the_details_wait_for_developer_mode() -> TestResult {
+    let folder = folder_with_fixtures(&[("v23_full.mp3", "1.mp3")])?;
+    let mut engine = engine_reading(&folder)?;
+    engine.execute(Command::SetWriteDetails(WriteDetails {
+        padding: Some(300),
+        ..WriteDetails::default()
+    }));
+    engine.execute(Command::Select(0));
+    engine.execute(Command::Edit(Edit::Album(Some("Analog Hearts".into()))));
+
+    engine.execute(Command::Save);
+    poll_until_saved(&mut engine)?;
+
+    assert_ne!(padding_on_disk(&folder.path().join("1.mp3"))?, Some(300));
+    Ok(())
+}
+
+#[test]
+fn reverting_a_rewrite_leaves_the_file_alone() -> TestResult {
+    let folder = folder_with_fixtures(&[("v23_full.mp3", "1.mp3")])?;
+    let mut engine = engine_reading(&folder)?;
+    engine.execute(Command::Select(0));
+
+    engine.execute(Command::Rewrite);
+    engine.execute(Command::Revert);
+
+    assert_eq!(engine.edits().modified_count(), 0);
     Ok(())
 }

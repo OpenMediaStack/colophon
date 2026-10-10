@@ -45,6 +45,7 @@ export enum Command {
     revert,
     number-tracks,
     select-album,
+    rewrite,
     play-pause,
     play-next,
     play-previous,
@@ -177,6 +178,13 @@ export component AppWindow inherits Window {
     callback reveal-file;
     callback copy-details;
     // A short message over the bottom of the window, and its action.
+    // How ID3v2 tags are encoded when saved in developer mode.
+    in property <int> encoding-choice;
+    in property <int> padding-choice;
+    in property <bool> unsynchronisation;
+    callback choose-encoding(int);
+    callback choose-padding(int);
+    callback toggle-unsynchronisation;
     // How the tags of the single selected track are laid out, read in developer mode.
     in property <bool> has-layout;
     in property <TagLayout> tag-layout;
@@ -701,6 +709,21 @@ export component AppWindow inherits Window {
                 cover-drop: root.drop-target == DropTarget.cover;
                 has-layout: root.has-layout;
                 layout: root.tag-layout;
+                encoding-choice: root.encoding-choice;
+                padding-choice: root.padding-choice;
+                unsynchronisation: root.unsynchronisation;
+                choose-encoding(index) => {
+                    root.choose-encoding(index);
+                }
+                choose-padding(index) => {
+                    root.choose-padding(index);
+                }
+                toggle-unsynchronisation => {
+                    root.toggle-unsynchronisation();
+                }
+                rewrite => {
+                    root.run(Command.rewrite);
+                }
                 reveal-text: root.mac-shortcuts ? @tr("Show in Finder") : root.windows-buttons ? @tr("Show in Explorer") : @tr("Show in Folder");
                 reveal-file => {
                     root.reveal-file();

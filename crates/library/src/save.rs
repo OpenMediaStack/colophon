@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
-use colophon_tags::{Metadata, TagVersions, Tags, WriteError};
+use colophon_tags::{Metadata, TagVersions, Tags, WriteDetails, WriteError};
 
 /// A file to write, and the tags to write into it, in which versions.
 #[derive(Debug, Clone)]
@@ -16,6 +16,8 @@ pub struct SaveJob {
     pub path: PathBuf,
     pub tags: Tags,
     pub versions: TagVersions,
+    /// How to encode the ID3v2 tag, in developer mode.
+    pub details: WriteDetails,
 }
 
 /// What a save reports: each file written or not, in order, then its end.
@@ -68,11 +70,12 @@ pub fn spawn_save(jobs: Vec<SaveJob>) -> io::Result<SaveHandle> {
                 if thread_stop.load(Ordering::Relaxed) {
                     return;
                 }
-                let result =
-                    colophon_tags::write(&job.path, &job.tags, job.versions).map(|metadata| {
-                        let size = fs::metadata(&job.path).map_or(0, |file| file.len());
-                        Box::new(Written { metadata, size })
-                    });
+                let written =
+                    colophon_tags::write_with(&job.path, &job.tags, job.versions, job.details);
+                let result = written.map(|metadata| {
+                    let size = fs::metadata(&job.path).map_or(0, |file| file.len());
+                    Box::new(Written { metadata, size })
+                });
                 let event = SaveEvent::Written {
                     track: job.track,
                     result,

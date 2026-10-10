@@ -381,11 +381,16 @@ impl Edits {
 
     /// Brings these tracks back to their files' tags, written in Colophon's versions.
     pub(crate) fn revert(&mut self, tracks: &[Track], selected: impl IntoIterator<Item = usize>) {
-        let changes = self.changes(tracks, selected, |wanted, saved, _| {
+        let selected: Vec<usize> = selected.into_iter().collect();
+        let changes = self.changes(tracks, selected.iter().copied(), |wanted, saved, _| {
             wanted.tags = saved.tags.clone();
             wanted.versions = None;
         });
         self.record(tracks, None, changes);
+        // A track only marked to be rewritten changes no value, and the history skips it.
+        for track in selected {
+            self.settle(tracks, track);
+        }
     }
 
     pub(crate) fn undo(&mut self, tracks: &[Track]) {
@@ -407,6 +412,18 @@ impl Edits {
     }
 
     /// Forgets a track's pending tags once its file holds them, after a save.
+    /// Marks these tracks to be written again as they are, so that a save rewrites their files
+    /// with the current versions and details. A step of no history: there is nothing to undo.
+    pub(crate) fn rewrite(&mut self, tracks: &[Track], selected: impl IntoIterator<Item = usize>) {
+        for track in selected {
+            if !self.pending.contains_key(&track)
+                && let Some(wanted) = self.wanted(tracks, track)
+            {
+                self.pending.insert(track, wanted.tags);
+            }
+        }
+    }
+
     pub(crate) fn settle(&mut self, tracks: &[Track], track: usize) {
         if let Some(wanted) = self.wanted(tracks, track) {
             self.want(tracks, track, wanted);

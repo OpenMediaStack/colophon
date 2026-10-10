@@ -1,5 +1,5 @@
 import { Theme } from "theme.slint";
-import { Button, ScrollBar, Segmented } from "widgets.slint";
+import { Button, Checkbox, ScrollBar, Segmented } from "widgets.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
 import { SuggestionList } from "suggestions.slint";
 
@@ -426,6 +426,16 @@ export component Inspector inherits Rectangle {
     callback copy-details;
     // An image dragged over the window would replace the cover.
     in property <bool> cover-drop;
+    // How ID3v2 tags are encoded when saved in developer mode, by the place of each choice:
+    // the text encoding and the padding, the first choice leaving it to Colophon.
+    in property <int> encoding-choice;
+    in property <int> padding-choice;
+    in property <bool> unsynchronisation;
+    callback choose-encoding(int);
+    callback choose-padding(int);
+    callback toggle-unsynchronisation;
+    // Marks the selected tracks to be written again as they are.
+    callback rewrite;
     // How the tags of the single selected track are laid out, in developer mode.
     in property <bool> has-layout;
     in property <TagLayout> layout;
@@ -1008,6 +1018,73 @@ export component Inspector inherits Rectangle {
                                 wrap: word-wrap;
                                 font-size: 12px;
                                 color: Theme.text-tertiary;
+                            }
+                        }
+                    }
+
+                    FieldLabel {
+                        text: @tr("Text encoding");
+                        padding-left: 0;
+                    }
+
+                    Segmented {
+                        fit-labels: true;
+                        label: @tr("Text encoding");
+                        segments: [
+                            { label: @tr("Auto") },
+                            { label: "Latin-1" },
+                            { label: "UTF-16" },
+                            { label: "UTF-16BE" },
+                            { label: "UTF-8" },
+                        ];
+                        selected: root.encoding-choice;
+                        chosen(index) => {
+                            root.choose-encoding(index);
+                        }
+                    }
+
+                    FieldLabel {
+                        text: @tr("Padding");
+                        padding-left: 0;
+                    }
+
+                    Segmented {
+                        label: @tr("Padding");
+                        segments: [
+                            { label: @tr("Auto") },
+                            { label: "0", mono: true },
+                            { label: "256", mono: true },
+                            { label: "1024", mono: true },
+                            { label: "4096", mono: true },
+                        ];
+                        selected: root.padding-choice;
+                        chosen(index) => {
+                            root.choose-padding(index);
+                        }
+                    }
+
+                    Checkbox {
+                        text: @tr("Unsynchronisation");
+                        checked: root.unsynchronisation;
+                        toggled => {
+                            root.toggle-unsynchronisation();
+                        }
+                    }
+
+                    Text {
+                        wrap: word-wrap;
+                        text: @tr("These apply to every file saved in developer mode. UTF-16BE and UTF-8 need ID3v2.4; earlier versions get UTF-16.");
+                        font-size: 12px;
+                        color: Theme.text-tertiary;
+                    }
+
+                    HorizontalLayout {
+                        alignment: start;
+
+                        Button {
+                            text: @tr("Rewrite Selected Files");
+                            clicked => {
+                                root.rewrite();
                             }
                         }
                     }

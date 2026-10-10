@@ -62,6 +62,16 @@ const ID3V2_CHOICES: [Option<Id3v2Version>; 4] = [
 ];
 const ID3V1_CHOICES: [Option<Id3v1Version>; 3] =
     [None, Some(Id3v1Version::V1_0), Some(Id3v1Version::V1_1)];
+/// The text encodings and the paddings of developer mode, in the order of their segments; the
+/// first leaves the choice to Colophon.
+const ENCODING_CHOICES: [Option<tags::TextEncoding>; 5] = [
+    None,
+    Some(tags::TextEncoding::Latin1),
+    Some(tags::TextEncoding::Utf16),
+    Some(tags::TextEncoding::Utf16Be),
+    Some(tags::TextEncoding::Utf8),
+];
+const PADDING_CHOICES: [Option<u32>; 5] = [None, Some(0), Some(256), Some(1024), Some(4096)];
 
 /// How the window reaches the desktop: the system's dialogs to ask for folders and files, its
 /// file manager and its clipboard.
@@ -320,6 +330,30 @@ pub fn main_window_keeping(
             if message == Some(ToastMessage::SaveFailed) {
                 save(&bridge);
             }
+        }
+    });
+    window.on_choose_encoding({
+        let bridge = Rc::clone(&bridge);
+        move |index| {
+            if let Some(encoding) = choice(&ENCODING_CHOICES, index) {
+                change_details(&bridge, |details| details.encoding = encoding);
+            }
+        }
+    });
+    window.on_choose_padding({
+        let bridge = Rc::clone(&bridge);
+        move |index| {
+            if let Some(padding) = choice(&PADDING_CHOICES, index) {
+                change_details(&bridge, |details| details.padding = padding);
+            }
+        }
+    });
+    window.on_toggle_unsynchronisation({
+        let bridge = Rc::clone(&bridge);
+        move || {
+            change_details(&bridge, |details| {
+                details.unsynchronisation = !details.unsynchronisation;
+            });
         }
     });
     window.on_filter_palette(|entries, query| {
@@ -621,6 +655,7 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         generated::Command::Revert => Command::Revert,
         generated::Command::NumberTracks => Command::NumberTracks,
         generated::Command::SelectAlbum => Command::SelectAlbum,
+        generated::Command::Rewrite => Command::Rewrite,
         generated::Command::PlayPause => Command::PlayPause,
         generated::Command::PlayNext => Command::PlayNext,
         generated::Command::PlayPrevious => Command::PlayPrevious,
@@ -703,6 +738,12 @@ fn replace_cover(bridge: &Rc<Bridge>, path: &Path) {
         Some(cover) => execute(bridge, Command::Edit(Edit::Cover(Some(cover)))),
         None => bridge.toast(ToastMessage::ImageUnreadable, 0, &file_name(path)),
     }
+}
+
+fn change_details(bridge: &Rc<Bridge>, change: impl FnOnce(&mut tags::WriteDetails)) {
+    let mut details = bridge.engine.borrow().write_details();
+    change(&mut details);
+    execute(bridge, Command::SetWriteDetails(details));
 }
 
 fn change_policy(bridge: &Rc<Bridge>, change: impl FnOnce(&mut WritePolicy)) {
@@ -1006,6 +1047,7 @@ impl Bridge {
         self.show_sources(&window, &engine);
         show_view(&window, engine.view());
         show_writing(&window, engine.preferences().writing);
+        show_details(&window, engine.write_details());
         show_sort(&window, engine.sort());
         show_library(&window, engine.library());
         let warnings = engine.warnings();
@@ -2177,6 +2219,27 @@ fn show_saving(window: &AppWindow, engine: &Engine) {
     window.set_save_done(progress.map_or(0, |progress| count(progress.done)));
     window.set_save_total(progress.map_or(0, |progress| count(progress.total)));
     window.set_save_failures(count(engine.save_failures().len()));
+}
+
+fn show_details(window: &AppWindow, details: tags::WriteDetails) {
+    let place = |found: Option<usize>| found.and_then(|place| i32::try_from(place).ok());
+    window.set_encoding_choice(
+        place(
+            ENCODING_CHOICES
+                .iter()
+                .position(|choice| *choice == details.encoding),
+        )
+        .unwrap_or(-1),
+    );
+    window.set_padding_choice(
+        place(
+            PADDING_CHOICES
+                .iter()
+                .position(|choice| *choice == details.padding),
+        )
+        .unwrap_or(-1),
+    );
+    window.set_unsynchronisation(details.unsynchronisation);
 }
 
 fn show_writing(window: &AppWindow, policy: WritePolicy) {
