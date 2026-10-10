@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use colophon_engine::{Column, ColumnWidths, Command, Engine, Step, ViewState};
+use colophon_engine::{Column, ColumnWidths, Command, Edit, Engine, Step, ViewState};
 
 #[test]
 fn both_panels_are_visible_at_start() {
@@ -120,6 +120,10 @@ fn command_ids_are_unique() {
         Command::SelectAll,
         Command::MoveSelection(Step::Down),
         Command::ExtendSelection(Step::Down),
+        Command::Edit(Edit::Title(None)),
+        Command::Undo,
+        Command::Redo,
+        Command::Revert,
     ];
 
     let ids: HashSet<_> = commands.iter().map(Command::id).collect();
