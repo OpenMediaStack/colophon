@@ -34,8 +34,8 @@ pub use generated::{
     AppWindow, BitrateMode, ByteSize, CoverState, Id3v1Losses, Id3v1Policy, InspectedTracks,
     InspectorField, InspectorState, Kilohertz, PaletteAction, PaletteEntry, PaletteMatch,
     ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit, SourceKind, TagEditing, TagField,
-    TagRemoval, Theme, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow, TrackSpectrum,
-    TrackStatus, UnreadableFile, UnsavedChoice,
+    TagRemoval, Theme, Toast, ToastMessage, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow,
+    TrackSpectrum, TrackStatus, UnreadableFile, UnsavedChoice,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -150,6 +150,8 @@ pub fn main_window_keeping(
         spectrum_timer: Timer::default(),
         kept: Cell::new(kept),
         keep: Box::new(keep),
+        toast_timer: Timer::default(),
+        shown_play_failure: Cell::default(),
     });
     bridge.show();
     window.on_run({
@@ -268,6 +270,18 @@ pub fn main_window_keeping(
             }
         }
     });
+    window.on_toast_acted({
+        let bridge = Rc::clone(&bridge);
+        move || {
+            let message = bridge
+                .window
+                .upgrade()
+                .map(|window| window.get_toast().message);
+            if message == Some(ToastMessage::SaveFailed) {
+                save(&bridge);
+            }
+        }
+    });
     window.on_filter_palette(|entries, query| {
         ModelRc::new(VecModel::from(palette::matches(entries.iter(), &query)))
     });
@@ -319,14 +333,13 @@ pub fn main_window_keeping(
     window.on_replace_cover({
         let bridge = Rc::clone(&bridge);
         move || {
-            let Some(cover) = bridge
-                .dialogs
-                .pick_image()
-                .and_then(|path| cover_from(&path))
-            else {
+            let Some(path) = bridge.dialogs.pick_image() else {
                 return;
             };
-            execute(&bridge, Command::Edit(Edit::Cover(Some(cover))));
+            match cover_from(&path) {
+                Some(cover) => execute(&bridge, Command::Edit(Edit::Cover(Some(cover)))),
+                None => bridge.toast(ToastMessage::ImageUnreadable, 0, &file_name(&path)),
+            }
         }
     });
     window.on_remove_cover({
@@ -347,9 +360,10 @@ pub fn main_window_keeping(
                 return;
             };
             let name = format!("cover.{}", cover_extension(&cover));
-            if let Some(path) = bridge.dialogs.pick_save_path(&name) {
-                // A failure leaves nothing behind; there is no message to show it yet.
-                let _ = std::fs::write(path, &*cover.data);
+            if let Some(path) = bridge.dialogs.pick_save_path(&name)
+                && std::fs::write(&path, &*cover.data).is_err()
+            {
+                bridge.toast(ToastMessage::CoverNotExtracted, 0, &file_name(&path));
             }
         }
     });
@@ -446,7 +460,15 @@ struct Bridge {
     /// The preferences handed to `keep` last.
     kept: Cell<Preferences>,
     keep: Box<dyn Fn(&Preferences)>,
+    /// Hides the toast after a while.
+    toast_timer: Timer,
+    /// The track whose failure to play the window told last.
+    shown_play_failure: Cell<Option<usize>>,
 }
+
+/// How long a toast stays: a success briefly, an error long enough to act on it.
+const SUCCESS_TOAST: Duration = Duration::from_secs(4);
+const ERROR_TOAST: Duration = Duration::from_secs(10);
 
 /// The track whose spectrum shows or is being read.
 #[derive(Default)]
@@ -791,7 +813,13 @@ fn watch_engine(bridge: &Rc<Bridge>) {
 }
 
 fn poll_engine(bridge: &Rc<Bridge>) {
+    let saving = bridge.engine.borrow().saving();
     let changed = bridge.engine.borrow_mut().poll();
+    if let Some(saving) = saving
+        && bridge.engine.borrow().saving().is_none()
+    {
+        bridge.toast_save(saving.total);
+    }
     if changed {
         bridge.show();
     } else if let Some(window) = bridge.window.upgrade() {
@@ -877,6 +905,7 @@ impl Bridge {
         self.read_waveform(&window, &engine);
         self.read_spectrum(&window, &engine);
         self.show_departure(&window, &engine);
+        self.toast_play_failure(&engine);
         let preferences = engine.preferences();
         if preferences != self.kept.get() {
             self.kept.set(preferences);
@@ -898,6 +927,60 @@ impl Bridge {
             env!("CARGO_PKG_VERSION"),
         );
         Some((track.path.clone(), details))
+    }
+
+    /// Shows a toast for a while.
+    fn toast(&self, message: ToastMessage, count: usize, name: &str) {
+        let Some(window) = self.window.upgrade() else {
+            return;
+        };
+        window.set_toast(Toast {
+            message,
+            count: self::count(count),
+            name: name.into(),
+        });
+        window.set_toast_shown(true);
+        let shown = if message == ToastMessage::Saved {
+            SUCCESS_TOAST
+        } else {
+            ERROR_TOAST
+        };
+        let window = window.as_weak();
+        self.toast_timer
+            .start(TimerMode::SingleShot, shown, move || {
+                if let Some(window) = window.upgrade() {
+                    window.set_toast_shown(false);
+                }
+            });
+    }
+
+    /// Tells how a save of `total` files ended.
+    fn toast_save(&self, total: usize) {
+        let failed = self.engine.borrow().save_failures().len();
+        if failed > 0 {
+            self.toast(ToastMessage::SaveFailed, failed, "");
+        } else {
+            self.toast(ToastMessage::Saved, total, "");
+        }
+    }
+
+    /// Tells once that the track asked for could not play.
+    fn toast_play_failure(&self, engine: &Engine) {
+        let failure = engine.play_failure().map(|failure| failure.track);
+        if failure == self.shown_play_failure.get() {
+            return;
+        }
+        self.shown_play_failure.set(failure);
+        let Some(track) = failure.and_then(|track| engine.library().tracks.get(track)) else {
+            return;
+        };
+        let name = track
+            .metadata
+            .as_ref()
+            .ok()
+            .and_then(|metadata| metadata.tags.title.clone())
+            .unwrap_or_else(|| file_name(&track.path));
+        self.toast(ToastMessage::PlayFailed, 0, &name);
     }
 
     /// Remembers the window's size for the next launch, before it closes.
@@ -2131,6 +2214,14 @@ fn duration_text(duration: Duration) -> String {
     } else {
         format!("{minutes}:{seconds:02}")
     }
+}
+
+/// A file's name, for a message about it.
+fn file_name(path: &Path) -> String {
+    path.file_name().map_or_else(
+        || path.display().to_string(),
+        |name| name.to_string_lossy().into_owned(),
+    )
 }
 
 fn count(length: usize) -> i32 {

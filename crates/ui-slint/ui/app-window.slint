@@ -17,8 +17,9 @@ import { BitrateMode, ByteSize, CoverState, Id3v1Losses, Kilohertz, TrackSpectru
 import { TagEditing, TagField } from "tag-editing.slint";
 import { Id3v1Policy, Settings } from "settings.slint";
 import { CommandPalette, PaletteAction, PaletteEntry, PaletteMatch } from "palette.slint";
+import { Toast, ToastMessage, ToastView } from "toast.slint";
 
-export { Theme, Id3v1Policy, PaletteAction, PaletteEntry, PaletteMatch, CoverState, Kilohertz, TrackSpectrum, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, Toast, ToastMessage, Id3v1Policy, PaletteAction, PaletteEntry, PaletteMatch, CoverState, Kilohertz, TrackSpectrum, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
@@ -171,6 +172,10 @@ export component AppWindow inherits Window {
     callback replace-cover;
     callback reveal-file;
     callback copy-details;
+    // A short message over the bottom of the window, and its action.
+    in-out property <bool> toast-shown;
+    in property <Toast> toast;
+    callback toast-acted;
     callback extract-cover;
     callback remove-cover;
     callback resize-columns(TrackColumnWidths);
@@ -711,6 +716,19 @@ export component AppWindow inherits Window {
             stop-scan => {
                 root.run(Command.stop-scan);
             }
+        }
+    }
+
+    if root.toast-shown: ToastView {
+        x: (root.width - self.width) / 2;
+        y: root.height - 24px - (root.player-has-track ? 56px : 0px) - 16px - self.height;
+        toast: root.toast;
+        acted => {
+            root.toast-shown = false;
+            root.toast-acted();
+        }
+        closed => {
+            root.toast-shown = false;
         }
     }
 

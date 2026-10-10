@@ -1,0 +1,117 @@
+import { Theme } from "theme.slint";
+
+// What a toast tells.
+export enum ToastMessage {
+    // A save wrote every file.
+    saved,
+    // A save could not write some files; they keep their changes.
+    save-failed,
+    // A track could not play.
+    play-failed,
+    // The image chosen as a cover could not be read.
+    image-unreadable,
+    // The cover could not be written to the file chosen.
+    cover-not-extracted,
+}
+
+// A toast's message, with how many files it is about or the name of the one.
+export struct Toast {
+    message: ToastMessage,
+    count: int,
+    name: string,
+}
+
+// A short message at the bottom of the window: a success, or an error with what to do about it.
+export component ToastView inherits Rectangle {
+    in property <Toast> toast;
+    callback acted;
+    callback closed;
+
+    property <bool> error: root.toast.message != ToastMessage.saved;
+    property <string> action: root.toast.message == ToastMessage.save-failed ? @tr("Retry") : "";
+
+    width: row.preferred-width;
+    height: 36px;
+    background: Theme.surface-2;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: Theme.border-strong;
+    drop-shadow-offset-y: 8px;
+    drop-shadow-blur: 24px;
+    drop-shadow-color: Theme.shadow-menu;
+    accessible-role: groupbox;
+    accessible-label: message.text;
+
+    row := HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 6px;
+        spacing: 10px;
+
+        Image {
+            width: 16px;
+            y: (parent.height - self.height) / 2;
+            source: root.error ? @image-url("images/circle-alert.svg") : @image-url("images/check.svg");
+            colorize: root.error ? Theme.error : Theme.accent-text;
+        }
+
+        message := Text {
+            vertical-alignment: center;
+            text: root.toast.message == ToastMessage.saved ? @tr("Saved {n} file" | "Saved {n} files" % root.toast.count)
+                : root.toast.message == ToastMessage.save-failed ? @tr("{n} file could not be saved" | "{n} files could not be saved" % root.toast.count)
+                : root.toast.message == ToastMessage.play-failed ? @tr("Could not play “{}”", root.toast.name)
+                : root.toast.message == ToastMessage.image-unreadable ? @tr("“{}” is not a JPEG or PNG image", root.toast.name)
+                : @tr("Could not write the cover to “{}”", root.toast.name);
+            color: Theme.text-primary;
+        }
+
+        if root.action != "": Rectangle {
+            width: action-text.preferred-width + 16px;
+            height: 24px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 4px;
+            background: action-touch.has-hover ? Theme.surface-3 : transparent;
+            accessible-role: button;
+            accessible-label: root.action;
+            accessible-action-default => {
+                root.acted();
+            }
+
+            action-text := Text {
+                text: root.action;
+                font-weight: 500;
+                color: Theme.accent-text;
+            }
+
+            action-touch := TouchArea {
+                clicked => {
+                    root.acted();
+                }
+            }
+        }
+
+        Rectangle {
+            width: 24px;
+            height: 24px;
+            y: (parent.height - self.height) / 2;
+            border-radius: 4px;
+            background: close-touch.has-hover ? Theme.surface-3 : transparent;
+            accessible-role: button;
+            accessible-label: @tr("Close");
+            accessible-action-default => {
+                root.closed();
+            }
+
+            Image {
+                width: 14px;
+                source: @image-url("images/x.svg");
+                colorize: Theme.text-tertiary;
+            }
+
+            close-touch := TouchArea {
+                clicked => {
+                    root.closed();
+                }
+            }
+        }
+    }
+}
