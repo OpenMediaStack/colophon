@@ -255,6 +255,9 @@ export component Segmented inherits Rectangle {
     in property <[Segment]> segments;
     in property <int> selected: -1;
     in property <string> label;
+    // Shares the width by the length of each label rather than equally, for labels of very
+    // different lengths.
+    in property <bool> fit-labels;
     callback chosen(int);
 
     height: 28px;
@@ -270,9 +273,9 @@ export component Segmented inherits Rectangle {
         spacing: 2px;
 
         for segment[index] in root.segments: Rectangle {
-            // Equal shares of the width, whatever the length of each label.
-            min-width: 0px;
-            preferred-width: 0px;
+            // Equal shares of the width, whatever the length of each label, unless asked otherwise.
+            min-width: root.fit-labels ? segment-text.preferred-width + 6px : 0px;
+            preferred-width: self.min-width;
             horizontal-stretch: 1;
             border-radius: 3px;
             background: index == root.selected ? Theme.surface-3 : touch.has-hover ? Theme.border-subtle : transparent;
@@ -284,12 +287,12 @@ export component Segmented inherits Rectangle {
                 root.chosen(index);
             }
 
-            Text {
+            segment-text := Text {
                 horizontal-alignment: center;
                 vertical-alignment: center;
                 text: segment.label;
                 font-family: segment.mono ? "JetBrains Mono" : "Inter";
-                font-size: segment.mono ? 12px : 13px;
+                font-size: segment.mono || root.fit-labels ? 12px : 13px;
                 font-weight: index == root.selected ? 500 : 400;
                 color: index == root.selected ? Theme.text-primary : Theme.text-secondary;
             }

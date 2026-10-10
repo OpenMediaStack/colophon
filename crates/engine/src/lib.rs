@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::TryRecvError;
 use std::time::Duration;
 
-use colophon_library::tags::{WriteError, WritePolicy};
+use colophon_library::tags::{WriteDetails, WriteError, WritePolicy};
 use colophon_library::{
     SaveEvent, SaveHandle, SaveJob, ScanError, ScanEvent, ScanHandle, ScanOutcome, spawn_save,
     spawn_scan,
@@ -78,6 +78,10 @@ pub enum Command {
     SaveKeepingId3v1,
     /// The versions to write the tracks the user chose none for in.
     SetWritePolicy(WritePolicy),
+    /// How to encode ID3v2 tags in developer mode.
+    SetWriteDetails(WriteDetails),
+    /// Marks the selected tracks to be written again as they are, in developer mode.
+    Rewrite,
     /// Lists the tracks of a source in the table.
     ShowSource(Source),
     /// Lists only the tracks whose title, artist, album or file name holds this text.
@@ -130,6 +134,8 @@ impl Command {
             Command::Save => "tags.save",
             Command::SaveKeepingId3v1 => "tags.save_keeping_id3v1",
             Command::SetWritePolicy(_) => "settings.write_policy",
+            Command::SetWriteDetails(_) => "developer.write_details",
+            Command::Rewrite => "developer.rewrite",
             Command::ShowSource(_) => "view.show_source",
             Command::Filter(_) => "view.filter",
             Command::SortBy(_) => "view.sort_by",
@@ -245,6 +251,8 @@ pub struct Engine {
     playback: Playback,
     /// Why the track asked for last could not play.
     play_failure: Option<PlayFailure>,
+    /// How to encode ID3v2 tags, in developer mode only.
+    details: WriteDetails,
 }
 
 /// A track that could not play, and why.
@@ -284,6 +292,11 @@ impl Engine {
         self.view = preferences.view;
         self.edits.set_policy(preferences.writing);
         self.execute(Command::SetVolume(preferences.volume));
+    }
+
+    /// How ID3v2 tags are encoded when saved in developer mode.
+    pub fn write_details(&self) -> WriteDetails {
+        self.details
     }
 
     /// The tracks with changes that saving would strip of their ID3v1 tag because the write
@@ -493,6 +506,10 @@ impl Engine {
             Command::Save => self.save(false),
             Command::SaveKeepingId3v1 => self.save(true),
             Command::SetWritePolicy(policy) => self.edits.set_policy(policy),
+            Command::SetWriteDetails(details) => self.details = details,
+            Command::Rewrite => self
+                .edits
+                .rewrite(&self.library.tracks, self.selection.iter()),
             Command::ShowSource(source) => {
                 self.source = source;
                 self.relist();
@@ -693,6 +710,11 @@ impl Engine {
             return;
         }
         let tracks = &self.library.tracks;
+        let details = if self.view.developer_mode {
+            self.details
+        } else {
+            WriteDetails::default()
+        };
         let jobs: Vec<SaveJob> = self
             .edits
             .modified()
@@ -701,6 +723,7 @@ impl Engine {
                     track,
                     path: tracks.get(track)?.path.clone(),
                     tags: tags.clone(),
+                    details,
                     versions: if keeping_id3v1 {
                         self.edits.versions_keeping_id3v1(tracks, track)?
                     } else {

@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use colophon_engine::Engine;
 use colophon_engine::tags::{Id3v2Version, TagFormat, read};
 use colophon_ui::{AppWindow, ComponentHandle, WindowCommand};
+use i_slint_backend_testing::{AccessibleRole, ElementHandle};
 use slint::platform::{Key, PointerEventButton};
 use tempfile::TempDir;
 
@@ -22,7 +23,8 @@ fn window_with_an_id3v2_3_track() -> Result<(AppWindow, TempDir), Box<dyn Error>
     )?;
     let path = folder.path().to_path_buf();
     let window = colophon_ui::main_window(Engine::new(), move || Some(path.clone()))?;
-    common::prepare(&window, 1440.0, 900.0)?;
+    // Tall enough for every section of the inspector in developer mode.
+    common::prepare(&window, 1440.0, 1800.0)?;
     window.show()?;
     find(&window, "Open folder")?.invoke_accessible_default_action();
     common::wait_until_shown(&window, "1 track")?;
@@ -113,5 +115,37 @@ fn the_frames_show_again_once_saved() -> TestResult {
     })?;
 
     assert_eq!(window.get_tag_layout().version, "4.0");
+    Ok(())
+}
+
+/// A choice of a segmented control.
+fn segment(window: &AppWindow, control: &str, label: &str) -> Result<ElementHandle, String> {
+    let wanted = label.to_string();
+    ElementHandle::find_by_accessible_label(window, control)
+        .find(|element| element.accessible_role() == Some(AccessibleRole::RadioGroup))
+        .ok_or_else(|| format!("no {control:?} control"))?
+        .query_descendants()
+        .match_predicate(move |element| element.accessible_label().is_some_and(|l| l == wanted))
+        .find_first()
+        .ok_or_else(|| format!("no {label:?} in {control:?}"))
+}
+
+#[test]
+fn a_file_rewritten_takes_the_padding_asked_for() -> TestResult {
+    let (window, _folder) = window_with_an_id3v2_3_track()?;
+    window.invoke_run(WindowCommand::ToggleDeveloperMode);
+
+    segment(&window, "Padding", "1024")?.invoke_accessible_default_action();
+    find(&window, "Unsynchronisation")?.invoke_accessible_default_action();
+    find(&window, "Rewrite Selected Files")?.invoke_accessible_default_action();
+    assert_eq!(window.get_modified_count(), 1);
+    window.invoke_run(WindowCommand::Save);
+    wait_until(&window, "the save", |window| {
+        !window.get_saving() && window.get_modified_count() == 0
+    })?;
+
+    let layout = window.get_tag_layout();
+    assert_eq!(layout.padding, 1024);
+    assert!(layout.unsynchronisation);
     Ok(())
 }
