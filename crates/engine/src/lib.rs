@@ -1,6 +1,7 @@
 //! Colophon's application state and the commands that change it. No UI types.
 
 mod columns;
+mod inspection;
 mod selection;
 
 use std::path::PathBuf;
@@ -12,6 +13,7 @@ use colophon_library::{
 
 pub use colophon_library::{Track, tags};
 pub use columns::{Column, ColumnWidths, Columns};
+pub use inspection::{AudioLine, Inspection, Shared, Summary};
 pub use selection::{Selection, Step};
 
 /// A user action. The UI turns buttons, menu items and shortcuts into commands.
@@ -125,6 +127,11 @@ impl Engine {
 
     pub fn selection(&self) -> &Selection {
         &self.selection
+    }
+
+    /// What the inspector shows of the selected tracks.
+    pub fn inspection(&self) -> Inspection<'_> {
+        inspection::inspect(&self.library.tracks, &self.selection)
     }
 
     pub fn execute(&mut self, command: Command) {

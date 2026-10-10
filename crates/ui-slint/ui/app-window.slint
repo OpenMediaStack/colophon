@@ -8,8 +8,9 @@ import { Region, ToolbarButton } from "widgets.slint";
 import { EmptyState } from "empty-state.slint";
 import { ScanState, StatusBar } from "status-bar.slint";
 import { TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
+import { ByteSize, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
 
-export { Theme, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus }
+export { Theme, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, ByteSize, InspectedTracks, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
@@ -56,6 +57,9 @@ export component AppWindow inherits Window {
     in property <TrackRow> longest;
     in property <int> focused-row: -1;
     in property <int> selected-count;
+    in property <InspectorState> inspector-state;
+    in property <InspectedTracks> inspected-tracks;
+    in property <UnreadableFile> unreadable-file;
     callback toggle-column(TrackColumn);
     callback resize-columns(TrackColumnWidths);
     // A click on a track, by its row, with Command (Ctrl elsewhere) or Shift held.
@@ -233,10 +237,12 @@ export component AppWindow inherits Window {
                 }
             }
 
-            if root.inspector-visible: Region {
+            if root.inspector-visible: Inspector {
                 width: root.inspector-width;
-                label: @tr("Inspector");
-                background: Theme.surface-1;
+                state: root.inspector-state;
+                tracks: root.inspected-tracks;
+                unreadable: root.unreadable-file;
+                select-all-shortcut: root.mac-shortcuts ? "⌘A" : "Ctrl+A";
             }
         }
 

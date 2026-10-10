@@ -6,8 +6,10 @@ use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::time::Duration;
 
+use colophon_engine::tags::ReadError;
 use colophon_engine::{
-    Column, ColumnWidths, Command, Engine, Library, ScanStatus, Selection, Step, Track, ViewState,
+    AudioLine, Column, ColumnWidths, Command, Engine, Inspection, Library, ScanStatus, Selection,
+    Shared, Step, Summary, Track, ViewState,
 };
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
@@ -20,8 +22,9 @@ mod generated {
 /// What the window asks the engine to run, before the bridge turns it into a [`Command`].
 pub use generated::Command as WindowCommand;
 pub use generated::{
-    AppWindow, ScanState, Theme, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow,
-    TrackStatus,
+    AppWindow, ByteSize, InspectedTracks, InspectorField, InspectorState, ReadProblem, ScanState,
+    SizeUnit, Theme, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow, TrackStatus,
+    UnreadableFile,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -152,6 +155,7 @@ impl Bridge {
         show_library(&window, engine.library());
         self.show_tracks(&window, engine.library());
         self.show_selection(&window, engine.selection());
+        show_inspection(&window, engine.library(), engine.inspection());
     }
 
     /// Marks the selected rows, touching only the rows that change.
@@ -227,6 +231,115 @@ impl From<&TrackRow> for SelectionMarks {
             below: row.selected_below,
         }
     }
+}
+
+fn show_inspection(window: &AppWindow, library: &Library, inspection: Inspection<'_>) {
+    let state = match inspection {
+        _ if library.folder.is_none() => InspectorState::Empty,
+        Inspection::Nothing => InspectorState::NothingSelected,
+        Inspection::Unreadable { track, error } => {
+            window.set_unreadable_file(UnreadableFile {
+                path: display_folder(&track.path).into(),
+                problem: read_problem(error),
+                size: byte_size(track.size),
+            });
+            InspectorState::Unreadable
+        }
+        Inspection::Tracks(summary) => {
+            window.set_inspected_tracks(inspected_tracks(&summary));
+            InspectorState::Tracks
+        }
+    };
+    window.set_inspector_state(state);
+}
+
+fn read_problem(error: &ReadError) -> ReadProblem {
+    match error {
+        ReadError::Open(_) => ReadProblem::CannotOpen,
+        ReadError::Damaged(_) => ReadProblem::Damaged,
+        ReadError::ReaderPanicked => ReadProblem::ReaderFailed,
+    }
+}
+
+fn inspected_tracks(summary: &Summary) -> InspectedTracks {
+    let audio = match summary.audio {
+        Shared::Same(audio) => Some(audio),
+        Shared::Empty | Shared::Mixed => None,
+    };
+    let AudioLine {
+        bitrate,
+        sample_rate,
+    } = audio.unwrap_or(AudioLine {
+        bitrate: 0,
+        sample_rate: 0,
+    });
+    // Tenths of kilohertz, rounded: 44100 Hz reads 44.1 kHz, 22050 Hz 22.1 kHz.
+    let tenths = (sample_rate + 50) / 100;
+    InspectedTracks {
+        count: count(summary.count),
+        unreadable: count(summary.unreadable),
+        heading: summary.heading.clone().unwrap_or_default().into(),
+        title: field(&summary.title, String::clone),
+        artist: field(&summary.artist, String::clone),
+        album_artist: field(&summary.album_artist, String::clone),
+        album: field(&summary.album, String::clone),
+        year: field(&summary.year, ToString::to_string),
+        track: field(&summary.track, ToString::to_string),
+        track_total: field(&summary.track_total, ToString::to_string),
+        genre: field(&summary.genre, String::clone),
+        comment: field(&summary.comment, String::clone),
+        audio_shared: audio.is_some(),
+        bitrate: number(bitrate),
+        sample_rate_whole: number(tenths / 10),
+        sample_rate_tenth: number(tenths % 10),
+        formats: field(&summary.formats, |formats| {
+            formats
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        }),
+        size: byte_size(summary.size),
+    }
+}
+
+fn field<T>(value: &Shared<T>, text: impl Fn(&T) -> String) -> InspectorField {
+    match value {
+        Shared::Empty => InspectorField::default(),
+        Shared::Same(value) => InspectorField {
+            text: text(value).into(),
+            mixed: false,
+        },
+        Shared::Mixed => InspectorField {
+            text: SharedString::default(),
+            mixed: true,
+        },
+    }
+}
+
+/// A size in decimal units, as macOS writes them: a whole number of kilobytes, one decimal digit
+/// from a megabyte on.
+fn byte_size(bytes: u64) -> ByteSize {
+    let (unit, scale) = match bytes {
+        0..1_000 => return sized(bytes, 0, SizeUnit::Bytes),
+        1_000..1_000_000 => return sized((bytes + 500) / 1_000, 0, SizeUnit::Kilobytes),
+        1_000_000..1_000_000_000 => (SizeUnit::Megabytes, 100_000),
+        _ => (SizeUnit::Gigabytes, 100_000_000),
+    };
+    let tenths = (bytes + scale / 2) / scale;
+    sized(tenths / 10, tenths % 10, unit)
+}
+
+fn sized(whole: u64, tenth: u64, unit: SizeUnit) -> ByteSize {
+    ByteSize {
+        whole: number(whole),
+        tenth: number(tenth),
+        unit,
+    }
+}
+
+fn number(value: impl TryInto<i32>) -> i32 {
+    value.try_into().unwrap_or(i32::MAX)
 }
 
 fn show_view(window: &AppWindow, view: &ViewState) {
@@ -534,6 +647,30 @@ mod tests {
         assert_eq!(marks(4), (true, true, false));
         assert_eq!(marks(5), (false, false, false));
         assert_eq!(marks(7), (true, false, false));
+    }
+
+    #[test]
+    fn sizes_read_as_on_macos() {
+        let size = |bytes| {
+            let size = byte_size(bytes);
+            (size.whole, size.tenth, size.unit)
+        };
+
+        assert_eq!(size(999), (999, 0, SizeUnit::Bytes));
+        assert_eq!(size(1_202), (1, 0, SizeUnit::Kilobytes));
+        assert_eq!(size(850_400), (850, 0, SizeUnit::Kilobytes));
+        assert_eq!(size(25_400_000), (25, 4, SizeUnit::Megabytes));
+        assert_eq!(size(8_349_999), (8, 3, SizeUnit::Megabytes));
+        assert_eq!(size(1_250_000_000), (1, 3, SizeUnit::Gigabytes));
+    }
+
+    #[test]
+    fn a_mixed_field_has_no_text() {
+        let mixed = field(&Shared::<String>::Mixed, String::clone);
+        let same = field(&Shared::Same(2019), ToString::to_string);
+
+        assert!(mixed.mixed && mixed.text.is_empty());
+        assert_eq!((same.text.as_str(), same.mixed), ("2019", false));
     }
 
     #[test]
