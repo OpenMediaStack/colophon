@@ -137,6 +137,8 @@ export component AppWindow inherits Window {
     in property <string> player-duration;
     in property <float> player-volume;
     in property <image> player-waveform;
+    in property <image> player-bass;
+    in property <image> player-treble;
     in property <bool> player-has-waveform;
     callback player-seek(float);
     callback player-set-volume(float);
@@ -478,6 +480,8 @@ export component AppWindow inherits Window {
                     duration: root.player-duration;
                     volume: root.player-volume;
                     waveform: root.player-waveform;
+                    bass: root.player-bass;
+                    treble: root.player-treble;
                     has-waveform: root.player-has-waveform;
                     play-pause => {
                         root.run(Command.play-pause);

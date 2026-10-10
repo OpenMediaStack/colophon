@@ -373,7 +373,14 @@ struct DrawnSpectrum {
 #[derive(Default)]
 struct WaveformDrawing {
     track: Option<usize>,
-    reading: Option<Receiver<Option<SharedPixelBuffer<Rgba8Pixel>>>>,
+    reading: Option<Receiver<Option<WaveformBars>>>,
+}
+
+/// A waveform's bars: the whole sound, its bass and its treble.
+struct WaveformBars {
+    sound: SharedPixelBuffer<Rgba8Pixel>,
+    bass: SharedPixelBuffer<Rgba8Pixel>,
+    treble: SharedPixelBuffer<Rgba8Pixel>,
 }
 
 /// Album covers drawn small, by the address of their shared bytes, and those being drawn.
@@ -819,9 +826,14 @@ impl Bridge {
         let spawned = std::thread::Builder::new()
             .name("waveform".to_string())
             .spawn(move || {
-                let bars = colophon_player::Waveform::read(&path)
-                    .ok()
-                    .map(|waveform| waveform_bars(&waveform.peaks(WAVEFORM_BARS)));
+                let bars = colophon_player::Waveform::read(&path).ok().map(|waveform| {
+                    let peaks = waveform.peaks(WAVEFORM_BARS);
+                    WaveformBars {
+                        sound: waveform_bars(&peaks, |peak| (peak.low, peak.high)),
+                        bass: waveform_bars(&peaks, |peak| (-peak.bass, peak.bass)),
+                        treble: waveform_bars(&peaks, |peak| (-peak.treble, peak.treble)),
+                    }
+                });
                 let _ = sender.send(bars);
             });
         if spawned.is_ok() {
@@ -915,7 +927,9 @@ impl Bridge {
         };
         drawing.reading = None;
         if let (Some(window), Some(bars)) = (self.window.upgrade(), bars) {
-            window.set_player_waveform(Image::from_rgba8(bars));
+            window.set_player_waveform(Image::from_rgba8(bars.sound));
+            window.set_player_bass(Image::from_rgba8(bars.bass));
+            window.set_player_treble(Image::from_rgba8(bars.treble));
             window.set_player_has_waveform(true);
         }
     }
@@ -1388,17 +1402,22 @@ const BAR_WIDTH: u32 = 2;
 const BAR_STRIDE: u32 = 3;
 const WAVEFORM_HEIGHT: u32 = 72;
 
-/// White bars on transparency, one per peak, that the window tints.
-fn waveform_bars(peaks: &[colophon_player::Peak]) -> SharedPixelBuffer<Rgba8Pixel> {
+/// White bars on transparency, one per peak from the lowest to the highest value `extent` gives
+/// it, that the window tints.
+fn waveform_bars(
+    peaks: &[colophon_player::Peak],
+    extent: impl Fn(&colophon_player::Peak) -> (f32, f32),
+) -> SharedPixelBuffer<Rgba8Pixel> {
     let width = u32::try_from(peaks.len()).unwrap_or(0) * BAR_STRIDE;
     let mut buffer = SharedPixelBuffer::<Rgba8Pixel>::new(width.max(1), WAVEFORM_HEIGHT);
     let middle = WAVEFORM_HEIGHT as f32 / 2.0;
     let row_length = buffer.width() as usize;
     let pixels = buffer.make_mut_slice();
     for (bar, peak) in peaks.iter().enumerate() {
+        let (low, high) = extent(peak);
         // At least a line, so that silence still shows where the track is.
-        let top = (middle - peak.high.clamp(0.0, 1.0) * middle).min(middle - 1.0) as usize;
-        let bottom = (middle - peak.low.clamp(-1.0, 0.0) * middle).max(middle + 1.0) as usize;
+        let top = (middle - high.clamp(0.0, 1.0) * middle).min(middle - 1.0) as usize;
+        let bottom = (middle - low.clamp(-1.0, 0.0) * middle).max(middle + 1.0) as usize;
         let left = bar * BAR_STRIDE as usize;
         for row in top..bottom.min(WAVEFORM_HEIGHT as usize) {
             let start = row * row_length + left;
@@ -2107,6 +2126,36 @@ mod tests {
     #[test]
     fn the_home_folder_itself_is_a_tilde() {
         assert_eq!(display_folder(&home()), "~");
+    }
+
+    #[test]
+    fn each_band_of_a_waveform_draws_bars_as_high_as_it_is_loud() {
+        let peaks = [colophon_player::Peak {
+            low: -1.0,
+            high: 1.0,
+            bass: 0.5,
+            treble: 0.0,
+        }];
+        let rows = |bars: SharedPixelBuffer<Rgba8Pixel>| {
+            bars.as_slice()
+                .chunks(bars.width() as usize)
+                .filter(|row| row[0].a == 255)
+                .count()
+        };
+
+        assert_eq!(
+            rows(waveform_bars(&peaks, |peak| (peak.low, peak.high))),
+            72
+        );
+        assert_eq!(
+            rows(waveform_bars(&peaks, |peak| (-peak.bass, peak.bass))),
+            36
+        );
+        // Silence still draws a line.
+        assert_eq!(
+            rows(waveform_bars(&peaks, |peak| (-peak.treble, peak.treble))),
+            2
+        );
     }
 
     #[test]

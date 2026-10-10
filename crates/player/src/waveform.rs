@@ -1,5 +1,6 @@
-//! How loud a track is over its length: the lowest and highest sample of each slice, at several
-//! resolutions, so that a waveform of any width draws at once.
+//! How loud a track is over its length: the lowest and highest sample of each slice, and how loud
+//! its bass and its treble are, at several resolutions, so that a waveform of any width draws at
+//! once.
 
 use std::path::Path;
 use std::time::Duration;
@@ -11,12 +12,18 @@ use crate::decoder;
 
 /// The frames of a slice of the finest resolution.
 const FRAMES_PER_PEAK: usize = 256;
+/// Where the bass ends and the treble starts, in hertz.
+const BASS_BELOW: f32 = 250.0;
+const TREBLE_ABOVE: f32 = 4000.0;
 
-/// The lowest and the highest sample of a slice, from -1 to 1.
+/// The lowest and the highest sample of a slice, from -1 to 1, and the loudest sample of its bass
+/// and of its treble, from 0 to 1.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Peak {
     pub low: f32,
     pub high: f32,
+    pub bass: f32,
+    pub treble: f32,
 }
 
 impl Peak {
@@ -24,7 +31,29 @@ impl Peak {
         Peak {
             low: self.low.min(other.low),
             high: self.high.max(other.high),
+            bass: self.bass.max(other.bass),
+            treble: self.treble.max(other.treble),
         }
+    }
+}
+
+/// A one-pole low-pass filter: what of a signal lies below its frequency.
+struct LowPass {
+    weight: f32,
+    value: f32,
+}
+
+impl LowPass {
+    fn new(frequency: f32, rate: u32) -> Self {
+        Self {
+            weight: 1.0 - (-std::f32::consts::TAU * frequency / rate.max(1) as f32).exp(),
+            value: 0.0,
+        }
+    }
+
+    fn pass(&mut self, sample: f32) -> f32 {
+        self.value += self.weight * (sample - self.value);
+        self.value
     }
 }
 
@@ -53,6 +82,8 @@ impl Waveform {
         rate: u32,
     ) -> Self {
         let channels = channels.max(1);
+        let mut bass = LowPass::new(BASS_BELOW, rate);
+        let mut below_treble = LowPass::new(TREBLE_ABOVE, rate);
         let mut finest = Vec::new();
         let mut current: Option<Peak> = None;
         let mut frames = 0;
@@ -72,6 +103,8 @@ impl Waveform {
             let peak = Peak {
                 low: value,
                 high: value,
+                bass: bass.pass(value).abs(),
+                treble: (value - below_treble.pass(value)).abs(),
             };
             current = Some(current.map_or(peak, |current| current.merge(peak)));
             frames += 1;
@@ -193,6 +226,22 @@ mod tests {
             .max_by(|(_, one), (_, other)| one.high.total_cmp(&other.high))
             .map(|(bar, _)| bar);
         assert_eq!(loudest, Some(5));
+    }
+
+    #[test]
+    fn a_low_tone_is_bass_and_a_high_one_treble() {
+        let tone = |frequency: f32| {
+            let samples = (0..44_100).map(move |at| {
+                0.5 * (std::f32::consts::TAU * frequency * at as f32 / 44_100.0).sin()
+            });
+            Waveform::from_samples(samples, 1, 44_100).peaks(1)[0]
+        };
+
+        let low = tone(60.0);
+        let high = tone(10_000.0);
+
+        assert!(low.bass > 0.3 && low.treble < 0.05, "{low:?}");
+        assert!(high.treble > 0.3 && high.bass < 0.05, "{high:?}");
     }
 
     #[test]
