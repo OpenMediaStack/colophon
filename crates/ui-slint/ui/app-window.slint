@@ -620,7 +620,8 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                PlayerBar {
+                // Out of the way until a track plays.
+                if root.player-has-track: PlayerBar {
                     available: root.player-available;
                     has-track: root.player-has-track;
                     playing: root.player-playing;

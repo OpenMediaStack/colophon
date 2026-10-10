@@ -117,6 +117,21 @@ export component PlayerBar inherits Rectangle {
     callback seek(float);
     callback set-volume(float);
 
+    // When the centre narrows, the volume goes first, then the waveform shortens. A changed
+    // handler rather than a binding, since the bar's width depends on what it holds.
+    property <bool> with-volume: true;
+
+    function update-volume-fit() {
+        root.with-volume = root.width >= 700px;
+    }
+
+    init => {
+        root.update-volume-fit();
+    }
+    changed width => {
+        root.update-volume-fit();
+    }
+
     height: 56px;
     background: Theme.surface-2;
     accessible-role: groupbox;
@@ -284,14 +299,14 @@ export component PlayerBar inherits Rectangle {
             color: Theme.text-secondary;
         }
 
-        Image {
+        if root.with-volume: Image {
             width: 16px;
             y: (parent.height - self.height) / 2;
             source: @image-url("images/volume.svg");
             colorize: Theme.text-secondary;
         }
 
-        Scrub {
+        if root.with-volume: Scrub {
             y: (parent.height - self.height) / 2;
             width: 100px;
             label: @tr("Volume");

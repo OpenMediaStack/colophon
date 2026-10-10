@@ -427,6 +427,14 @@ fn the_table_matches_its_references() -> TestResult {
             }
             let window = window_with(rows, width as f32, height as f32)?;
             window.global::<Theme>().set_dark(dark);
+            // A track plays, so that the player's layout is checked at each size too.
+            window.set_player_available(true);
+            window.set_player_has_track(true);
+            window.set_player_title("Track 00002".into());
+            window.set_player_artist("Artist 00002".into());
+            window.set_player_position("1:24".into());
+            window.set_player_duration("3:41".into());
+            window.set_player_progress(0.38);
             window.show()?;
             if sideways != 0.0 {
                 find(&window, "Tracks")?.scroll(sideways, 0.0);
