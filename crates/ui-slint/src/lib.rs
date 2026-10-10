@@ -1,6 +1,7 @@
 //! Colophon's user interface, written in Slint, and its bridge to the engine.
 
 use std::cell::RefCell;
+use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
@@ -8,8 +9,8 @@ use std::time::Duration;
 
 use colophon_engine::tags::{self, ReadError};
 use colophon_engine::{
-    AudioLine, Column, ColumnWidths, Command, Engine, Inspection, Library, ScanStatus, Selection,
-    Shared, Step, Summary, Track, ViewState,
+    AudioLine, Column, ColumnWidths, Command, Edit, Engine, Field, Inspection, Library, ScanStatus,
+    Selection, Shared, Step, Summary, Track, ViewState,
 };
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
@@ -23,8 +24,8 @@ mod generated {
 pub use generated::Command as WindowCommand;
 pub use generated::{
     AppWindow, BitrateMode, ByteSize, InspectedTracks, InspectorField, InspectorState, ReadProblem,
-    ScanState, SizeUnit, Theme, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow,
-    TrackStatus, UnreadableFile,
+    ScanState, SizeUnit, TagEditing, TagField, Theme, TrackColumn, TrackColumnWidths, TrackColumns,
+    TrackRow, TrackStatus, UnreadableFile,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -46,6 +47,7 @@ pub fn main_window(
         window: window.as_weak(),
         tracks,
         longest: RefCell::default(),
+        shown_modified: RefCell::default(),
         scan_timer: Timer::default(),
         pick_folder: Box::new(pick_folder),
     });
@@ -59,6 +61,16 @@ pub fn main_window(
         move |column| {
             if let Some(column) = engine_column(column) {
                 execute(&bridge, Command::ToggleColumn(column));
+            }
+        }
+    });
+    let editing = window.global::<TagEditing>();
+    editing.on_invalid(|field, text| parse_edit(field, &text).is_none());
+    editing.on_commit({
+        let bridge = Rc::clone(&bridge);
+        move |field, text| {
+            if let Some(edit) = parse_edit(field, &text) {
+                execute(&bridge, Command::Edit(edit));
             }
         }
     });
@@ -91,6 +103,8 @@ struct Bridge {
     tracks: Rc<VecModel<TrackRow>>,
     /// The longest value of each column among the tracks shown.
     longest: RefCell<TrackRow>,
+    /// The tracks shown with pending changes, whose rows change again when the changes go.
+    shown_modified: RefCell<BTreeSet<usize>>,
     scan_timer: Timer,
     pick_folder: Box<dyn Fn() -> Option<PathBuf>>,
 }
@@ -153,7 +167,7 @@ impl Bridge {
         let engine = self.engine.borrow();
         show_view(&window, engine.view());
         show_library(&window, engine.library());
-        self.show_tracks(&window, engine.library());
+        self.show_tracks(&window, &engine);
         self.show_selection(&window, engine.selection());
         show_inspection(&window, engine.library(), engine.inspection());
     }
@@ -173,24 +187,47 @@ impl Bridge {
         window.set_selected_count(count(selection.len()));
     }
 
-    /// Adds the tracks found since the last call. A newly opened folder has fewer tracks than the
-    /// table, which empties it first.
-    fn show_tracks(&self, window: &AppWindow, library: &Library) {
+    /// Adds the tracks found since the last call, and redraws those whose pending changes came or
+    /// went. A newly opened folder has fewer tracks than the table, which empties it first.
+    fn show_tracks(&self, window: &AppWindow, engine: &Engine) {
+        let library = engine.library();
         if library.tracks.len() < self.tracks.row_count() {
             self.tracks.clear();
             self.longest.take();
+            self.shown_modified.take();
         }
         let found = library
             .tracks
             .get(self.tracks.row_count()..)
             .unwrap_or_default();
-        let rows: Vec<TrackRow> = found.iter().map(track_row).collect();
+        let rows: Vec<TrackRow> = found.iter().map(|track| track_row(track, None)).collect();
         let mut longest = self.longest.borrow_mut();
         for row in &rows {
             keep_longest(&mut longest, row);
         }
-        window.set_longest(longest.clone());
         self.tracks.extend(rows);
+
+        let modified: BTreeSet<usize> = engine.edits().modified().map(|(track, _)| track).collect();
+        let changed = self.shown_modified.replace(modified.clone());
+        for index in changed.union(&modified) {
+            let (Some(track), Some(old)) =
+                (library.tracks.get(*index), self.tracks.row_data(*index))
+            else {
+                continue;
+            };
+            let row = TrackRow {
+                selected: old.selected,
+                selected_above: old.selected_above,
+                selected_below: old.selected_below,
+                ..track_row(track, engine.edits().pending(*index))
+            };
+            if row != old {
+                keep_longest(&mut longest, &row);
+                self.tracks.set_row_data(*index, row);
+            }
+        }
+        window.set_longest(longest.clone());
+        window.set_modified_count(count(engine.edits().modified_count()));
     }
 }
 
@@ -275,21 +312,30 @@ fn inspected_tracks(summary: &Summary) -> InspectedTracks {
         sample_rate: 0,
         mode: None,
     });
+    let modified = |field| summary.modified.contains(&field);
     // Tenths of kilohertz, rounded: 44100 Hz reads 44.1 kHz, 22050 Hz 22.1 kHz.
     let tenths = (sample_rate + 50) / 100;
     InspectedTracks {
         count: count(summary.count),
         unreadable: count(summary.unreadable),
         heading: summary.heading.clone().unwrap_or_default().into(),
-        title: field(&summary.title, String::clone),
-        artist: field(&summary.artist, String::clone),
-        album_artist: field(&summary.album_artist, String::clone),
-        album: field(&summary.album, String::clone),
-        year: field(&summary.year, ToString::to_string),
-        track: field(&summary.track, ToString::to_string),
-        track_total: field(&summary.track_total, ToString::to_string),
-        genre: field(&summary.genre, String::clone),
-        comment: field(&summary.comment, String::clone),
+        title: field(&summary.title, modified(Field::Title), String::clone),
+        artist: field(&summary.artist, modified(Field::Artist), String::clone),
+        album_artist: field(
+            &summary.album_artist,
+            modified(Field::AlbumArtist),
+            String::clone,
+        ),
+        album: field(&summary.album, modified(Field::Album), String::clone),
+        year: field(&summary.year, modified(Field::Year), ToString::to_string),
+        track: field(&summary.track, modified(Field::Track), ToString::to_string),
+        track_total: field(
+            &summary.track_total,
+            modified(Field::TrackTotal),
+            ToString::to_string,
+        ),
+        genre: field(&summary.genre, modified(Field::Genre), String::clone),
+        comment: field(&summary.comment, modified(Field::Comment), String::clone),
         audio_shared: audio.is_some(),
         bitrate: number(bitrate),
         bitrate_mode: match mode {
@@ -299,7 +345,7 @@ fn inspected_tracks(summary: &Summary) -> InspectedTracks {
         },
         sample_rate_whole: number(tenths / 10),
         sample_rate_tenth: number(tenths % 10),
-        formats: field(&summary.formats, |formats| {
+        formats: field(&summary.formats, false, |formats| {
             formats
                 .iter()
                 .map(ToString::to_string)
@@ -310,18 +356,48 @@ fn inspected_tracks(summary: &Summary) -> InspectedTracks {
     }
 }
 
-fn field<T>(value: &Shared<T>, text: impl Fn(&T) -> String) -> InspectorField {
-    match value {
-        Shared::Empty => InspectorField::default(),
-        Shared::Same(value) => InspectorField {
-            text: text(value).into(),
-            mixed: false,
-        },
-        Shared::Mixed => InspectorField {
-            text: SharedString::default(),
-            mixed: true,
-        },
+fn field<T>(value: &Shared<T>, modified: bool, text: impl Fn(&T) -> String) -> InspectorField {
+    let (text, mixed) = match value {
+        Shared::Empty => (SharedString::default(), false),
+        Shared::Same(value) => (text(value).into(), false),
+        Shared::Mixed => (SharedString::default(), true),
+    };
+    InspectorField {
+        text,
+        mixed,
+        modified,
     }
+}
+
+/// What a field's text sets, or `None` when the field cannot hold it: a year runs from 1 to
+/// 9999, a track number and a total from 1. Empty text empties the field.
+fn parse_edit(field: TagField, text: &str) -> Option<Edit> {
+    let text_value = || Some(text.to_string()).filter(|text| !text.is_empty());
+    let number = || -> Option<Option<u32>> {
+        match text.trim() {
+            "" => Some(None),
+            digits => digits.parse().ok().filter(|number| *number > 0).map(Some),
+        }
+    };
+    Some(match field {
+        TagField::Title => Edit::Title(text_value()),
+        TagField::Artist => Edit::Artist(text_value()),
+        TagField::AlbumArtist => Edit::AlbumArtist(text_value()),
+        TagField::Album => Edit::Album(text_value()),
+        TagField::Genre => Edit::Genre(text_value()),
+        TagField::Comment => Edit::Comment(text_value()),
+        TagField::Track => Edit::Track(number()?),
+        TagField::TrackTotal => Edit::TrackTotal(number()?),
+        TagField::Year => Edit::Year(match text.trim() {
+            "" => None,
+            digits => Some(
+                digits
+                    .parse()
+                    .ok()
+                    .filter(|year| (1..=9999).contains(year))?,
+            ),
+        }),
+    })
 }
 
 /// A size in decimal units, as macOS writes them: a whole number of kilobytes, one decimal digit
@@ -460,9 +536,9 @@ fn show_library(window: &AppWindow, library: &Library) {
     window.set_unreadable_count(count(library.unreadable.len()));
 }
 
-/// A track as the table shows it. A file without a title tag, or whose tags cannot be read, is
-/// titled after its file name.
-fn track_row(track: &Track) -> TrackRow {
+/// A track as the table shows it, with its pending tags if it has some. A file without a title tag,
+/// or whose tags cannot be read, is titled after its file name.
+fn track_row(track: &Track, pending: Option<&tags::Tags>) -> TrackRow {
     let path = &track.path;
     let name = |part: Option<&OsStr>| -> SharedString {
         part.map(|part| part.to_string_lossy().as_ref().into())
@@ -480,7 +556,7 @@ fn track_row(track: &Track) -> TrackRow {
             ..row
         };
     };
-    let tags = &metadata.tags;
+    let tags = pending.unwrap_or(&metadata.tags);
     let audio = &metadata.audio;
     let text =
         |value: &Option<String>| -> SharedString { value.as_deref().unwrap_or_default().into() };
@@ -508,6 +584,11 @@ fn track_row(track: &Track) -> TrackRow {
             .collect::<Vec<_>>()
             .join(", ")
             .into(),
+        status: if pending.is_some() {
+            TrackStatus::Modified
+        } else {
+            TrackStatus::Normal
+        },
         ..row
     }
 }
@@ -590,7 +671,7 @@ mod tests {
     #[test]
     fn a_track_shows_its_tags() {
         let path = Path::new("/music/07.mp3");
-        let row = track_row(&track(path, Ok(paper_satellites())));
+        let row = track_row(&track(path, Ok(paper_satellites())), None);
 
         assert_eq!(row.status, TrackStatus::Normal);
         assert_eq!(row.number, "03");
@@ -612,7 +693,7 @@ mod tests {
         metadata.audio.bitrate = Some(245);
         metadata.audio.bitrate_mode = Some(tags::BitrateMode::Variable);
 
-        let row = track_row(&track(Path::new("/music/07.mp3"), Ok(metadata)));
+        let row = track_row(&track(Path::new("/music/07.mp3"), Ok(metadata)), None);
 
         assert_eq!(row.bitrate, "VBR 245");
     }
@@ -620,7 +701,7 @@ mod tests {
     #[test]
     fn a_track_without_a_title_is_titled_after_its_file_name() {
         let path = Path::new("/music/07 Paper Satellites.mp3");
-        let row = track_row(&track(path, Ok(Metadata::default())));
+        let row = track_row(&track(path, Ok(Metadata::default())), None);
 
         assert_eq!(row.title, "07 Paper Satellites");
         assert!(row.untitled);
@@ -631,7 +712,7 @@ mod tests {
     #[test]
     fn an_unreadable_track_is_titled_after_its_file_name() {
         let path = Path::new("/music/07 Paper Satellites.mp3");
-        let row = track_row(&track(path, Err(ReadError::ReaderPanicked)));
+        let row = track_row(&track(path, Err(ReadError::ReaderPanicked)), None);
 
         assert_eq!(row.status, TrackStatus::Unreadable);
         assert_eq!(row.title, "07 Paper Satellites");
@@ -671,6 +752,46 @@ mod tests {
     }
 
     #[test]
+    fn a_track_with_pending_tags_shows_them_as_modified() {
+        let pending = Tags {
+            title: Some("Neon Overpass".into()),
+            ..Tags::default()
+        };
+
+        let row = track_row(
+            &track(Path::new("/music/07.mp3"), Ok(paper_satellites())),
+            Some(&pending),
+        );
+
+        assert_eq!(row.title, "Neon Overpass");
+        assert_eq!(row.artist, "");
+        assert_eq!(row.status, TrackStatus::Modified);
+    }
+
+    #[test]
+    fn typed_text_becomes_an_edit_or_is_refused() {
+        assert_eq!(
+            parse_edit(TagField::Title, "Neon Overpass"),
+            Some(Edit::Title(Some("Neon Overpass".into())))
+        );
+        assert_eq!(parse_edit(TagField::Genre, ""), Some(Edit::Genre(None)));
+        assert_eq!(
+            parse_edit(TagField::Year, " 2024 "),
+            Some(Edit::Year(Some(2024)))
+        );
+        assert_eq!(parse_edit(TagField::Year, ""), Some(Edit::Year(None)));
+        assert_eq!(
+            parse_edit(TagField::Track, "07"),
+            Some(Edit::Track(Some(7)))
+        );
+        assert_eq!(parse_edit(TagField::Year, "20x4"), None);
+        assert_eq!(parse_edit(TagField::Year, "0"), None);
+        assert_eq!(parse_edit(TagField::Year, "10000"), None);
+        assert_eq!(parse_edit(TagField::Track, "-3"), None);
+        assert_eq!(parse_edit(TagField::TrackTotal, "0"), None);
+    }
+
+    #[test]
     fn sizes_read_as_on_macos() {
         let size = |bytes| {
             let size = byte_size(bytes);
@@ -687,8 +808,8 @@ mod tests {
 
     #[test]
     fn a_mixed_field_has_no_text() {
-        let mixed = field(&Shared::<String>::Mixed, String::clone);
-        let same = field(&Shared::Same(2019), ToString::to_string);
+        let mixed = field(&Shared::<String>::Mixed, false, String::clone);
+        let same = field(&Shared::Same(2019), true, ToString::to_string);
 
         assert!(mixed.mixed && mixed.text.is_empty());
         assert_eq!((same.text.as_str(), same.mixed), ("2019", false));
@@ -706,7 +827,7 @@ mod tests {
     #[test]
     fn a_track_shows_the_full_path_of_its_folder() {
         let path = Path::new("/Volumes/Music/Marlowe Kite/Small Hours/07.mp3");
-        let row = track_row(&track(path, Ok(Metadata::default())));
+        let row = track_row(&track(path, Ok(Metadata::default())), None);
 
         assert_eq!(row.folder, "/Volumes/Music/Marlowe Kite/Small Hours");
     }
@@ -714,7 +835,7 @@ mod tests {
     #[test]
     fn a_track_in_the_home_folder_shows_its_folder_with_a_tilde() {
         let path = home().join("Music").join("07.mp3");
-        let row = track_row(&track(&path, Ok(Metadata::default())));
+        let row = track_row(&track(&path, Ok(Metadata::default())), None);
 
         assert_eq!(row.folder, "~/Music");
     }

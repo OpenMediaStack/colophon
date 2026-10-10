@@ -4,10 +4,19 @@ import { ScrollBar } from "widgets.slint";
 // Empty while no folder is open.
 export enum InspectorState { empty, nothing-selected, tracks, unreadable }
 
-// One field of the selected tracks: their shared value, or several.
+// One field of the selected tracks: their shared value, or several, and whether it waits to be saved.
 export struct InspectorField {
     text: string,
     mixed: bool,
+    modified: bool,
+}
+
+export enum TagField { title, artist, album-artist, album, year, track, track-total, genre, comment }
+
+// What the inspector's fields need from the engine: whether a text can be kept, and keeping it.
+export global TagEditing {
+    pure callback invalid(TagField, string) -> bool;
+    callback commit(TagField, string);
 }
 
 export enum SizeUnit { bytes, kilobytes, megabytes, gigabytes }
@@ -64,45 +73,111 @@ component SectionLabel inherits Text {
 component FieldLabel inherits HorizontalLayout {
     in property <string> text;
     in property <length> size: 13px;
+    // A dot takes the place of the padding while the field waits to be saved.
+    in property <bool> modified;
 
     width: 96px;
-    padding-left: 12px;
+    padding-left: root.modified ? 0px : 12px;
+    spacing: 6px;
+
+    if root.modified: Rectangle {
+        width: 6px;
+        height: 6px;
+        y: (parent.height - self.height) / 2;
+        border-radius: 3px;
+        background: Theme.accent;
+    }
 
     Text {
         vertical-alignment: center;
         text: root.text;
         font-size: root.size;
-        color: Theme.text-secondary;
+        color: root.modified ? Theme.text-primary : Theme.text-secondary;
     }
 }
 
-// A field shown as the mockup's input, read only until tags can be edited.
-component ReadOnlyField inherits Rectangle {
+// A field of the inspector. Enter, or leaving the field, keeps what was typed; Escape puts the
+// value back. Where the tracks differ, the field starts empty and typing sets them all.
+component EditField inherits Rectangle {
     in property <InspectorField> field;
+    in property <TagField> tag;
+    in property <string> label;
     in property <bool> mono;
     in property <string> mixed-text: @tr("Multiple values");
     in property <bool> multiline;
 
+    property <string> value: root.field.mixed ? "" : root.field.text;
+    property <bool> invalid: TagEditing.invalid(root.tag, input.text);
+
+    function restore() {
+        input.text = root.value;
+    }
+
+    function keep() {
+        if input.text != root.value {
+            TagEditing.commit(root.tag, input.text);
+        }
+    }
+
+    // The engine's value changed, after an edit, an undo or another selection.
+    changed value => {
+        root.restore();
+    }
+
     min-height: 28px;
     border-radius: 4px;
     border-width: 1px;
-    border-color: Theme.border-strong;
+    border-color: root.invalid ? Theme.error : input.has-focus ? Theme.focus-ring : root.field.modified ? Theme.modified-border : Theme.border-strong;
     background: Theme.surface-2;
 
-    HorizontalLayout {
-        padding-left: 8px;
-        padding-right: 8px;
-        padding-top: root.multiline ? 6px : 0px;
-        padding-bottom: root.multiline ? 6px : 0px;
+    if root.field.mixed && input.text == "": Text {
+        x: 8px;
+        y: root.multiline ? 6px : 0px;
+        width: parent.width - 16px;
+        height: root.multiline ? self.preferred-height : parent.height;
+        vertical-alignment: center;
+        overflow: elide;
+        text: root.mixed-text;
+        color: Theme.text-tertiary;
+    }
 
-        Text {
-            vertical-alignment: root.multiline ? top : center;
-            wrap: root.multiline ? word-wrap : no-wrap;
-            overflow: elide;
-            text: root.field.mixed ? root.mixed-text : root.field.text;
-            font-family: root.mono && !root.field.mixed ? "JetBrains Mono" : "Inter";
-            font-size: root.mono && !root.field.mixed ? 12px : 13px;
-            color: root.field.mixed ? Theme.text-tertiary : Theme.text-primary;
+    input := TextInput {
+        x: 8px;
+        y: root.multiline ? 6px : 0px;
+        width: parent.width - 16px;
+        height: root.multiline ? parent.height - 12px : parent.height;
+        text: root.value;
+        single-line: !root.multiline;
+        wrap: root.multiline ? word-wrap : no-wrap;
+        vertical-alignment: root.multiline ? top : center;
+        font-family: root.mono ? "JetBrains Mono" : "Inter";
+        font-size: root.mono ? 12px : 13px;
+        color: Theme.text-primary;
+        selection-background-color: Theme.accent-selection;
+        selection-foreground-color: Theme.text-primary;
+        accessible-label: root.label;
+
+        accepted => {
+            if !root.invalid {
+                root.keep();
+            }
+        }
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.restore();
+                self.clear-focus();
+                return accept;
+            }
+            return reject;
+        }
+        changed has-focus => {
+            if !self.has-focus {
+                if root.invalid {
+                    root.restore();
+                } else {
+                    root.keep();
+                }
+            }
         }
     }
 }
@@ -117,7 +192,7 @@ component FileValue inherits Text {
     color: Theme.text-primary;
 }
 
-// The panel at the right of the window: the tags of the selected tracks, read only for now.
+// The panel at the right of the window: the tags of the selected tracks.
 export component Inspector inherits Rectangle {
     in property <InspectorState> state;
     in property <InspectedTracks> tracks;
@@ -250,50 +325,65 @@ export component Inspector inherits Rectangle {
                         Row {
                             FieldLabel {
                                 text: @tr("Title");
+                                modified: root.tracks.title.modified;
                             }
 
-                            ReadOnlyField {
+                            EditField {
                                 field: root.tracks.title;
+                                tag: TagField.title;
+                                label: @tr("Title");
                             }
                         }
 
                         Row {
                             FieldLabel {
                                 text: @tr("Artist");
+                                modified: root.tracks.artist.modified;
                             }
 
-                            ReadOnlyField {
+                            EditField {
                                 field: root.tracks.artist;
+                                tag: TagField.artist;
+                                label: @tr("Artist");
                             }
                         }
 
                         Row {
                             FieldLabel {
                                 text: @tr("Album artist");
+                                modified: root.tracks.album-artist.modified;
                             }
 
-                            ReadOnlyField {
+                            EditField {
                                 field: root.tracks.album-artist;
+                                tag: TagField.album-artist;
+                                label: @tr("Album artist");
                             }
                         }
 
                         Row {
                             FieldLabel {
                                 text: @tr("Album");
+                                modified: root.tracks.album.modified;
                             }
 
-                            ReadOnlyField {
+                            EditField {
                                 field: root.tracks.album;
+                                tag: TagField.album;
+                                label: @tr("Album");
                             }
                         }
 
                         Row {
                             FieldLabel {
                                 text: @tr("Year");
+                                modified: root.tracks.year.modified;
                             }
 
-                            ReadOnlyField {
+                            EditField {
                                 field: root.tracks.year;
+                                tag: TagField.year;
+                                label: @tr("Year");
                                 mono: true;
                             }
                         }
@@ -301,15 +391,18 @@ export component Inspector inherits Rectangle {
                         Row {
                             FieldLabel {
                                 text: @tr("Track");
+                                modified: root.tracks.track.modified || root.tracks.track-total.modified;
                             }
 
                             HorizontalLayout {
                                 spacing: 6px;
                                 alignment: start;
 
-                                ReadOnlyField {
+                                EditField {
                                     width: 72px;
                                     field: root.tracks.track;
+                                    tag: TagField.track;
+                                    label: @tr("Track");
                                     mono: true;
                                     mixed-text: @tr("Multiple");
                                 }
@@ -320,9 +413,11 @@ export component Inspector inherits Rectangle {
                                     color: Theme.text-tertiary;
                                 }
 
-                                ReadOnlyField {
+                                EditField {
                                     width: 52px;
                                     field: root.tracks.track-total;
+                                    tag: TagField.track-total;
+                                    label: @tr("Track total");
                                     mono: true;
                                     mixed-text: "…";
                                 }
@@ -332,21 +427,27 @@ export component Inspector inherits Rectangle {
                         Row {
                             FieldLabel {
                                 text: @tr("Genre");
+                                modified: root.tracks.genre.modified;
                             }
 
-                            ReadOnlyField {
+                            EditField {
                                 field: root.tracks.genre;
+                                tag: TagField.genre;
+                                label: @tr("Genre");
                             }
                         }
 
                         Row {
                             FieldLabel {
                                 text: @tr("Comment");
+                                modified: root.tracks.comment.modified;
                             }
 
-                            ReadOnlyField {
+                            EditField {
                                 height: 46px;
                                 field: root.tracks.comment;
+                                tag: TagField.comment;
+                                label: @tr("Comment");
                                 multiline: true;
                             }
                         }

@@ -412,6 +412,7 @@ fn the_table_matches_its_references() -> TestResult {
             let mut rows = tracks(40);
             rows[3].title = "04 Track without a title tag".into();
             rows[3].untitled = true;
+            rows[4].status = TrackStatus::Modified;
             rows[5] = TrackRow {
                 status: TrackStatus::Unreadable,
                 title: "06 Damaged file".into(),

@@ -1,7 +1,7 @@
 import { Theme } from "theme.slint";
 import { ListView, ScrollBar, ToolbarButton } from "widgets.slint";
 
-export enum TrackStatus { normal, unreadable }
+export enum TrackStatus { normal, modified, unreadable }
 
 export enum TrackColumn { title, artist, album, year, genre, time, bitrate, tags, file, folder }
 
@@ -181,6 +181,15 @@ component TableRow inherits Rectangle {
                 colorize: Theme.error;
                 accessible-role: image;
                 accessible-label: @tr("Unreadable");
+            }
+
+            if root.track.status == TrackStatus.modified: Rectangle {
+                width: 6px;
+                height: 6px;
+                border-radius: 3px;
+                background: Theme.accent;
+                accessible-role: image;
+                accessible-label: @tr("Unsaved changes");
             }
         }
 

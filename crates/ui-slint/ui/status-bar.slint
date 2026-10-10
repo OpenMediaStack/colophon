@@ -9,6 +9,7 @@ export component StatusBar inherits Rectangle {
     in property <int> track-count;
     in property <int> unreadable-count;
     in property <int> selected-count;
+    in property <int> modified-count;
     in property <string> folder;
     callback stop-scan;
 
@@ -41,6 +42,13 @@ export component StatusBar inherits Rectangle {
                     root.stop-scan();
                 }
             }
+        }
+
+        if root.modified-count > 0: Text {
+            vertical-alignment: center;
+            font-size: 12px;
+            color: Theme.accent-text;
+            text: @tr("{n} file with unsaved changes" | "{n} files with unsaved changes" % root.modified-count);
         }
 
         if root.unreadable-count > 0: Text {
