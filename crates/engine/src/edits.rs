@@ -91,9 +91,13 @@ impl Edit {
     }
 }
 
-/// One step of the history: the tags of each track it changed, before and after.
+/// One step of the history: the tags of each track it changed, before and after, and the field
+/// it edited, if it came from an edit.
 #[derive(Debug, Clone)]
-struct Action(Vec<Change>);
+struct Action {
+    field: Option<Field>,
+    changes: Vec<Change>,
+}
 
 #[derive(Debug, Clone)]
 struct Change {
@@ -152,14 +156,17 @@ impl Edits {
             .collect()
     }
 
-    /// Applies `edit` to each of these tracks whose tags could be read.
+    /// Applies `edit` to each of these tracks whose tags could be read. When `continues`, the
+    /// edit goes on with the latest step, if that step edited the same field of the same tracks:
+    /// typing a word makes one step, and typing back the old value makes none.
     pub(crate) fn edit(
         &mut self,
         tracks: &[Track],
         selected: impl IntoIterator<Item = usize>,
         edit: &Edit,
+        continues: bool,
     ) {
-        let changes = selected
+        let changes: Vec<Change> = selected
             .into_iter()
             .filter_map(|track| {
                 let before = self.wanted(tracks, track)?;
@@ -172,7 +179,46 @@ impl Edits {
                 })
             })
             .collect();
-        self.record(tracks, changes);
+        if continues && self.continue_last(tracks, edit.field(), &changes) {
+            return;
+        }
+        self.record(tracks, Some(edit.field()), changes);
+    }
+
+    /// Folds `changes` into the latest step, if it edited `field` of the same tracks.
+    fn continue_last(&mut self, tracks: &[Track], field: Field, changes: &[Change]) -> bool {
+        let Some(last) = self.undo.last_mut() else {
+            return false;
+        };
+        let same_tracks = last.changes.len() == changes.len()
+            && last
+                .changes
+                .iter()
+                .zip(changes)
+                .all(|(last, change)| last.track == change.track);
+        if last.field != Some(field) || !same_tracks {
+            return false;
+        }
+        for (last, change) in last.changes.iter_mut().zip(changes) {
+            last.after = change.after.clone();
+        }
+        let undone = last
+            .changes
+            .iter()
+            .all(|change| change.before == change.after);
+        let wanted: Vec<(usize, Tags)> = last
+            .changes
+            .iter()
+            .map(|change| (change.track, change.after.clone()))
+            .collect();
+        if undone {
+            self.undo.pop();
+        }
+        for (track, tags) in wanted {
+            self.want(tracks, track, tags);
+        }
+        self.redo.clear();
+        true
     }
 
     /// Brings these tracks back to their files' tags.
@@ -187,12 +233,12 @@ impl Edits {
                 })
             })
             .collect();
-        self.record(tracks, changes);
+        self.record(tracks, None, changes);
     }
 
     pub(crate) fn undo(&mut self, tracks: &[Track]) {
         if let Some(action) = self.undo.pop() {
-            for change in &action.0 {
+            for change in &action.changes {
                 self.want(tracks, change.track, change.before.clone());
             }
             self.redo.push(action);
@@ -201,7 +247,7 @@ impl Edits {
 
     pub(crate) fn redo(&mut self, tracks: &[Track]) {
         if let Some(action) = self.redo.pop() {
-            for change in &action.0 {
+            for change in &action.changes {
                 self.want(tracks, change.track, change.after.clone());
             }
             self.undo.push(action);
@@ -216,7 +262,7 @@ impl Edits {
     }
 
     /// Takes in a change that does change something as the latest step of the history.
-    fn record(&mut self, tracks: &[Track], changes: Vec<Change>) {
+    fn record(&mut self, tracks: &[Track], field: Option<Field>, changes: Vec<Change>) {
         let changes: Vec<Change> = changes
             .into_iter()
             .filter(|change| change.before != change.after)
@@ -227,7 +273,7 @@ impl Edits {
         for change in &changes {
             self.want(tracks, change.track, change.after.clone());
         }
-        self.undo.push(Action(changes));
+        self.undo.push(Action { field, changes });
         self.redo.clear();
     }
 
@@ -300,7 +346,7 @@ mod tests {
         let tracks = [track("a"), track("b"), track("c")];
         let mut edits = Edits::default();
 
-        edits.edit(&tracks, [0, 2], &renamed("New"));
+        edits.edit(&tracks, [0, 2], &renamed("New"), false);
 
         assert_eq!(title(&edits, &tracks, 0).as_deref(), Some("New"));
         assert_eq!(title(&edits, &tracks, 1).as_deref(), Some("b"));
@@ -313,7 +359,7 @@ mod tests {
         let tracks = [track("a")];
         let mut edits = Edits::default();
 
-        edits.edit(&tracks, [0], &Edit::Title(Some(String::new())));
+        edits.edit(&tracks, [0], &Edit::Title(Some(String::new())), false);
 
         assert_eq!(title(&edits, &tracks, 0), None);
     }
@@ -323,8 +369,8 @@ mod tests {
         let tracks = [track("a")];
         let mut edits = Edits::default();
 
-        edits.edit(&tracks, [0], &renamed("New"));
-        edits.edit(&tracks, [0], &renamed("a"));
+        edits.edit(&tracks, [0], &renamed("New"), false);
+        edits.edit(&tracks, [0], &renamed("a"), false);
 
         assert_eq!(edits.modified_count(), 0);
         assert!(edits.can_undo());
@@ -335,7 +381,7 @@ mod tests {
         let tracks = [track("a")];
         let mut edits = Edits::default();
 
-        edits.edit(&tracks, [0], &renamed("a"));
+        edits.edit(&tracks, [0], &renamed("a"), false);
 
         assert!(!edits.can_undo());
     }
@@ -344,8 +390,8 @@ mod tests {
     fn undo_and_redo_walk_the_history() {
         let tracks = [track("a")];
         let mut edits = Edits::default();
-        edits.edit(&tracks, [0], &renamed("One"));
-        edits.edit(&tracks, [0], &renamed("Two"));
+        edits.edit(&tracks, [0], &renamed("One"), false);
+        edits.edit(&tracks, [0], &renamed("Two"), false);
 
         edits.undo(&tracks);
         assert_eq!(title(&edits, &tracks, 0).as_deref(), Some("One"));
@@ -360,10 +406,10 @@ mod tests {
     fn a_new_edit_forgets_what_could_be_redone() {
         let tracks = [track("a")];
         let mut edits = Edits::default();
-        edits.edit(&tracks, [0], &renamed("One"));
+        edits.edit(&tracks, [0], &renamed("One"), false);
         edits.undo(&tracks);
 
-        edits.edit(&tracks, [0], &renamed("Two"));
+        edits.edit(&tracks, [0], &renamed("Two"), false);
 
         assert!(!edits.can_redo());
     }
@@ -372,7 +418,7 @@ mod tests {
     fn revert_brings_back_the_files_tags_and_can_be_undone() {
         let tracks = [track("a"), track("b")];
         let mut edits = Edits::default();
-        edits.edit(&tracks, [0, 1], &renamed("New"));
+        edits.edit(&tracks, [0, 1], &renamed("New"), false);
 
         edits.revert(&tracks, [0]);
         assert_eq!(title(&edits, &tracks, 0).as_deref(), Some("a"));
@@ -387,18 +433,57 @@ mod tests {
         let tracks = [track("a"), unreadable()];
         let mut edits = Edits::default();
 
-        edits.edit(&tracks, [0, 1], &renamed("New"));
+        edits.edit(&tracks, [0, 1], &renamed("New"), false);
 
         assert_eq!(edits.modified_count(), 1);
         assert_eq!(edits.pending(1), None);
     }
 
     #[test]
+    fn typing_goes_on_with_the_same_step() {
+        let tracks = [track("a")];
+        let mut edits = Edits::default();
+
+        edits.edit(&tracks, [0], &renamed("N"), false);
+        edits.edit(&tracks, [0], &renamed("Ne"), true);
+        edits.edit(&tracks, [0], &renamed("New"), true);
+        assert_eq!(title(&edits, &tracks, 0).as_deref(), Some("New"));
+
+        edits.undo(&tracks);
+        assert_eq!(title(&edits, &tracks, 0).as_deref(), Some("a"));
+        assert!(!edits.can_undo());
+    }
+
+    #[test]
+    fn typing_back_the_old_value_leaves_no_step() {
+        let tracks = [track("a")];
+        let mut edits = Edits::default();
+
+        edits.edit(&tracks, [0], &renamed("New"), false);
+        edits.edit(&tracks, [0], &renamed("a"), true);
+
+        assert_eq!(edits.modified_count(), 0);
+        assert!(!edits.can_undo());
+    }
+
+    #[test]
+    fn another_field_starts_a_new_step() {
+        let tracks = [track("a")];
+        let mut edits = Edits::default();
+        edits.edit(&tracks, [0], &renamed("New"), false);
+
+        edits.edit(&tracks, [0], &Edit::Year(Some(2024)), true);
+        edits.undo(&tracks);
+
+        assert_eq!(title(&edits, &tracks, 0).as_deref(), Some("New"));
+    }
+
+    #[test]
     fn modified_fields_are_those_that_differ_from_the_file() {
         let tracks = [track("a"), track("b")];
         let mut edits = Edits::default();
-        edits.edit(&tracks, [0], &renamed("New"));
-        edits.edit(&tracks, [1], &Edit::Year(Some(2024)));
+        edits.edit(&tracks, [0], &renamed("New"), false);
+        edits.edit(&tracks, [1], &Edit::Year(Some(2024)), false);
 
         assert_eq!(
             edits.modified_fields(&tracks, [0]),

@@ -14,7 +14,7 @@ use lofty::mpeg::MpegFile;
 use lofty::tag::Accessor;
 use lofty::tag::items::Timestamp;
 
-use crate::{Metadata, ReadError, Tags, read};
+use crate::{Id3v1Version, Id3v2Version, Metadata, ReadError, TagFormat, Tags, read};
 
 const ALBUM_ARTIST: FrameId<'static> = FrameId::Valid(Cow::Borrowed("TPE2"));
 /// Every frame that holds a date, in ID3v2.4 (TDRC) or as ID3v2.2 and 2.3 kept it. lofty may
@@ -183,8 +183,25 @@ fn id3v1_genre(name: &str) -> Option<u8> {
         .and_then(|index| u8::try_from(index).ok())
 }
 
+/// The tags a file with these `formats` will hold once `write` puts `tags` into it: ID3v2.4, then
+/// its ID3v1 rewritten (1.1 when it can hold the track number), then its APE tag, left as it is.
+pub fn formats_after_write(formats: &[TagFormat], tags: &Tags) -> Vec<TagFormat> {
+    let has = |wanted: fn(&TagFormat) -> bool| formats.iter().any(wanted);
+    let id3v1 = has(|format| matches!(format, TagFormat::Id3v1(_))).then(|| {
+        match tags.track.and_then(|track| u8::try_from(track).ok()) {
+            Some(_) => TagFormat::Id3v1(Id3v1Version::V1_1),
+            None => TagFormat::Id3v1(Id3v1Version::V1_0),
+        }
+    });
+    let ape = has(|format| *format == TagFormat::Ape).then_some(TagFormat::Ape);
+    [Some(TagFormat::Id3v2(Id3v2Version::V2_4)), id3v1, ape]
+        .into_iter()
+        .flatten()
+        .collect()
+}
+
 /// A field whose value an ID3v1 tag cannot hold whole.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Id3v1Loss {
     Title,
     Artist,

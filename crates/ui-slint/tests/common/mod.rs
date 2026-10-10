@@ -238,3 +238,17 @@ pub fn retype(window: &AppWindow, label: &str, text: &str) -> TestResult {
     type_text(window, text);
     Ok(())
 }
+
+/// Lets the engine's threads work and the window's timers fire, until `done` holds or a few
+/// seconds pass.
+pub fn wait_until(window: &AppWindow, what: &str, done: impl Fn(&AppWindow) -> bool) -> TestResult {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !done(window) {
+        if Instant::now() > deadline {
+            return Err(format!("{what} never happened").into());
+        }
+        thread::sleep(Duration::from_millis(2));
+        i_slint_backend_testing::mock_elapsed_time(Duration::from_millis(60));
+    }
+    Ok(())
+}

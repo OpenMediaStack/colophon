@@ -1,5 +1,5 @@
 import { Theme } from "theme.slint";
-import { ScrollBar } from "widgets.slint";
+import { Button, ScrollBar } from "widgets.slint";
 
 // Empty while no folder is open.
 export enum InspectorState { empty, nothing-selected, tracks, unreadable }
@@ -13,10 +13,23 @@ export struct InspectorField {
 
 export enum TagField { title, artist, album-artist, album, year, track, track-total, genre, comment }
 
-// What the inspector's fields need from the engine: whether a text can be kept, and keeping it.
+// What the inspector's fields need from the engine: whether a text can be kept, keeping it (the
+// last argument says it goes on with what was typed before), and undoing what was typed.
 export global TagEditing {
     pure callback invalid(TagField, string) -> bool;
-    callback commit(TagField, string);
+    callback commit(TagField, string, bool);
+    callback cancel-typing;
+}
+
+// The fields an ID3v1 tag will not hold whole.
+export struct Id3v1Losses {
+    title: bool,
+    artist: bool,
+    album: bool,
+    year: bool,
+    comment: bool,
+    track: bool,
+    genre: bool,
 }
 
 export enum SizeUnit { bytes, kilobytes, megabytes, gigabytes }
@@ -53,6 +66,11 @@ export struct InspectedTracks {
     sample-rate-tenth: int,
     formats: InspectorField,
     size: ByteSize,
+    // At least one selected track has changes waiting to be saved.
+    has-changes: bool,
+    // The tags those tracks will hold once saved, and what their ID3v1 tags will lose.
+    saved-as: InspectorField,
+    id3v1-losses: Id3v1Losses,
 }
 
 export enum ReadProblem { cannot-open, damaged, reader-failed }
@@ -108,20 +126,28 @@ component EditField inherits Rectangle {
 
     property <string> value: root.field.mixed ? "" : root.field.text;
     property <bool> invalid: TagEditing.invalid(root.tag, input.text);
+    // What the field held when it took the focus, and whether a value was kept since: each key
+    // is kept at once, so that saving never misses what was just typed.
+    property <string> started-with;
+    property <bool> typing;
 
     function restore() {
         input.text = root.value;
     }
 
-    function keep() {
-        if input.text != root.value {
-            TagEditing.commit(root.tag, input.text);
+    // Undoes what was typed since the field took the focus.
+    function cancel() {
+        if root.typing {
+            TagEditing.cancel-typing();
+            root.typing = false;
         }
     }
 
-    // The engine's value changed, after an edit, an undo or another selection.
+    // The engine's value changed, after an undo or another selection; typing keeps its text.
     changed value => {
-        root.restore();
+        if !input.has-focus {
+            root.restore();
+        }
     }
 
     min-height: 28px;
@@ -157,26 +183,38 @@ component EditField inherits Rectangle {
         selection-foreground-color: Theme.text-primary;
         accessible-label: root.label;
 
+        edited => {
+            if root.invalid {
+                // The engine keeps the value from before, until the text makes sense again.
+                root.cancel();
+            } else if self.text != root.value {
+                TagEditing.commit(root.tag, self.text, root.typing);
+                root.typing = true;
+            }
+        }
         accepted => {
             if !root.invalid {
-                root.keep();
+                self.clear-focus();
             }
         }
         key-pressed(event) => {
             if event.text == Key.Escape {
-                root.restore();
+                root.cancel();
+                self.text = root.started-with;
                 self.clear-focus();
                 return accept;
             }
             return reject;
         }
         changed has-focus => {
-            if !self.has-focus {
+            if self.has-focus {
+                root.started-with = root.value;
+            } else {
                 if root.invalid {
-                    root.restore();
-                } else {
-                    root.keep();
+                    root.cancel();
+                    self.text = root.started-with;
                 }
+                root.typing = false;
             }
         }
     }
@@ -199,8 +237,14 @@ export component Inspector inherits Rectangle {
     in property <UnreadableFile> unreadable;
     // How Select All is written on this system: ⌘A or Ctrl+A.
     in property <string> select-all-shortcut;
+    // The files with changes waiting to be saved, and whether a save runs.
+    in property <int> modified-count;
+    in property <bool> saving;
+    callback revert;
+    callback save;
 
     property <length> scrollbar-size: 10px;
+    property <length> actions-height: 53px;
     property <string> album-and-artist: root.tracks.album.mixed || root.tracks.album.text == "" ? root.shared-artist
         : root.shared-artist == "" ? root.tracks.album.text
         : root.tracks.album.text + " · " + root.shared-artist;
@@ -217,6 +261,14 @@ export component Inspector inherits Rectangle {
             return @tr("{0}.{1}\u{a0}MB", size.whole, size.tenth);
         }
         return @tr("{0}.{1}\u{a0}GB", size.whole, size.tenth);
+    }
+
+    pure function join(names: string, name: string, lost: bool) -> string {
+        return !lost ? names : names == "" ? name : names + ", " + name;
+    }
+
+    pure function lost-names(losses: Id3v1Losses) -> string {
+        return root.join(root.join(root.join(root.join(root.join(root.join(root.join("", @tr("Title"), losses.title), @tr("Artist"), losses.artist), @tr("Album"), losses.album), @tr("Year"), losses.year), @tr("Comment"), losses.comment), @tr("Track"), losses.track), @tr("Genre"), losses.genre);
     }
 
     pure function audio-text() -> string {
@@ -255,6 +307,8 @@ export component Inspector inherits Rectangle {
 
     if root.state == InspectorState.tracks: Rectangle {
         flick := Flickable {
+            y: 0;
+            height: parent.height - root.actions-height;
             mouse-drag-pan-enabled: false;
             content-height: column.preferred-height;
 
@@ -498,18 +552,77 @@ export component Inspector inherits Rectangle {
                                 text: root.tracks.formats.mixed ? @tr("Multiple values") : root.tracks.formats.text == "" ? @tr("None") : root.tracks.formats.text;
                             }
                         }
+
+                        if root.tracks.has-changes: Row {
+                            FieldLabel {
+                                text: @tr("Saved as");
+                                size: 12px;
+                            }
+
+                            FileValue {
+                                text: root.tracks.saved-as.mixed ? @tr("Multiple values") : root.tracks.saved-as.text;
+                            }
+                        }
+
+                        if root.lost-names(root.tracks.id3v1-losses) != "": Row {
+                            Rectangle { }
+
+                            FileValue {
+                                text: @tr("ID3v1 will keep only part of: {}", root.lost-names(root.tracks.id3v1-losses));
+                                color: Theme.warning;
+                            }
+                        }
                     }
                 }
             }
         }
 
         ScrollBar {
+            y: 0;
+            height: parent.height - root.actions-height;
             x: parent.width - root.scrollbar-size;
             width: root.scrollbar-size;
             content-size: flick.content-height;
             visible-size: flick.height;
             position <=> flick.content-y;
             accessible-label: @tr("Inspector scroll bar");
+        }
+
+        // Pinned at the bottom, so the actions never leave the screen.
+        Rectangle {
+            y: parent.height - root.actions-height;
+            height: root.actions-height;
+
+            Rectangle {
+                y: 0;
+                height: 1px;
+                background: Theme.border-subtle;
+            }
+
+            HorizontalLayout {
+                padding: 12px;
+                padding-left: 16px;
+                padding-right: 16px;
+                spacing: 8px;
+                alignment: end;
+
+                Button {
+                    text: @tr("Revert");
+                    enabled: root.tracks.has-changes && !root.saving;
+                    clicked => {
+                        root.revert();
+                    }
+                }
+
+                Button {
+                    text: root.saving ? @tr("Saving…") : @tr("Save {n} file" | "Save {n} files" % root.modified-count);
+                    primary: true;
+                    enabled: root.modified-count > 0 && !root.saving;
+                    clicked => {
+                        root.save();
+                    }
+                }
+            }
         }
     }
 

@@ -8,9 +8,9 @@ import { Region, ToolbarButton } from "widgets.slint";
 import { EmptyState } from "empty-state.slint";
 import { ScanState, StatusBar } from "status-bar.slint";
 import { TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
-import { BitrateMode, ByteSize, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, TagEditing, TagField, UnreadableFile } from "inspector.slint";
+import { BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, TagEditing, TagField, UnreadableFile } from "inspector.slint";
 
-export { Theme, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
@@ -24,6 +24,10 @@ export enum Command {
     select-next,
     extend-selection-up,
     extend-selection-down,
+    save,
+    undo,
+    redo,
+    revert,
 }
 
 export component AppWindow inherits Window {
@@ -58,6 +62,13 @@ export component AppWindow inherits Window {
     in property <int> focused-row: -1;
     in property <int> selected-count;
     in property <int> modified-count;
+    in property <bool> can-undo;
+    in property <bool> can-redo;
+    // A save runs: how far it has got, and the files the last one could not write.
+    in property <bool> saving;
+    in property <int> save-done;
+    in property <int> save-total;
+    in property <int> save-failures;
     in property <InspectorState> inspector-state;
     in property <InspectedTracks> inspected-tracks;
     in property <UnreadableFile> unreadable-file;
@@ -108,6 +119,39 @@ export component AppWindow inherits Window {
                 shortcut: @keys(Control + O);
                 activated => {
                     root.run(Command.open-folder);
+                }
+            }
+
+            MenuSeparator { }
+
+            MenuItem {
+                title: @tr("Save");
+                shortcut: @keys(Control + S);
+                enabled: root.modified-count > 0 && !root.saving;
+                activated => {
+                    root.run(Command.save);
+                }
+            }
+        }
+
+        Menu {
+            title: @tr("Edit");
+
+            MenuItem {
+                title: @tr("Undo");
+                shortcut: @keys(Control + Z);
+                enabled: root.can-undo;
+                activated => {
+                    root.run(Command.undo);
+                }
+            }
+
+            MenuItem {
+                title: @tr("Redo");
+                shortcut: @keys(Control + Shift + Z);
+                enabled: root.can-redo;
+                activated => {
+                    root.run(Command.redo);
                 }
             }
         }
@@ -244,6 +288,14 @@ export component AppWindow inherits Window {
                 tracks: root.inspected-tracks;
                 unreadable: root.unreadable-file;
                 select-all-shortcut: root.mac-shortcuts ? "⌘A" : "Ctrl+A";
+                modified-count: root.modified-count;
+                saving: root.saving;
+                revert => {
+                    root.run(Command.revert);
+                }
+                save => {
+                    root.run(Command.save);
+                }
             }
         }
 
@@ -253,6 +305,10 @@ export component AppWindow inherits Window {
             unreadable-count: root.unreadable-count;
             selected-count: root.selected-count;
             modified-count: root.modified-count;
+            saving: root.saving;
+            save-done: root.save-done;
+            save-total: root.save-total;
+            save-failures: root.save-failures;
             folder: root.folder;
             stop-scan => {
                 root.run(Command.stop-scan);

@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::time::Duration;
 
-use colophon_engine::tags::{self, ReadError};
+use colophon_engine::tags::{self, Id3v1Loss, ReadError};
 use colophon_engine::{
     AudioLine, Column, ColumnWidths, Command, Edit, Engine, Field, Inspection, Library, ScanStatus,
     Selection, Shared, Step, Summary, Track, ViewState,
@@ -23,15 +23,15 @@ mod generated {
 /// What the window asks the engine to run, before the bridge turns it into a [`Command`].
 pub use generated::Command as WindowCommand;
 pub use generated::{
-    AppWindow, BitrateMode, ByteSize, InspectedTracks, InspectorField, InspectorState, ReadProblem,
-    ScanState, SizeUnit, TagEditing, TagField, Theme, TrackColumn, TrackColumnWidths, TrackColumns,
-    TrackRow, TrackStatus, UnreadableFile,
+    AppWindow, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, InspectorField, InspectorState,
+    ReadProblem, ScanState, SizeUnit, TagEditing, TagField, Theme, TrackColumn, TrackColumnWidths,
+    TrackColumns, TrackRow, TrackStatus, UnreadableFile,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
-/// How often the window takes in what a running scan found: often enough to look live, rarely
-/// enough to update the table in batches.
-const SCAN_POLL_INTERVAL: Duration = Duration::from_millis(50);
+/// How often the window takes in what a running scan or save did: often enough to look live,
+/// rarely enough to update the table in batches.
+const POLL_INTERVAL: Duration = Duration::from_millis(50);
 
 /// Creates the main window and hands its user actions to the engine, which then drives what it shows.
 /// `pick_folder` asks the user for a folder, usually through the system's dialog.
@@ -48,7 +48,7 @@ pub fn main_window(
         tracks,
         longest: RefCell::default(),
         shown_modified: RefCell::default(),
-        scan_timer: Timer::default(),
+        poll_timer: Timer::default(),
         pick_folder: Box::new(pick_folder),
     });
     bridge.show();
@@ -68,11 +68,20 @@ pub fn main_window(
     editing.on_invalid(|field, text| parse_edit(field, &text).is_none());
     editing.on_commit({
         let bridge = Rc::clone(&bridge);
-        move |field, text| {
+        move |field, text, continues| {
             if let Some(edit) = parse_edit(field, &text) {
-                execute(&bridge, Command::Edit(edit));
+                let command = if continues {
+                    Command::ContinueEdit(edit)
+                } else {
+                    Command::Edit(edit)
+                };
+                execute(&bridge, command);
             }
         }
+    });
+    editing.on_cancel_typing({
+        let bridge = Rc::clone(&bridge);
+        move || execute(&bridge, Command::Undo)
     });
     window.on_track_pressed({
         let bridge = Rc::clone(&bridge);
@@ -105,7 +114,7 @@ struct Bridge {
     longest: RefCell<TrackRow>,
     /// The tracks shown with pending changes, whose rows change again when the changes go.
     shown_modified: RefCell<BTreeSet<usize>>,
-    scan_timer: Timer,
+    poll_timer: Timer,
     pick_folder: Box<dyn Fn() -> Option<PathBuf>>,
 }
 
@@ -120,6 +129,10 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         generated::Command::SelectNext => Command::MoveSelection(Step::Down),
         generated::Command::ExtendSelectionUp => Command::ExtendSelection(Step::Up),
         generated::Command::ExtendSelectionDown => Command::ExtendSelection(Step::Down),
+        generated::Command::Save => Command::Save,
+        generated::Command::Undo => Command::Undo,
+        generated::Command::Redo => Command::Redo,
+        generated::Command::Revert => Command::Revert,
         generated::Command::OpenFolder => match (bridge.pick_folder)() {
             Some(folder) => Command::OpenFolder(folder),
             None => return,
@@ -131,32 +144,37 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
 fn execute(bridge: &Rc<Bridge>, command: Command) {
     bridge.engine.borrow_mut().execute(command);
     bridge.show();
-    if bridge.engine.borrow().library().status == ScanStatus::Scanning {
-        watch_scan(bridge);
+    if bridge.engine_busy() {
+        watch_engine(bridge);
     }
 }
 
-/// Polls the engine on a timer while its scan runs. The timer holds the bridge weakly, since the
-/// bridge owns the timer.
-fn watch_scan(bridge: &Rc<Bridge>) {
+/// Polls the engine on a timer while a scan or a save runs. The timer holds the bridge weakly,
+/// since the bridge owns the timer.
+fn watch_engine(bridge: &Rc<Bridge>) {
     let bridge_weak: Weak<Bridge> = Rc::downgrade(bridge);
     bridge
-        .scan_timer
-        .start(TimerMode::Repeated, SCAN_POLL_INTERVAL, move || {
+        .poll_timer
+        .start(TimerMode::Repeated, POLL_INTERVAL, move || {
             if let Some(bridge) = bridge_weak.upgrade() {
-                bridge.poll_scan();
+                bridge.poll_engine();
             }
         });
 }
 
 impl Bridge {
-    fn poll_scan(&self) {
+    fn engine_busy(&self) -> bool {
+        let engine = self.engine.borrow();
+        engine.library().status == ScanStatus::Scanning || engine.saving().is_some()
+    }
+
+    fn poll_engine(&self) {
         let changed = self.engine.borrow_mut().poll();
         if changed {
             self.show();
         }
-        if self.engine.borrow().library().status != ScanStatus::Scanning {
-            self.scan_timer.stop();
+        if !self.engine_busy() {
+            self.poll_timer.stop();
         }
     }
 
@@ -170,6 +188,7 @@ impl Bridge {
         self.show_tracks(&window, &engine);
         self.show_selection(&window, engine.selection());
         show_inspection(&window, engine.library(), engine.inspection());
+        show_saving(&window, &engine);
     }
 
     /// Marks the selected rows, touching only the rows that change.
@@ -353,6 +372,23 @@ fn inspected_tracks(summary: &Summary) -> InspectedTracks {
                 .join(", ")
         }),
         size: byte_size(summary.size),
+        has_changes: !summary.modified.is_empty(),
+        saved_as: field(&summary.saved_as, false, |formats| {
+            formats
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        }),
+        id3v1_losses: Id3v1Losses {
+            title: summary.id3v1_losses.contains(&Id3v1Loss::Title),
+            artist: summary.id3v1_losses.contains(&Id3v1Loss::Artist),
+            album: summary.id3v1_losses.contains(&Id3v1Loss::Album),
+            year: summary.id3v1_losses.contains(&Id3v1Loss::Year),
+            comment: summary.id3v1_losses.contains(&Id3v1Loss::Comment),
+            track: summary.id3v1_losses.contains(&Id3v1Loss::Track),
+            genre: summary.id3v1_losses.contains(&Id3v1Loss::Genre),
+        },
     }
 }
 
@@ -423,6 +459,16 @@ fn sized(whole: u64, tenth: u64, unit: SizeUnit) -> ByteSize {
 
 fn number(value: impl TryInto<i32>) -> i32 {
     value.try_into().unwrap_or(i32::MAX)
+}
+
+fn show_saving(window: &AppWindow, engine: &Engine) {
+    window.set_can_undo(engine.edits().can_undo());
+    window.set_can_redo(engine.edits().can_redo());
+    let progress = engine.saving();
+    window.set_saving(progress.is_some());
+    window.set_save_done(progress.map_or(0, |progress| count(progress.done)));
+    window.set_save_total(progress.map_or(0, |progress| count(progress.total)));
+    window.set_save_failures(count(engine.save_failures().len()));
 }
 
 fn show_view(window: &AppWindow, view: &ViewState) {

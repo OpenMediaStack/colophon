@@ -2,6 +2,7 @@ mod common;
 
 use std::collections::BTreeSet;
 
+use colophon_engine::tags::{Id3v1Loss, Id3v1Version, Id3v2Version, TagFormat};
 use colophon_engine::{Command, Edit, Engine, Field, Inspection, Shared, Summary};
 
 use common::{TestResult, engine_reading, folder_with_fixtures};
@@ -76,5 +77,28 @@ fn opening_another_folder_drops_the_edits() -> TestResult {
 
     assert_eq!(engine.edits().modified_count(), 0);
     assert!(!engine.edits().can_undo());
+    Ok(())
+}
+
+#[test]
+fn the_inspection_says_what_saving_will_write() -> TestResult {
+    let folder = folder_with_fixtures(&[("v23_v1_long_title.mp3", "1.mp3")])?;
+    let mut engine = engine_reading(&folder)?;
+    engine.execute(Command::Select(0));
+    assert_eq!(summary(&engine)?.saved_as, Shared::Empty);
+
+    engine.execute(Command::Edit(Edit::Title(Some(
+        "A brand new title, well over thirty characters".into(),
+    ))));
+
+    let summary = summary(&engine)?;
+    assert_eq!(
+        summary.saved_as,
+        Shared::Same(vec![
+            TagFormat::Id3v2(Id3v2Version::V2_4),
+            TagFormat::Id3v1(Id3v1Version::V1_1)
+        ])
+    );
+    assert_eq!(summary.id3v1_losses, BTreeSet::from([Id3v1Loss::Title]));
     Ok(())
 }

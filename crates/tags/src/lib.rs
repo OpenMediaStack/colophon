@@ -8,7 +8,7 @@ use std::fmt;
 use std::time::Duration;
 
 pub use read::{ReadError, read};
-pub use write::{Id3v1Loss, WriteError, id3v1_losses, write};
+pub use write::{Id3v1Loss, WriteError, formats_after_write, id3v1_losses, write};
 
 /// Everything Colophon reads from an audio file.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
