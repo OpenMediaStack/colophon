@@ -67,16 +67,18 @@ fn a_single_edited_track_is_headed_by_its_new_title() -> TestResult {
 }
 
 #[test]
-fn opening_another_folder_drops_the_edits() -> TestResult {
+fn opening_another_folder_keeps_the_edits() -> TestResult {
     let (_folder, mut engine) = two_tracks()?;
     engine.execute(Command::SelectAll);
-    engine.execute(Command::Edit(Edit::Genre(Some("Folk".into()))));
+    engine.execute(Command::Edit(Edit::Genre(Some("Synthwave".into()))));
     let other = folder_with_fixtures(&[("v23_full.mp3", "1.mp3")])?;
 
     engine.execute(Command::OpenFolder(other.path().to_path_buf()));
+    common::poll_until_done(&mut engine)?;
 
-    assert_eq!(engine.edits().modified_count(), 0);
-    assert!(!engine.edits().can_undo());
+    assert_eq!(engine.library().tracks.len(), 3);
+    assert_eq!(engine.edits().modified_count(), 2);
+    assert!(engine.edits().can_undo());
     Ok(())
 }
 

@@ -5,17 +5,17 @@ mod edits;
 mod inspection;
 mod selection;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 use std::sync::mpsc::TryRecvError;
 
 use colophon_library::tags::WriteError;
 use colophon_library::{
-    AUDIO_EXTENSIONS, SaveEvent, SaveHandle, SaveJob, ScanError, ScanEvent, ScanHandle,
-    ScanOutcome, spawn_save, spawn_scan,
+    SaveEvent, SaveHandle, SaveJob, ScanError, ScanEvent, ScanHandle, ScanOutcome, spawn_save,
+    spawn_scan,
 };
 
-pub use colophon_library::{Track, tags};
+pub use colophon_library::{AUDIO_EXTENSIONS, Track, tags};
 pub use columns::{Column, ColumnWidths, Columns};
 pub use edits::{Edit, Edits, Field, VersionChoice};
 pub use inspection::{AudioLine, Inspection, Shared, Summary};
@@ -28,7 +28,10 @@ pub enum Command {
     ToggleInspector,
     /// Shows the tools for people who write ID3 readers and writers.
     ToggleDeveloperMode,
+    /// Adds a folder's audio files to the library.
     OpenFolder(PathBuf),
+    /// Adds audio files to the library, their folders with them.
+    OpenFiles(Vec<PathBuf>),
     StopScan,
     ToggleColumn(Column),
     ResizeColumns(ColumnWidths),
@@ -67,6 +70,7 @@ impl Command {
             Command::ToggleInspector => "view.toggle_inspector",
             Command::ToggleDeveloperMode => "view.toggle_developer_mode",
             Command::OpenFolder(_) => "library.open_folder",
+            Command::OpenFiles(_) => "library.open_files",
             Command::StopScan => "library.stop_scan",
             Command::ToggleColumn(_) => "view.toggle_column",
             Command::ResizeColumns(_) => "view.resize_columns",
@@ -115,12 +119,12 @@ impl Default for ViewState {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ScanStatus {
-    /// No folder has been opened.
+    /// Nothing has been opened.
     #[default]
     Idle,
     Scanning,
     Completed,
-    /// The user stopped the scan; the tracks found until then stay.
+    /// The user stopped the scans; the tracks found until then stay.
     Stopped,
     /// The scan could not start, or its thread ended without saying how.
     Failed,
@@ -146,10 +150,11 @@ struct Saving {
     progress: SaveProgress,
 }
 
-/// The opened folder and what its scan found so far.
+/// The opened folders and files, and what their scans found so far.
 #[derive(Debug, Default)]
 pub struct Library {
-    pub folder: Option<PathBuf>,
+    /// The folders opened, and those of the files opened alone, none inside another, in order.
+    pub roots: Vec<PathBuf>,
     pub tracks: Vec<Track>,
     pub unreadable: Vec<ScanError>,
     pub status: ScanStatus,
@@ -163,7 +168,9 @@ pub struct Engine {
     edits: Edits,
     saving: Option<Saving>,
     save_failures: Vec<SaveFailure>,
-    scan: Option<ScanHandle>,
+    scans: Vec<ScanHandle>,
+    /// The paths of the tracks found, so that opening a file twice lists it once.
+    found: HashSet<PathBuf>,
 }
 
 impl Engine {
@@ -232,7 +239,14 @@ impl Engine {
             Command::ToggleSidebar => self.view.sidebar_visible = !self.view.sidebar_visible,
             Command::ToggleInspector => self.view.inspector_visible = !self.view.inspector_visible,
             Command::ToggleDeveloperMode => self.view.developer_mode = !self.view.developer_mode,
-            Command::OpenFolder(folder) => self.open_folder(folder),
+            Command::OpenFolder(folder) => self.open(vec![folder.clone()], [folder]),
+            Command::OpenFiles(files) => {
+                let folders: Vec<PathBuf> = files
+                    .iter()
+                    .filter_map(|file| file.parent().map(PathBuf::from))
+                    .collect();
+                self.open(files, folders);
+            }
             Command::StopScan => self.stop_scan(),
             Command::ToggleColumn(column) => self.view.columns.toggle(column),
             Command::ResizeColumns(widths) => self.view.column_widths = Some(widths),
@@ -276,8 +290,8 @@ impl Engine {
         }
     }
 
-    /// Takes in what the running scan reported since the last call, and says whether the library changed.
-    /// The UI calls it regularly while a scan runs; it never waits.
+    /// Takes in what the running scans and save reported since the last call, and says whether the
+    /// library changed. The UI calls it regularly while they run; it never waits.
     pub fn poll(&mut self) -> bool {
         let scanned = self.poll_scan();
         let saved = self.poll_save();
@@ -285,32 +299,45 @@ impl Engine {
     }
 
     fn poll_scan(&mut self) -> bool {
-        let Some(scan) = &self.scan else {
+        if self.scans.is_empty() {
             return false;
-        };
-        let mut changed = false;
-        loop {
-            match scan.events().try_recv() {
-                Ok(ScanEvent::Found(track)) => self.library.tracks.push(*track),
-                Ok(ScanEvent::Unreadable(error)) => self.library.unreadable.push(error),
-                Ok(ScanEvent::Finished(outcome)) => {
-                    self.library.status = match outcome {
-                        ScanOutcome::Completed => ScanStatus::Completed,
-                        ScanOutcome::Stopped => ScanStatus::Stopped,
-                    };
-                }
-                Err(TryRecvError::Empty) => break,
-                Err(TryRecvError::Disconnected) => {
-                    if self.library.status == ScanStatus::Scanning {
-                        self.library.status = ScanStatus::Failed;
-                    }
-                    break;
-                }
-            }
-            changed = true;
         }
-        if self.library.status != ScanStatus::Scanning {
-            self.scan = None;
+        let mut changed = false;
+        let mut ended = None;
+        let scans = std::mem::take(&mut self.scans);
+        for scan in scans {
+            let outcome = loop {
+                match scan.events().try_recv() {
+                    Ok(ScanEvent::Found(track)) => {
+                        if self.found.insert(track.path.clone()) {
+                            self.library.tracks.push(*track);
+                        }
+                    }
+                    Ok(ScanEvent::Unreadable(error)) => self.library.unreadable.push(error),
+                    Ok(ScanEvent::Finished(ScanOutcome::Completed)) => {
+                        break Some(ScanStatus::Completed);
+                    }
+                    Ok(ScanEvent::Finished(ScanOutcome::Stopped)) => {
+                        break Some(ScanStatus::Stopped);
+                    }
+                    Err(TryRecvError::Empty) => break None,
+                    // The thread ended without saying how.
+                    Err(TryRecvError::Disconnected) => break Some(ScanStatus::Failed),
+                }
+                changed = true;
+            };
+            match outcome {
+                Some(status) => {
+                    ended = Some(status);
+                    changed = true;
+                }
+                None => self.scans.push(scan),
+            }
+        }
+        if self.scans.is_empty()
+            && let Some(status) = ended
+        {
+            self.library.status = status;
         }
         changed
     }
@@ -403,28 +430,37 @@ impl Engine {
         track < self.library.tracks.len()
     }
 
-    fn open_folder(&mut self, folder: PathBuf) {
-        self.scan = None;
-        self.selection = Selection::default();
-        self.edits = Edits::default();
-        self.saving = None;
-        self.save_failures.clear();
-        self.library = Library {
-            folder: Some(folder.clone()),
-            ..Library::default()
-        };
-        match spawn_scan(folder, AUDIO_EXTENSIONS) {
+    /// Scans `paths`, folders or files, for tracks the library does not have yet, and lists
+    /// `folders` among its roots.
+    fn open(&mut self, paths: Vec<PathBuf>, folders: impl IntoIterator<Item = PathBuf>) {
+        for folder in folders {
+            self.add_root(folder);
+        }
+        match spawn_scan(paths, AUDIO_EXTENSIONS) {
             Ok(scan) => {
-                self.scan = Some(scan);
+                self.scans.push(scan);
                 self.library.status = ScanStatus::Scanning;
             }
-            Err(_) => self.library.status = ScanStatus::Failed,
+            Err(_) if self.scans.is_empty() => self.library.status = ScanStatus::Failed,
+            Err(_) => {}
         }
     }
 
-    /// Stops at once: what the scan reports afterwards is dropped with its handle.
+    /// Lists a folder among the roots, unless one holds it already; it replaces those it holds.
+    fn add_root(&mut self, folder: PathBuf) {
+        let roots = &mut self.library.roots;
+        if roots.iter().any(|root| folder.starts_with(root)) {
+            return;
+        }
+        roots.retain(|root| !root.starts_with(&folder));
+        roots.push(folder);
+        roots.sort();
+    }
+
+    /// Stops at once: what the scans report afterwards is dropped with their handles.
     fn stop_scan(&mut self) {
-        if self.scan.take().is_some() {
+        if !self.scans.is_empty() {
+            self.scans.clear();
             self.library.status = ScanStatus::Stopped;
         }
     }

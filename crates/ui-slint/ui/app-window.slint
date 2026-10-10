@@ -8,16 +8,17 @@ import { Region, ToolbarButton } from "widgets.slint";
 import { EmptyState } from "empty-state.slint";
 import { ScanState, StatusBar } from "status-bar.slint";
 import { TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
-import { Leaving, UnsavedChanges, UnsavedChoice } from "unsaved-changes.slint";
+import { UnsavedChanges, UnsavedChoice } from "unsaved-changes.slint";
 import { ConfirmTagRemoval, RemovedTag, TagRemoval } from "tag-removal.slint";
 import { BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
 
-export { Theme, Leaving, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
     open-folder,
+    open-files,
     stop-scan,
     toggle-sidebar,
     toggle-inspector,
@@ -38,8 +39,8 @@ export component AppWindow inherits Window {
     in property <bool> sidebar-visible: true;
     in property <bool> inspector-visible: true;
     in property <bool> developer-mode;
+    // Something was opened: a folder, or files.
     in property <bool> folder-open;
-    in property <string> folder;
     in property <ScanState> scan-state;
     in property <int> track-count;
     in property <int> unreadable-count;
@@ -77,9 +78,8 @@ export component AppWindow inherits Window {
     in property <InspectorState> inspector-state;
     in property <InspectedTracks> inspected-tracks;
     in property <UnreadableFile> unreadable-file;
-    // Set while the window asks what to do with the pending changes before leaving them.
+    // Set while the window asks what to do with the pending changes before quitting.
     in property <bool> asking-to-save;
-    in property <Leaving> leaving;
     // The titles of the first modified tracks, for the question.
     in property <[string]> unsaved-titles;
     callback unsaved-changes(UnsavedChoice);
@@ -143,6 +143,15 @@ export component AppWindow inherits Window {
                 enabled: !root.modal;
                 activated => {
                     root.run(Command.open-folder);
+                }
+            }
+
+            MenuItem {
+                title: @tr("Open Files…");
+                shortcut: @keys(Control + Shift + O);
+                enabled: !root.modal;
+                activated => {
+                    root.run(Command.open-files);
                 }
             }
 
@@ -353,7 +362,6 @@ export component AppWindow inherits Window {
             save-done: root.save-done;
             save-total: root.save-total;
             save-failures: root.save-failures;
-            folder: root.folder;
             developer-mode: root.developer-mode;
             stop-scan => {
                 root.run(Command.stop-scan);
@@ -364,7 +372,6 @@ export component AppWindow inherits Window {
     if root.asking-to-save: UnsavedChanges {
         width: root.width;
         height: root.height;
-        leaving: root.leaving;
         count: root.modified-count;
         titles: root.unsaved-titles;
         windows-order: root.windows-buttons;

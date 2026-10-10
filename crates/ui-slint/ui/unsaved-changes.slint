@@ -1,13 +1,9 @@
 import { Dialog } from "dialog.slint";
 
-// What the user was doing when the pending changes stopped them.
-export enum Leaving { quit, open-folder }
-
 export enum UnsavedChoice { save, discard, cancel }
 
-// Asks whether to save the pending changes before they are lost.
+// Asks whether to save the pending changes before quitting loses them.
 export component UnsavedChanges inherits Dialog {
-    in property <Leaving> leaving;
     in property <int> count;
     // The titles of the first modified tracks, three at most.
     in property <[string]> titles;
@@ -17,8 +13,8 @@ export component UnsavedChanges inherits Dialog {
         return root.count == 1 ? @tr("{0} has changes that are not saved yet.", root.titles[0]) : root.count == 2 ? @tr("{0} and {1} have changes that are not saved yet.", root.titles[0], root.titles[1]) : root.count == 3 ? @tr("{0}, {1} and {2} have changes that are not saved yet.", root.titles[0], root.titles[1], root.titles[2]) : @tr("{0}, {1} and {2} other files have changes that are not saved yet.", root.titles[0], root.titles[1], root.count - 2);
     }
 
-    title: root.leaving == Leaving.quit ? @tr("Save changes to {n} file before quitting?" | "Save changes to {n} files before quitting?" % root.count) : @tr("Save changes to {n} file before opening another folder?" | "Save changes to {n} files before opening another folder?" % root.count);
-    message: root.changed-files() + " " + (root.leaving == Leaving.quit ? @tr("Quitting without saving discards them.") : @tr("Opening another folder without saving discards them."));
+    title: @tr("Save changes to {n} file before quitting?" | "Save changes to {n} files before quitting?" % root.count);
+    message: root.changed-files() + " " + @tr("Quitting without saving discards them.");
     primary-text: @tr("Save {n} file" | "Save {n} files" % root.count);
     discard-text: @tr("Don’t Save");
     primary => {

@@ -58,14 +58,13 @@ fn a_track_that_does_not_exist_cannot_be_selected() -> TestResult {
 }
 
 #[test]
-fn opening_another_folder_clears_the_selection() -> TestResult {
+fn opening_another_folder_keeps_the_selection() -> TestResult {
     let mut engine = engine_with(&["a.mp3", "b.mp3"])?;
     engine.execute(Command::SelectAll);
     let other = folder_with(&["c.mp3"])?;
 
     engine.execute(Command::OpenFolder(other.path().to_path_buf()));
 
-    assert!(engine.selection().is_empty());
-    assert_eq!(engine.selection().focus(), None);
+    assert_eq!(engine.selection().len(), 2);
     Ok(())
 }

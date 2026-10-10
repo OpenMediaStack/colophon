@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use colophon_engine::Engine;
 use colophon_engine::tags::read;
-use colophon_ui::{AppWindow, ComponentHandle, Leaving, ScanState, Theme};
+use colophon_ui::{AppWindow, ComponentHandle, ScanState, Theme};
 use i_slint_backend_testing::{AccessibleRole, ElementHandle};
 use slint::platform::Key;
 use slint::{ModelRc, SharedString, VecModel};
@@ -173,7 +173,7 @@ fn a_file_that_cannot_be_saved_keeps_the_window_open() -> TestResult {
 }
 
 #[test]
-fn opening_another_folder_asks_first() -> TestResult {
+fn opening_another_folder_keeps_the_changes_without_asking() -> TestResult {
     let (window, _folder, other) = window_with_a_change()?;
     fs::copy(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata/v24_full.mp3"),
@@ -181,26 +181,12 @@ fn opening_another_folder_asks_first() -> TestResult {
     )?;
 
     find(&window, "Open folder")?.invoke_accessible_default_action();
-    assert!(shows(
-        &window,
-        "Save changes to 1 file before opening another folder?"
-    ));
-    dialog_button(&window, "Don’t Save")?.invoke_accessible_default_action();
     wait_until(&window, "the other folder", |window| {
-        window.get_scan_state() == ScanState::Completed && window.get_track_count() == 1
+        window.get_scan_state() == ScanState::Completed && window.get_track_count() == 2
     })?;
 
-    assert_eq!(window.get_modified_count(), 0);
-    assert!(
-        window.get_folder().ends_with(
-            other
-                .path()
-                .file_name()
-                .map(|name| name.to_string_lossy().to_string())
-                .unwrap_or_default()
-                .as_str()
-        )
-    );
+    assert!(!window.get_asking_to_save());
+    assert_eq!(window.get_modified_count(), 1);
     Ok(())
 }
 
@@ -222,20 +208,18 @@ fn the_dialog_names_three_tracks_and_counts_the_others() -> TestResult {
 }
 
 /// A window over an opened folder, asking about the three tracks of the mockup.
-fn window_asking(leaving: Leaving, windows: bool) -> Result<AppWindow, Box<dyn Error>> {
+fn window_asking(windows: bool) -> Result<AppWindow, Box<dyn Error>> {
     common::use_testing_backend()?;
     let window = AppWindow::new()?;
     common::prepare(&window, 1440.0, 900.0)?;
     window.set_windows_buttons(windows);
     window.set_folder_open(true);
-    window.set_folder("~/Music".into());
     window.set_scan_state(ScanState::Completed);
     window.set_modified_count(3);
     let titles: Vec<SharedString> = ["Glass Avenue", "Midnight Lithography", "Paper Satellites"]
         .map(SharedString::from)
         .to_vec();
     window.set_unsaved_titles(ModelRc::new(VecModel::from(titles)));
-    window.set_leaving(leaving);
     window.set_asking_to_save(true);
     Ok(window)
 }
@@ -246,12 +230,12 @@ fn x_of(window: &AppWindow, label: &str) -> Result<f32, String> {
 
 #[test]
 fn the_buttons_follow_the_platform_order() -> TestResult {
-    let mac = window_asking(Leaving::Quit, false)?;
+    let mac = window_asking(false)?;
     mac.show()?;
     assert!(x_of(&mac, "Don’t Save")? < x_of(&mac, "Cancel")?);
     assert!(x_of(&mac, "Cancel")? < x_of(&mac, "Save 3 files")?);
 
-    let windows = window_asking(Leaving::Quit, true)?;
+    let windows = window_asking(true)?;
     windows.show()?;
     assert!(x_of(&windows, "Save 3 files")? < x_of(&windows, "Don’t Save")?);
     assert!(x_of(&windows, "Don’t Save")? < x_of(&windows, "Cancel")?);
@@ -260,13 +244,13 @@ fn the_buttons_follow_the_platform_order() -> TestResult {
 
 #[test]
 fn the_dialog_speaks_french() -> TestResult {
-    let window = window_asking(Leaving::OpenFolder, false)?;
+    let window = window_asking(false)?;
     common::select_language("fr")?;
     window.show()?;
 
     assert!(shows(
         &window,
-        "Enregistrer les modifications de 3 fichiers avant d’ouvrir un autre dossier\u{a0}?"
+        "Enregistrer les modifications de 3 fichiers avant de quitter\u{a0}?"
     ));
     assert!(shows(&window, "Ne pas enregistrer"));
     Ok(())
@@ -275,7 +259,7 @@ fn the_dialog_speaks_french() -> TestResult {
 #[test]
 fn the_dialog_matches_its_references() -> TestResult {
     for (dark, theme) in [(true, "dark"), (false, "light")] {
-        let window = window_asking(Leaving::Quit, false)?;
+        let window = window_asking(false)?;
         window.global::<Theme>().set_dark(dark);
         window.show()?;
         assert_matches_reference(&window, &format!("unsaved-changes-{theme}.png"))?;

@@ -50,7 +50,7 @@ impl std::error::Error for ScanError {
 }
 
 /// Walks `root` and its subfolders, sorted by name, and reports every file whose extension is in
-/// `extensions`, ignoring case, with its tags. Hidden entries are skipped, among them the `._` files macOS leaves on
+/// `extensions`, ignoring case, with its tags. A `root` that is a file is reported alone. Hidden entries are skipped, among them the `._` files macOS leaves on
 /// external drives. Checks `stop` between entries.
 pub fn scan(
     root: &Path,
@@ -140,20 +140,41 @@ impl Drop for ScanHandle {
     }
 }
 
-/// Starts [`scan`] on a new thread, so that the caller, the UI thread above all, never waits for the disk.
-pub fn spawn_scan(root: PathBuf, extensions: &'static [&'static str]) -> io::Result<ScanHandle> {
+/// Starts [`scan`] of each of `roots`, folders or files, one after the other on a new thread, so
+/// that the caller, the UI thread above all, never waits for the disk. The scan finishes once,
+/// after the last root.
+pub fn spawn_scan(
+    roots: Vec<PathBuf>,
+    extensions: &'static [&'static str],
+) -> io::Result<ScanHandle> {
     let stop = Arc::new(AtomicBool::new(false));
     let (sender, events) = mpsc::channel();
     let thread_stop = Arc::clone(&stop);
     thread::Builder::new()
         .name("library scan".to_string())
         .spawn(move || {
-            scan(&root, extensions, &thread_stop, |event| {
-                // A closed channel means nobody listens any more: the rest of the scan is not needed.
-                if sender.send(event).is_err() {
-                    thread_stop.store(true, Ordering::Relaxed);
+            for root in &roots {
+                let mut stopped = false;
+                scan(root, extensions, &thread_stop, |event| {
+                    let event = match event {
+                        ScanEvent::Finished(ScanOutcome::Completed) => return,
+                        ScanEvent::Finished(ScanOutcome::Stopped) => {
+                            stopped = true;
+                            event
+                        }
+                        event => event,
+                    };
+                    // A closed channel means nobody listens any more: the rest of the scan is not
+                    // needed.
+                    if sender.send(event).is_err() {
+                        thread_stop.store(true, Ordering::Relaxed);
+                    }
+                });
+                if stopped {
+                    return;
                 }
-            });
+            }
+            let _ = sender.send(ScanEvent::Finished(ScanOutcome::Completed));
         })?;
     Ok(ScanHandle { stop, events })
 }

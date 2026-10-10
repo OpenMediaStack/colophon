@@ -176,10 +176,32 @@ fn skips_an_unreadable_folder_and_reads_the_others() -> TestResult {
 fn a_spawned_scan_reports_through_its_channel() -> TestResult {
     let folder = folder_with(&["a.mp3", "b.mp3"])?;
 
-    let handle = spawn_scan(folder.path().to_path_buf(), AUDIO_EXTENSIONS)?;
+    let handle = spawn_scan(vec![folder.path().to_path_buf()], AUDIO_EXTENSIONS)?;
     let events: Vec<ScanEvent> = handle.events().iter().collect();
 
     assert_eq!(found(&events).len(), 2);
+    assert_eq!(outcome(&events), Some(ScanOutcome::Completed));
+    Ok(())
+}
+
+#[test]
+fn a_spawned_scan_reads_files_and_folders_and_finishes_once() -> TestResult {
+    let folder = folder_with(&["a.mp3", "b.mp3", "loose/c.mp3"])?;
+    let roots = vec![
+        folder.path().join("loose/c.mp3"),
+        folder.path().join("a.mp3"),
+        folder.path().join("loose"),
+    ];
+
+    let handle = spawn_scan(roots, AUDIO_EXTENSIONS)?;
+    let events: Vec<ScanEvent> = handle.events().iter().collect();
+
+    assert_eq!(found(&events).len(), 3);
+    let finished = events
+        .iter()
+        .filter(|event| matches!(event, ScanEvent::Finished(_)))
+        .count();
+    assert_eq!(finished, 1);
     assert_eq!(outcome(&events), Some(ScanOutcome::Completed));
     Ok(())
 }

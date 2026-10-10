@@ -116,7 +116,6 @@ fn the_dialog_matches_its_references() -> TestResult {
         let window = AppWindow::new()?;
         common::prepare(&window, 1440.0, 900.0)?;
         window.set_folder_open(true);
-        window.set_folder("~/Music".into());
         window.set_scan_state(ScanState::Completed);
         let files: Vec<SharedString> = [
             "02 Glass Avenue.mp3",

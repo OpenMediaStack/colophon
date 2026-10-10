@@ -158,7 +158,6 @@ fn window_inspecting(
     let window = AppWindow::new()?;
     common::prepare(&window, 1440.0, 900.0)?;
     window.set_folder_open(true);
-    window.set_folder("~/Music".into());
     window.set_scan_state(ScanState::Completed);
     window.set_inspector_state(state);
     window.set_modified_count(3);

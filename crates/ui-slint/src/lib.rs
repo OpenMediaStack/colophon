@@ -24,7 +24,7 @@ mod generated {
 pub use generated::Command as WindowCommand;
 pub use generated::{
     AppWindow, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, InspectorField, InspectorState,
-    Leaving, ReadProblem, RemovedTag, ScanState, SizeUnit, TagEditing, TagField, TagRemoval, Theme,
+    ReadProblem, RemovedTag, ScanState, SizeUnit, TagEditing, TagField, TagRemoval, Theme,
     TrackColumn, TrackColumnWidths, TrackColumns, TrackRow, TrackStatus, UnreadableFile,
     UnsavedChoice,
 };
@@ -50,11 +50,27 @@ const ID3V2_CHOICES: [Option<Id3v2Version>; 4] = [
 const ID3V1_CHOICES: [Option<Id3v1Version>; 3] =
     [None, Some(Id3v1Version::V1_0), Some(Id3v1Version::V1_1)];
 
+/// How the window asks the user for folders and files, usually through the system's dialogs.
+pub trait Dialogs {
+    fn pick_folder(&self) -> Option<PathBuf>;
+
+    /// The audio files to open; none when the user cancels.
+    fn pick_files(&self) -> Vec<PathBuf> {
+        Vec::new()
+    }
+}
+
+/// A function that picks a folder, for windows that never ask for anything else.
+impl<F: Fn() -> Option<PathBuf>> Dialogs for F {
+    fn pick_folder(&self) -> Option<PathBuf> {
+        self()
+    }
+}
+
 /// Creates the main window and hands its user actions to the engine, which then drives what it shows.
-/// `pick_folder` asks the user for a folder, usually through the system's dialog.
 pub fn main_window(
     engine: Engine,
-    pick_folder: impl Fn() -> Option<PathBuf> + 'static,
+    dialogs: impl Dialogs + 'static,
 ) -> Result<AppWindow, PlatformError> {
     let window = AppWindow::new()?;
     let tracks = Rc::new(VecModel::default());
@@ -66,7 +82,7 @@ pub fn main_window(
         longest: RefCell::default(),
         shown_modified: RefCell::default(),
         poll_timer: Timer::default(),
-        pick_folder: Box::new(pick_folder),
+        dialogs: Box::new(dialogs),
         departure: RefCell::default(),
         genres: RefCell::default(),
         genres_read_from: Cell::default(),
@@ -163,7 +179,7 @@ pub fn main_window(
         let bridge = Rc::clone(&bridge);
         move || {
             if bridge.has_changes() {
-                ask(&bridge, Destination::Quit);
+                ask(&bridge);
                 CloseRequestResponse::KeepWindowShown
             } else {
                 CloseRequestResponse::HideWindow
@@ -195,7 +211,7 @@ struct Bridge {
     /// The tracks shown with pending changes, whose rows change again when the changes go.
     shown_modified: RefCell<BTreeSet<usize>>,
     poll_timer: Timer,
-    pick_folder: Box<dyn Fn() -> Option<PathBuf>>,
+    dialogs: Box<dyn Dialogs>,
     departure: RefCell<Option<Departure>>,
     /// The genres to suggest, and the state of the library they were read from.
     genres: RefCell<Vec<String>>,
@@ -212,23 +228,14 @@ struct GenreSource {
     saving: bool,
 }
 
-/// Where the user was going when pending changes stopped them.
-enum Destination {
-    Quit,
-    Folder(PathBuf),
-}
-
-/// A departure held up by pending changes.
+/// Quitting, held up by pending changes.
 enum Departure {
     /// The window asks what to do with them.
-    Asking(Destination),
+    Asking,
     /// Waits for the running save to end, then saves what is left first when `save` holds.
-    AfterSave {
-        destination: Destination,
-        save: bool,
-    },
-    /// Goes once this save has written every file.
-    Saving(Destination),
+    AfterSave { save: bool },
+    /// Quits once this save has written every file.
+    Saving,
 }
 
 fn run(bridge: &Rc<Bridge>, command: generated::Command) {
@@ -247,14 +254,17 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         generated::Command::Undo => Command::Undo,
         generated::Command::Redo => Command::Redo,
         generated::Command::Revert => Command::Revert,
-        generated::Command::OpenFolder => match (bridge.pick_folder)() {
-            Some(folder) if bridge.has_changes() => {
-                ask(bridge, Destination::Folder(folder));
-                return;
-            }
+        generated::Command::OpenFolder => match bridge.dialogs.pick_folder() {
             Some(folder) => Command::OpenFolder(folder),
             None => return,
         },
+        generated::Command::OpenFiles => {
+            let files = bridge.dialogs.pick_files();
+            if files.is_empty() {
+                return;
+            }
+            Command::OpenFiles(files)
+        }
     };
     execute(bridge, command);
 }
@@ -287,15 +297,13 @@ fn choose_version(bridge: &Rc<Bridge>, choice: VersionChoice) {
     window.set_confirming_removal(true);
 }
 
-fn ask(bridge: &Rc<Bridge>, destination: Destination) {
-    bridge
-        .departure
-        .replace(Some(Departure::Asking(destination)));
+fn ask(bridge: &Rc<Bridge>) {
+    bridge.departure.replace(Some(Departure::Asking));
     bridge.show();
 }
 
 fn answer(bridge: &Rc<Bridge>, choice: UnsavedChoice) {
-    let Some(Departure::Asking(destination)) = bridge.departure.take() else {
+    let Some(Departure::Asking) = bridge.departure.take() else {
         return;
     };
     let saving = bridge.engine.borrow().saving().is_some();
@@ -305,15 +313,15 @@ fn answer(bridge: &Rc<Bridge>, choice: UnsavedChoice) {
             let save = choice == UnsavedChoice::Save;
             bridge
                 .departure
-                .replace(Some(Departure::AfterSave { destination, save }));
+                .replace(Some(Departure::AfterSave { save }));
             bridge.show();
         }
-        UnsavedChoice::Save => save_then_go(bridge, destination),
-        UnsavedChoice::Discard => go(bridge, destination),
+        UnsavedChoice::Save => save_then_quit(bridge),
+        UnsavedChoice::Discard => quit(bridge),
     }
 }
 
-fn save_then_go(bridge: &Rc<Bridge>, destination: Destination) {
+fn save_then_quit(bridge: &Rc<Bridge>) {
     execute(bridge, Command::Save);
     let (saving, failed) = {
         let engine = bridge.engine.borrow();
@@ -323,11 +331,9 @@ fn save_then_go(bridge: &Rc<Bridge>, destination: Destination) {
         )
     };
     if saving {
-        bridge
-            .departure
-            .replace(Some(Departure::Saving(destination)));
+        bridge.departure.replace(Some(Departure::Saving));
     } else if !failed {
-        go(bridge, destination);
+        quit(bridge);
     }
 }
 
@@ -335,17 +341,11 @@ fn save_then_go(bridge: &Rc<Bridge>, destination: Destination) {
 /// write keeps the user where they are, with the failure in the status bar.
 fn after_save(bridge: &Rc<Bridge>) {
     match bridge.departure.take() {
-        Some(Departure::AfterSave {
-            destination,
-            save: true,
-        }) => save_then_go(bridge, destination),
-        Some(Departure::AfterSave {
-            destination,
-            save: false,
-        }) => go(bridge, destination),
-        Some(Departure::Saving(destination)) => {
+        Some(Departure::AfterSave { save: true }) => save_then_quit(bridge),
+        Some(Departure::AfterSave { save: false }) => quit(bridge),
+        Some(Departure::Saving) => {
             if bridge.engine.borrow().save_failures().is_empty() {
-                go(bridge, destination);
+                quit(bridge);
             }
         }
         waiting => {
@@ -354,14 +354,9 @@ fn after_save(bridge: &Rc<Bridge>) {
     }
 }
 
-fn go(bridge: &Rc<Bridge>, destination: Destination) {
-    match destination {
-        Destination::Quit => {
-            if let Some(window) = bridge.window.upgrade() {
-                window.hide().ok();
-            }
-        }
-        Destination::Folder(folder) => execute(bridge, Command::OpenFolder(folder)),
+fn quit(bridge: &Rc<Bridge>) {
+    if let Some(window) = bridge.window.upgrade() {
+        window.hide().ok();
     }
 }
 
@@ -473,14 +468,10 @@ impl Bridge {
     /// table titles them.
     fn show_departure(&self, window: &AppWindow, engine: &Engine) {
         let departure = self.departure.borrow();
-        let Some(Departure::Asking(destination)) = departure.as_ref() else {
+        let Some(Departure::Asking) = departure.as_ref() else {
             window.set_asking_to_save(false);
             return;
         };
-        window.set_leaving(match destination {
-            Destination::Quit => Leaving::Quit,
-            Destination::Folder(_) => Leaving::OpenFolder,
-        });
         let titles: Vec<SharedString> = engine
             .edits()
             .modified()
@@ -592,7 +583,7 @@ impl From<&TrackRow> for SelectionMarks {
 
 fn show_inspection(window: &AppWindow, library: &Library, inspection: Inspection<'_>) {
     let state = match inspection {
-        _ if library.folder.is_none() => InspectorState::Empty,
+        _ if library.roots.is_empty() => InspectorState::Empty,
         Inspection::Nothing => InspectorState::NothingSelected,
         Inspection::Unreadable { track, error } => {
             window.set_unreadable_file(UnreadableFile {
@@ -912,15 +903,7 @@ fn keep_longest(longest: &mut TrackRow, row: &TrackRow) {
 }
 
 fn show_library(window: &AppWindow, library: &Library) {
-    window.set_folder_open(library.folder.is_some());
-    window.set_folder(
-        library
-            .folder
-            .as_deref()
-            .map(display_folder)
-            .unwrap_or_default()
-            .into(),
-    );
+    window.set_folder_open(!library.roots.is_empty());
     window.set_scan_state(match library.status {
         ScanStatus::Idle => generated::ScanState::Idle,
         ScanStatus::Scanning => generated::ScanState::Scanning,
