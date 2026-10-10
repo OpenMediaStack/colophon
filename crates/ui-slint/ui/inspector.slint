@@ -36,9 +36,17 @@ export struct ByteSize {
     unit: SizeUnit,
 }
 
+// What the selected tracks share of their covers.
+export enum CoverState { none, shared, mixed }
+
 export struct InspectedTracks {
     count: int,
     unreadable: int,
+    cover-state: CoverState,
+    // The cover the tracks share, drawn small.
+    cover: image,
+    // The cover waits to be saved.
+    cover-modified: bool,
     // The title of a single track, or its file name.
     heading: string,
     title: InspectorField,
@@ -322,6 +330,9 @@ export component Inspector inherits Rectangle {
     // A choice of the Tag format section, by its place.
     callback choose-id3v2(int);
     callback choose-id3v1(int);
+    callback replace-cover;
+    callback extract-cover;
+    callback remove-cover;
 
     property <length> scrollbar-size: 10px;
     property <length> actions-height: 53px;
@@ -419,19 +430,57 @@ export component Inspector inherits Rectangle {
                     spacing: 12px;
                     alignment: start;
 
-                    Rectangle {
+                    ContextMenuArea {
                         width: 64px;
                         height: 64px;
-                        border-radius: 6px;
-                        border-width: 1px;
-                        border-color: Theme.border-subtle;
-                        background: Theme.surface-2;
 
-                        Image {
-                            width: 24px;
-                            height: 24px;
-                            source: @image-url("images/music.svg");
-                            colorize: Theme.text-tertiary;
+                        Menu {
+                            MenuItem {
+                                title: @tr("Replace Cover…");
+                                activated => {
+                                    root.replace-cover();
+                                }
+                            }
+
+                            MenuItem {
+                                title: @tr("Extract Cover…");
+                                enabled: root.tracks.cover-state == CoverState.shared;
+                                activated => {
+                                    root.extract-cover();
+                                }
+                            }
+
+                            MenuItem {
+                                title: @tr("Remove Cover");
+                                enabled: root.tracks.cover-state != CoverState.none;
+                                activated => {
+                                    root.remove-cover();
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            border-radius: 6px;
+                            border-width: 1px;
+                            border-color: root.tracks.cover-modified ? Theme.modified-border : Theme.border-subtle;
+                            background: Theme.surface-2;
+                            clip: true;
+                            accessible-role: image;
+                            accessible-label: root.tracks.cover-state == CoverState.shared ? @tr("Cover") : root.tracks.cover-state == CoverState.mixed ? @tr("Several covers") : @tr("No cover");
+
+                            if root.tracks.cover-state == CoverState.shared: Image {
+                                width: 100%;
+                                height: 100%;
+                                source: root.tracks.cover;
+                                image-fit: cover;
+                            }
+
+                            if root.tracks.cover-state != CoverState.shared: Image {
+                                width: 24px;
+                                height: 24px;
+                                source: @image-url("images/music.svg");
+                                colorize: Theme.text-tertiary;
+                            }
                         }
                     }
 
@@ -458,6 +507,19 @@ export component Inspector inherits Rectangle {
                             text: @tr("{n} file could not be read" | "{n} files could not be read" % root.tracks.unreadable);
                             font-size: 12px;
                             color: Theme.error;
+                        }
+
+                        HorizontalLayout {
+                            alignment: start;
+                            padding-top: 4px;
+
+                            Button {
+                                height: 24px;
+                                text: @tr("Replace cover…");
+                                clicked => {
+                                    root.replace-cover();
+                                }
+                            }
                         }
                     }
                 }

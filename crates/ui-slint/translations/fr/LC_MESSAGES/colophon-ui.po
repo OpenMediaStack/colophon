@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
-"POT-Creation-Date: 2026-10-10 18:24+0000\n"
+"POT-Creation-Date: 2026-10-10 18:35+0000\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -9,109 +9,109 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
 #. The application's name, then the source the table lists.
-#: ui/app-window.slint:120
+#: ui/app-window.slint:124
 msgctxt "AppWindow"
 msgid "All tracks"
 msgstr "Toutes les pistes"
 
 #. The application's name, then the source the table lists.
-#: ui/app-window.slint:120
+#: ui/app-window.slint:124
 msgctxt "AppWindow"
 msgid "Recently changed"
 msgstr "Modifiés récemment"
 
 #. The application's name, then the source the table lists.
-#: ui/app-window.slint:120
+#: ui/app-window.slint:124
 msgctxt "AppWindow"
 msgid "Unreadable files"
 msgstr "Fichiers illisibles"
 
-#: ui/app-window.slint:159
+#: ui/app-window.slint:163
 msgctxt "AppWindow"
 msgid "File"
 msgstr "Fichier"
 
-#: ui/app-window.slint:162
+#: ui/app-window.slint:166
 msgctxt "AppWindow"
 msgid "Open Folder…"
 msgstr "Ouvrir un dossier…"
 
-#: ui/app-window.slint:171
+#: ui/app-window.slint:175
 msgctxt "AppWindow"
 msgid "Open Files…"
 msgstr "Ouvrir des fichiers…"
 
-#: ui/app-window.slint:182
+#: ui/app-window.slint:186
 msgctxt "AppWindow"
 msgid "Save"
 msgstr "Enregistrer"
 
-#: ui/app-window.slint:192
+#: ui/app-window.slint:196
 msgctxt "AppWindow"
 msgid "Edit"
 msgstr "Édition"
 
-#: ui/app-window.slint:195 ui/app-window.slint:299
+#: ui/app-window.slint:199 ui/app-window.slint:303
 msgctxt "AppWindow"
 msgid "Undo"
 msgstr "Annuler"
 
-#: ui/app-window.slint:204 ui/app-window.slint:308
+#: ui/app-window.slint:208 ui/app-window.slint:312
 msgctxt "AppWindow"
 msgid "Redo"
 msgstr "Rétablir"
 
-#: ui/app-window.slint:215
+#: ui/app-window.slint:219
 msgctxt "AppWindow"
 msgid "Find"
 msgstr "Rechercher"
 
-#: ui/app-window.slint:225
+#: ui/app-window.slint:229
 msgctxt "AppWindow"
 msgid "View"
 msgstr "Présentation"
 
-#: ui/app-window.slint:228
+#: ui/app-window.slint:232
 msgctxt "AppWindow"
 msgid "Hide Sidebar"
 msgstr "Masquer la barre latérale"
 
-#: ui/app-window.slint:228
+#: ui/app-window.slint:232
 msgctxt "AppWindow"
 msgid "Show Sidebar"
 msgstr "Afficher la barre latérale"
 
-#: ui/app-window.slint:236
+#: ui/app-window.slint:240
 msgctxt "AppWindow"
 msgid "Hide Inspector"
 msgstr "Masquer l’inspecteur"
 
-#: ui/app-window.slint:236
+#: ui/app-window.slint:240
 msgctxt "AppWindow"
 msgid "Show Inspector"
 msgstr "Afficher l’inspecteur"
 
-#: ui/app-window.slint:247
+#: ui/app-window.slint:251
 msgctxt "AppWindow"
 msgid "Developer Mode"
 msgstr "Mode développeur"
 
-#: ui/app-window.slint:273
+#: ui/app-window.slint:277
 msgctxt "AppWindow"
 msgid "Open folder"
 msgstr "Ouvrir un dossier"
 
-#: ui/app-window.slint:334
+#: ui/app-window.slint:338
 msgctxt "AppWindow"
 msgid "Toggle sidebar"
 msgstr "Afficher ou masquer la barre latérale"
 
-#: ui/app-window.slint:344
+#: ui/app-window.slint:348
 msgctxt "AppWindow"
 msgid "Toggle inspector"
 msgstr "Afficher ou masquer l’inspecteur"
 
-#: ui/app-window.slint:417
+#: ui/app-window.slint:421
 msgctxt "AppWindow"
 msgid "Player"
 msgstr "Lecteur"
@@ -136,278 +136,313 @@ msgctxt "EmptyState"
 msgid "Open folder…"
 msgstr "Ouvrir un dossier…"
 
-#: ui/inspector.slint:122
+#: ui/inspector.slint:130
 msgctxt "EditField"
 msgid "Multiple values"
 msgstr "Valeurs multiples"
 
-#: ui/inspector.slint:276
+#: ui/inspector.slint:284
 msgctxt "EditField"
 msgid "Show suggestions"
 msgstr "Afficher les suggestions"
 
-#: ui/inspector.slint:335
+#: ui/inspector.slint:346
 msgctxt "Inspector"
 msgid "{n} byte"
 msgid_plural "{n} bytes"
 msgstr[0] "{n} octet"
 msgstr[1] "{n} octets"
 
-#: ui/inspector.slint:338
+#: ui/inspector.slint:349
 msgctxt "Inspector"
 msgid "{} KB"
 msgstr "{} Ko"
 
-#: ui/inspector.slint:341
+#: ui/inspector.slint:352
 msgctxt "Inspector"
 msgid "{0}.{1} MB"
 msgstr "{0},{1} Mo"
 
-#: ui/inspector.slint:343
+#: ui/inspector.slint:354
 msgctxt "Inspector"
 msgid "{0}.{1} GB"
 msgstr "{0},{1} Go"
 
-#: ui/inspector.slint:351 ui/inspector.slint:478 ui/inspector.slint:485
+#: ui/inspector.slint:362 ui/inspector.slint:540 ui/inspector.slint:547
 msgctxt "Inspector"
 msgid "Title"
 msgstr "Titre"
 
-#: ui/inspector.slint:351 ui/inspector.slint:491 ui/inspector.slint:498
+#: ui/inspector.slint:362 ui/inspector.slint:553 ui/inspector.slint:560
 msgctxt "Inspector"
 msgid "Artist"
 msgstr "Artiste"
 
-#: ui/inspector.slint:351 ui/inspector.slint:517 ui/inspector.slint:524
+#: ui/inspector.slint:362 ui/inspector.slint:579 ui/inspector.slint:586
 msgctxt "Inspector"
 msgid "Album"
 msgstr "Album"
 
-#: ui/inspector.slint:351 ui/inspector.slint:530 ui/inspector.slint:537
+#: ui/inspector.slint:362 ui/inspector.slint:592 ui/inspector.slint:599
 msgctxt "Inspector"
 msgid "Year"
 msgstr "Année"
 
-#: ui/inspector.slint:351 ui/inspector.slint:594 ui/inspector.slint:602
+#: ui/inspector.slint:362 ui/inspector.slint:656 ui/inspector.slint:664
 msgctxt "Inspector"
 msgid "Comment"
 msgstr "Commentaire"
 
-#: ui/inspector.slint:351 ui/inspector.slint:544 ui/inspector.slint:556
+#: ui/inspector.slint:362 ui/inspector.slint:606 ui/inspector.slint:618
 msgctxt "Inspector"
 msgid "Track"
 msgstr "Piste"
 
-#: ui/inspector.slint:351 ui/inspector.slint:580 ui/inspector.slint:587
+#: ui/inspector.slint:362 ui/inspector.slint:642 ui/inspector.slint:649
 msgctxt "Inspector"
 msgid "Genre"
 msgstr "Genre"
 
-#: ui/inspector.slint:360
+#: ui/inspector.slint:371
 msgctxt "Inspector"
 msgid "Saving converts {n} file."
 msgid_plural "Saving converts {n} files."
 msgstr[0] "L’enregistrement convertit {n} fichier."
 msgstr[1] "L’enregistrement convertit {n} fichiers."
 
-#: ui/inspector.slint:363
+#: ui/inspector.slint:374
 msgctxt "Inspector"
 msgid "Saving removes the tags of {n} file."
 msgid_plural "Saving removes the tags of {n} files."
 msgstr[0] "L’enregistrement supprime les tags de {n} fichier."
 msgstr[1] "L’enregistrement supprime les tags de {n} fichiers."
 
-#: ui/inspector.slint:366
+#: ui/inspector.slint:377
 msgctxt "Inspector"
 msgid "Saving converts {n} file to {0}."
 msgid_plural "Saving converts {n} files to {0}."
 msgstr[0] "L’enregistrement convertit {n} fichier en {0}."
 msgstr[1] "L’enregistrement convertit {n} fichiers en {0}."
 
-#: ui/inspector.slint:368
+#: ui/inspector.slint:379
 msgctxt "Inspector"
 msgid "Saving converts {n} file from {0} to {1}."
 msgid_plural "Saving converts {n} files from {0} to {1}."
 msgstr[0] "L’enregistrement convertit {n} fichier de {0} en {1}."
 msgstr[1] "L’enregistrement convertit {n} fichiers de {0} en {1}."
 
-#: ui/inspector.slint:373 ui/inspector.slint:650 ui/inspector.slint:661
+#: ui/inspector.slint:384 ui/inspector.slint:712 ui/inspector.slint:723
 msgctxt "Inspector"
 msgid "Multiple values"
 msgstr "Valeurs multiples"
 
-#: ui/inspector.slint:375
+#: ui/inspector.slint:386
 msgctxt "Inspector"
 msgid "{} kbps"
 msgstr "{} kbit/s"
 
-#: ui/inspector.slint:377
+#: ui/inspector.slint:388
 msgctxt "Inspector"
 msgid "{} kHz"
 msgstr "{} kHz"
 
-#: ui/inspector.slint:377
+#: ui/inspector.slint:388
 msgctxt "Inspector"
 msgid "{0}.{1} kHz"
 msgstr "{0},{1} kHz"
 
-#: ui/inspector.slint:382
+#: ui/inspector.slint:393
 msgctxt "Inspector"
 msgid "Inspector"
 msgstr "Inspecteur"
 
-#: ui/inspector.slint:392
+#: ui/inspector.slint:403
 msgctxt "Inspector"
 msgid "Select tracks to see their tags"
 msgstr "Sélectionnez des morceaux pour voir leurs tags"
 
-#: ui/inspector.slint:399
+#: ui/inspector.slint:410
 msgctxt "Inspector"
 msgid "{} selects every track"
 msgstr "{} sélectionne tous les morceaux"
 
-#: ui/inspector.slint:444
+#: ui/inspector.slint:439
+msgctxt "Inspector"
+msgid "Replace Cover…"
+msgstr "Remplacer la pochette…"
+
+#: ui/inspector.slint:446
+msgctxt "Inspector"
+msgid "Extract Cover…"
+msgstr "Extraire la pochette…"
+
+#: ui/inspector.slint:454
+msgctxt "Inspector"
+msgid "Remove Cover"
+msgstr "Supprimer la pochette"
+
+#: ui/inspector.slint:469
+msgctxt "Inspector"
+msgid "Cover"
+msgstr "Pochette"
+
+#: ui/inspector.slint:469
+msgctxt "Inspector"
+msgid "Several covers"
+msgstr "Plusieurs pochettes"
+
+#: ui/inspector.slint:469
+msgctxt "Inspector"
+msgid "No cover"
+msgstr "Pas de pochette"
+
+#: ui/inspector.slint:493
 msgctxt "Inspector"
 msgid "{n} track selected"
 msgid_plural "{n} tracks selected"
 msgstr[0] "{n} morceau sélectionné"
 msgstr[1] "{n} morceaux sélectionnés"
 
-#: ui/inspector.slint:458
+#: ui/inspector.slint:507
 msgctxt "Inspector"
 msgid "{n} file could not be read"
 msgid_plural "{n} files could not be read"
 msgstr[0] "{n} fichier illisible"
 msgstr[1] "{n} fichiers illisibles"
 
-#: ui/inspector.slint:469 ui/inspector.slint:645
+#: ui/inspector.slint:518
+msgctxt "Inspector"
+msgid "Replace cover…"
+msgstr "Remplacer la pochette…"
+
+#: ui/inspector.slint:531 ui/inspector.slint:707
 msgctxt "Inspector"
 msgid "Tags"
 msgstr "Tags"
 
-#: ui/inspector.slint:504 ui/inspector.slint:511
+#: ui/inspector.slint:566 ui/inspector.slint:573
 msgctxt "Inspector"
 msgid "Album artist"
 msgstr "Artiste de l’album"
 
-#: ui/inspector.slint:558
+#: ui/inspector.slint:620
 msgctxt "Inspector"
 msgid "Multiple"
 msgstr "Multiples"
 
-#: ui/inspector.slint:563
+#: ui/inspector.slint:625
 msgctxt "Inspector"
 msgid "of"
 msgstr "sur"
 
-#: ui/inspector.slint:571
+#: ui/inspector.slint:633
 msgctxt "Inspector"
 msgid "Track total"
 msgstr "Nombre de pistes"
 
-#: ui/inspector.slint:613
+#: ui/inspector.slint:675
 msgctxt "Inspector"
 msgid "File"
 msgstr "Fichier"
 
-#: ui/inspector.slint:622
+#: ui/inspector.slint:684
 msgctxt "Inspector"
 msgid "Audio"
 msgstr "Audio"
 
-#: ui/inspector.slint:633
+#: ui/inspector.slint:695
 msgctxt "Inspector"
 msgid "Size"
 msgstr "Taille"
 
-#: ui/inspector.slint:638
+#: ui/inspector.slint:700
 msgctxt "Inspector"
 msgid "{} total"
 msgstr "{} au total"
 
-#: ui/inspector.slint:650 ui/inspector.slint:695 ui/inspector.slint:715
+#: ui/inspector.slint:712 ui/inspector.slint:757 ui/inspector.slint:777
 msgctxt "Inspector"
 msgid "None"
 msgstr "Aucun"
 
-#: ui/inspector.slint:656
+#: ui/inspector.slint:718
 msgctxt "Inspector"
 msgid "Saved as"
 msgstr "Enregistré en"
 
-#: ui/inspector.slint:669
+#: ui/inspector.slint:731
 msgctxt "Inspector"
 msgid "ID3v1 will keep only part of: {}"
 msgstr "L’ID3v1 ne gardera qu’une partie de : {}"
 
-#: ui/inspector.slint:680
+#: ui/inspector.slint:742
 msgctxt "Inspector"
 msgid "Tag format"
 msgstr "Format des tags"
 
-#: ui/inspector.slint:689 ui/inspector.slint:693
+#: ui/inspector.slint:751 ui/inspector.slint:755
 msgctxt "Inspector"
 msgid "Write ID3v2"
 msgstr "Écrire l’ID3v2"
 
-#: ui/inspector.slint:709 ui/inspector.slint:713
+#: ui/inspector.slint:771 ui/inspector.slint:775
 msgctxt "Inspector"
 msgid "Write ID3v1"
 msgstr "Écrire l’ID3v1"
 
-#: ui/inspector.slint:749
+#: ui/inspector.slint:811
 msgctxt "Inspector"
 msgid "Inspector scroll bar"
 msgstr "Barre de défilement de l’inspecteur"
 
-#: ui/inspector.slint:771
+#: ui/inspector.slint:833
 msgctxt "Inspector"
 msgid "Revert"
 msgstr "Rétablir l’original"
 
-#: ui/inspector.slint:779
+#: ui/inspector.slint:841
 msgctxt "Inspector"
 msgid "Saving…"
 msgstr "Enregistrement…"
 
-#: ui/inspector.slint:779
+#: ui/inspector.slint:841
 msgctxt "Inspector"
 msgid "Save {n} file"
 msgid_plural "Save {n} files"
 msgstr[0] "Enregistrer {n} fichier"
 msgstr[1] "Enregistrer {n} fichiers"
 
-#: ui/inspector.slint:826
+#: ui/inspector.slint:888
 msgctxt "Inspector"
 msgid "Could not read this file"
 msgstr "Impossible de lire ce fichier"
 
-#: ui/inspector.slint:846
+#: ui/inspector.slint:908
 msgctxt "Inspector"
 msgid "Problem"
 msgstr "Problème"
 
-#: ui/inspector.slint:851
+#: ui/inspector.slint:913
 msgctxt "Inspector"
 msgid "Colophon could not open this file. It may have been moved or deleted, or Colophon may not be allowed to read it."
 msgstr "Colophon n’a pas pu ouvrir ce fichier. Il a peut-être été déplacé ou supprimé, ou Colophon n’a pas le droit de le lire."
 
-#: ui/inspector.slint:852
+#: ui/inspector.slint:914
 msgctxt "Inspector"
 msgid "This file is damaged, or it is not an MP3: Colophon could not make sense of it."
 msgstr "Ce fichier est abîmé, ou ce n’est pas un MP3 : Colophon n’a pas pu le comprendre."
 
-#: ui/inspector.slint:853
+#: ui/inspector.slint:915
 msgctxt "Inspector"
 msgid "Reading this file failed in a way it never should. This is a bug in Colophon, and the file itself may be fine."
 msgstr "La lecture de ce fichier a échoué d’une façon qui ne devrait jamais arriver. C’est un bogue de Colophon, et le fichier lui-même est peut-être intact."
 
-#: ui/inspector.slint:862
+#: ui/inspector.slint:924
 msgctxt "Inspector"
 msgid "Details"
 msgstr "Détails"
 
-#: ui/inspector.slint:869
+#: ui/inspector.slint:931
 msgctxt "Inspector"
 msgid "File size"
 msgstr "Taille du fichier"

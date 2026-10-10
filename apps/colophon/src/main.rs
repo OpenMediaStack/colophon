@@ -20,6 +20,16 @@ impl Dialogs for SystemDialogs {
             .pick_files()
             .unwrap_or_default()
     }
+
+    fn pick_image(&self) -> Option<PathBuf> {
+        rfd::FileDialog::new()
+            .add_filter("JPEG, PNG", &["jpg", "jpeg", "png"])
+            .pick_file()
+    }
+
+    fn pick_save_path(&self, suggested: &str) -> Option<PathBuf> {
+        rfd::FileDialog::new().set_file_name(suggested).save_file()
+    }
 }
 
 fn main() -> Result<(), PlatformError> {
