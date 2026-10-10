@@ -4,8 +4,8 @@ import { ScrollBar } from "widgets.slint";
 // What the table lists, as the sidebar offers it.
 export enum SourceKind { all-tracks, recently-changed, unreadable, folder, album, artist }
 
-// A line of the sidebar: a source, its name, how many tracks it has, and for an album the colour
-// that stands for its cover until covers show.
+// A line of the sidebar: a source, its name, how many tracks it has, and for an album its cover,
+// or a colour of its own until the cover is drawn or when it has none.
 export struct SidebarItem {
     kind: SourceKind,
     // Its place among the folders, albums or artists.
@@ -13,6 +13,8 @@ export struct SidebarItem {
     label: string,
     count: int,
     swatch: color,
+    cover: image,
+    has-cover: bool,
 }
 
 component SectionTitle inherits Text {
@@ -53,7 +55,15 @@ component SidebarRow inherits Rectangle {
             height: 18px;
             y: (parent.height - self.height) / 2;
             border-radius: 3px;
+            clip: true;
             background: @linear-gradient(135deg, root.item.swatch, root.item.swatch.darker(40%));
+
+            if root.item.has-cover: Image {
+                width: 100%;
+                height: 100%;
+                source: root.item.cover;
+                image-fit: cover;
+            }
         }
 
         Text {

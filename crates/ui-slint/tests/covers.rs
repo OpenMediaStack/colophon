@@ -121,3 +121,18 @@ fn a_cover_is_removed_and_extracted() -> TestResult {
     assert_eq!(window.get_modified_count(), 1);
     Ok(())
 }
+
+#[test]
+fn an_album_shows_its_cover_in_the_sidebar_once_drawn() -> TestResult {
+    let (window, _folder) = window_with_covers()?;
+    find(&window, "Paper Satellites")?.mock_single_click(PointerEventButton::Left);
+    find(&window, "Replace cover…")?.invoke_accessible_default_action();
+    press(&window, &[Key::Control], "s");
+
+    wait_until(&window, "the album cover", |window| {
+        let albums = window.get_album_sources();
+        (0..slint::Model::row_count(&albums))
+            .any(|row| slint::Model::row_data(&albums, row).is_some_and(|album| album.has_cover))
+    })?;
+    Ok(())
+}

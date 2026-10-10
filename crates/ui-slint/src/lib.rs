@@ -6,6 +6,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
+use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::Duration;
 
 use colophon_engine::tags::{self, Id3v1Loss, Id3v1Version, Id3v2Version, ReadError};
@@ -94,7 +95,8 @@ pub fn main_window(
     let window = AppWindow::new()?;
     let tracks = Rc::new(VecModel::default());
     window.set_tracks(ModelRc::from(Rc::clone(&tracks)));
-    let bridge = Rc::new(Bridge {
+    let bridge = Rc::new_cyclic(|me| Bridge {
+        me: me.clone(),
         engine: RefCell::new(engine),
         window: window.as_weak(),
         tracks,
@@ -110,6 +112,8 @@ pub fn main_window(
         removal: Cell::default(),
         sources: RefCell::default(),
         drawn_cover: RefCell::default(),
+        thumbnails: RefCell::default(),
+        thumbnail_timer: Timer::default(),
     });
     bridge.show();
     window.on_run({
@@ -291,6 +295,8 @@ pub fn request_close(window: &AppWindow) -> bool {
 }
 
 struct Bridge {
+    /// The bridge itself, for the timers it starts.
+    me: Weak<Bridge>,
     engine: RefCell<Engine>,
     window: slint::Weak<AppWindow>,
     tracks: Rc<VecModel<TrackRow>>,
@@ -313,6 +319,31 @@ struct Bridge {
     sources: RefCell<Sources>,
     /// The cover drawn last, so that a selection shown again does not decode it again.
     drawn_cover: RefCell<Option<(Arc<[u8]>, Image)>>,
+    /// The album covers of the sidebar, drawn small on a thread of their own.
+    thumbnails: RefCell<Thumbnails>,
+    thumbnail_timer: Timer,
+}
+
+/// Album covers drawn small, by the address of their shared bytes, and those being drawn.
+#[derive(Default)]
+struct Thumbnails {
+    drawn: HashMap<usize, (Arc<[u8]>, Image)>,
+    drawing: Option<Receiver<Thumbnail>>,
+}
+
+/// A cover's bytes and its pixels made small.
+type Thumbnail = (Arc<[u8]>, SharedPixelBuffer<Rgba8Pixel>);
+
+impl Thumbnails {
+    fn get(&self, cover: &tags::Cover) -> Option<Image> {
+        self.drawn
+            .get(&cover_key(cover))
+            .map(|(_, image)| image.clone())
+    }
+}
+
+fn cover_key(cover: &tags::Cover) -> usize {
+    Arc::as_ptr(&cover.data).cast::<u8>() as usize
 }
 
 /// The sources the sidebar lists, and the state of the library they were read from.
@@ -320,6 +351,7 @@ struct Bridge {
 struct Sources {
     folders: Vec<PathBuf>,
     albums: Vec<AlbumKey>,
+    album_covers: Vec<Option<tags::Cover>>,
     artists: Vec<String>,
     read_from: Option<GenreSource>,
 }
@@ -577,7 +609,12 @@ impl Bridge {
             sources.albums = groups
                 .albums
                 .iter()
-                .map(|(album, _)| album.clone())
+                .map(|album| album.key.clone())
+                .collect();
+            sources.album_covers = groups
+                .albums
+                .iter()
+                .map(|album| album.cover.clone())
                 .collect();
             sources.artists = groups
                 .artists
@@ -602,18 +639,25 @@ impl Bridge {
                     ..SidebarItem::default()
                 })
                 .collect();
+            let thumbnails = self.thumbnails.borrow();
             let albums: Vec<SidebarItem> = groups
                 .albums
                 .iter()
                 .enumerate()
-                .map(|(index, (album, tracks))| SidebarItem {
-                    kind: SourceKind::Album,
-                    index: count(index),
-                    label: album.title.as_str().into(),
-                    count: count(*tracks),
-                    swatch: swatch(album),
+                .map(|(index, album)| {
+                    let cover = album.cover.as_ref().and_then(|cover| thumbnails.get(cover));
+                    SidebarItem {
+                        kind: SourceKind::Album,
+                        index: count(index),
+                        label: album.key.title.as_str().into(),
+                        count: count(album.tracks),
+                        swatch: swatch(&album.key),
+                        has_cover: cover.is_some(),
+                        cover: cover.unwrap_or_default(),
+                    }
                 })
                 .collect();
+            drop(thumbnails);
             let artists: Vec<SidebarItem> = groups
                 .artists
                 .iter()
@@ -631,6 +675,7 @@ impl Bridge {
             window.set_album_sources(ModelRc::new(VecModel::from(albums)));
             window.set_first_album_sources(ModelRc::new(VecModel::from(first)));
             window.set_artist_sources(ModelRc::new(VecModel::from(artists)));
+            self.draw_thumbnails(&sources.album_covers);
         }
 
         let unreadable = library
@@ -682,6 +727,100 @@ impl Bridge {
         window.set_shown_kind(kind);
         window.set_shown_index(index);
         window.set_shown_label(label.into());
+    }
+
+    /// Draws on a thread of their own the album covers not drawn yet, then shows them as they come.
+    fn draw_thumbnails(&self, covers: &[Option<tags::Cover>]) {
+        let mut thumbnails = self.thumbnails.borrow_mut();
+        if thumbnails.drawing.is_some() {
+            return;
+        }
+        let mut wanted: HashMap<usize, Arc<[u8]>> = HashMap::new();
+        for cover in covers.iter().flatten() {
+            let key = cover_key(cover);
+            if !thumbnails.drawn.contains_key(&key) {
+                wanted.insert(key, Arc::clone(&cover.data));
+            }
+        }
+        if wanted.is_empty() {
+            return;
+        }
+        let (sender, drawn) = std::sync::mpsc::channel();
+        let spawned = std::thread::Builder::new()
+            .name("album covers".to_string())
+            .spawn(move || {
+                for data in wanted.into_values() {
+                    let Some(buffer) = shrink(&data, THUMBNAIL_PIXELS) else {
+                        continue;
+                    };
+                    if sender.send((data, buffer)).is_err() {
+                        return;
+                    }
+                }
+            });
+        if spawned.is_err() {
+            return;
+        }
+        thumbnails.drawing = Some(drawn);
+        let me = self.me.clone();
+        self.thumbnail_timer
+            .start(TimerMode::Repeated, POLL_INTERVAL, move || {
+                if let Some(bridge) = me.upgrade() {
+                    bridge.take_thumbnails();
+                }
+            });
+    }
+
+    /// Takes in the album covers drawn since the last call, and puts them in the sidebar.
+    fn take_thumbnails(&self) {
+        let mut thumbnails = self.thumbnails.borrow_mut();
+        let Some(drawing) = &thumbnails.drawing else {
+            return;
+        };
+        let mut drawn = Vec::new();
+        let finished = loop {
+            match drawing.try_recv() {
+                Ok(thumbnail) => drawn.push(thumbnail),
+                Err(TryRecvError::Empty) => break false,
+                Err(TryRecvError::Disconnected) => break true,
+            }
+        };
+        for (data, buffer) in drawn {
+            let key = Arc::as_ptr(&data).cast::<u8>() as usize;
+            thumbnails
+                .drawn
+                .insert(key, (data, Image::from_rgba8(buffer)));
+        }
+        if finished {
+            thumbnails.drawing = None;
+            self.thumbnail_timer.stop();
+        }
+        let Some(window) = self.window.upgrade() else {
+            return;
+        };
+        let sources = self.sources.borrow();
+        for model in [window.get_album_sources(), window.get_first_album_sources()] {
+            for row in 0..model.row_count() {
+                let Some(item) = model.row_data(row) else {
+                    continue;
+                };
+                let cover = usize::try_from(item.index)
+                    .ok()
+                    .and_then(|index| sources.album_covers.get(index))
+                    .and_then(Option::as_ref)
+                    .and_then(|cover| thumbnails.get(cover));
+                if let Some(cover) = cover.filter(|_| !item.has_cover) {
+                    model.set_row_data(
+                        row,
+                        SidebarItem {
+                            cover,
+                            has_cover: true,
+                            ..item
+                        },
+                    );
+                }
+            }
+        }
     }
 
     fn cover_image(&self, cover: &tags::Cover) -> Image {
@@ -1029,18 +1168,25 @@ fn field<T>(value: &Shared<T>, modified: bool, text: impl Fn(&T) -> String) -> I
 /// screen.
 const COVER_PIXELS: u32 = 128;
 
+/// The size album covers are decoded at for the sidebar, which draws them at 18 points.
+const THUMBNAIL_PIXELS: u32 = 36;
+
 /// A cover made smaller, to draw; `None` when its bytes are no image Colophon reads.
 fn decode_cover(data: &[u8], size: u32) -> Option<Image> {
+    shrink(data, size).map(Image::from_rgba8)
+}
+
+/// The pixels of a cover made smaller, which another thread may compute.
+fn shrink(data: &[u8], size: u32) -> Option<SharedPixelBuffer<Rgba8Pixel>> {
     let decoded = image::load_from_memory(data)
         .ok()?
         .thumbnail(size, size)
         .to_rgba8();
-    let buffer = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+    Some(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
         decoded.as_raw(),
         decoded.width(),
         decoded.height(),
-    );
-    Some(Image::from_rgba8(buffer))
+    ))
 }
 
 /// A cover from an image file, if it is a JPEG or a PNG.
