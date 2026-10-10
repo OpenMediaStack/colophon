@@ -8,9 +8,9 @@ import { Region, ToolbarButton } from "widgets.slint";
 import { EmptyState } from "empty-state.slint";
 import { ScanState, StatusBar } from "status-bar.slint";
 import { TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
-import { BitrateMode, ByteSize, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
+import { BitrateMode, ByteSize, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, TagEditing, TagField, UnreadableFile } from "inspector.slint";
 
-export { Theme, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, InspectedTracks, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
@@ -57,6 +57,7 @@ export component AppWindow inherits Window {
     in property <TrackRow> longest;
     in property <int> focused-row: -1;
     in property <int> selected-count;
+    in property <int> modified-count;
     in property <InspectorState> inspector-state;
     in property <InspectedTracks> inspected-tracks;
     in property <UnreadableFile> unreadable-file;
@@ -251,6 +252,7 @@ export component AppWindow inherits Window {
             track-count: root.track-count;
             unreadable-count: root.unreadable-count;
             selected-count: root.selected-count;
+            modified-count: root.modified-count;
             folder: root.folder;
             stop-scan => {
                 root.run(Command.stop-scan);

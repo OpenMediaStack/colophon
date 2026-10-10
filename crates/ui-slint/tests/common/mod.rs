@@ -208,3 +208,33 @@ pub fn click_holding(window: &AppWindow, held: &[Key], label: &str) -> Result<()
     }
     Ok(())
 }
+
+/// The text input of an inspector field, whose label a table header may share.
+pub fn input(window: &AppWindow, label: &str) -> Result<ElementHandle, String> {
+    ElementHandle::find_by_accessible_label(window, label)
+        .find(|element| {
+            element.accessible_role() == Some(i_slint_backend_testing::AccessibleRole::TextInput)
+        })
+        .ok_or_else(|| format!("no text input labelled {label:?}"))
+}
+
+/// Types `text` into the focused element, one key after the other.
+pub fn type_text(window: &AppWindow, text: &str) {
+    for character in text.chars() {
+        let key = SharedString::from(character.to_string());
+        window
+            .window()
+            .dispatch_event(WindowEvent::KeyPressed { text: key.clone() });
+        window
+            .window()
+            .dispatch_event(WindowEvent::KeyReleased { text: key });
+    }
+}
+
+/// Puts `text` in place of what an inspector field holds, without keeping it yet.
+pub fn retype(window: &AppWindow, label: &str, text: &str) -> TestResult {
+    input(window, label)?.mock_single_click(PointerEventButton::Left);
+    press(window, &[Key::Control], "a");
+    type_text(window, text);
+    Ok(())
+}

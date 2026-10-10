@@ -65,13 +65,21 @@ fn one_track_shows_its_tags_and_its_file() -> TestResult {
 
     for value in [
         "Small Hours · Marlowe Kite",
-        "Various Artists",
-        "Recorded in one take.",
         "MP3 · 64\u{a0}kbps\u{a0}CBR · 44.1\u{a0}kHz",
         "1\u{a0}KB",
         "ID3v2.3",
     ] {
         assert!(shows(&window, value), "{value} is missing");
+    }
+    for (field, value) in [
+        ("Album artist", "Various Artists"),
+        ("Year", "2019"),
+        ("Track", "3"),
+        ("Track total", "12"),
+        ("Comment", "Recorded in one take."),
+    ] {
+        let shown = common::input(&window, field)?.accessible_value();
+        assert_eq!(shown.as_deref(), Some(value), "{field}");
     }
     Ok(())
 }
@@ -122,14 +130,21 @@ fn the_inspector_writes_numbers_in_french() -> TestResult {
 fn text(value: &str) -> InspectorField {
     InspectorField {
         text: value.into(),
-        mixed: false,
+        ..InspectorField::default()
+    }
+}
+
+fn modified(value: &str) -> InspectorField {
+    InspectorField {
+        modified: true,
+        ..text(value)
     }
 }
 
 fn mixed() -> InspectorField {
     InspectorField {
-        text: "".into(),
         mixed: true,
+        ..InspectorField::default()
     }
 }
 
@@ -159,10 +174,10 @@ fn the_inspector_matches_its_references() -> TestResult {
         artist: text("Cassette Bloom"),
         album_artist: text("Cassette Bloom"),
         album: text("Analog Hearts"),
-        year: text("2024"),
+        year: modified("2024"),
         track: mixed(),
         track_total: text("8"),
-        genre: text("Synthwave"),
+        genre: modified("Synthwave"),
         comment: text("Remastered from the original tapes, 2025 reissue."),
         audio_shared: true,
         bitrate: 320,
