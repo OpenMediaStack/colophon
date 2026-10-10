@@ -151,13 +151,26 @@ fn the_position_and_the_volume_reach_the_output() -> TestResult {
 }
 
 #[test]
+fn the_player_shows_once_a_track_plays() -> TestResult {
+    let (window, _folder, _fake) = window_playing()?;
+    assert!(find(&window, "Player").is_err());
+
+    press(&window, &[], " ");
+
+    assert!(find(&window, "Player").is_ok());
+    Ok(())
+}
+
+#[test]
 fn without_a_sound_device_the_player_is_off() -> TestResult {
     common::use_testing_backend()?;
     let window = colophon_ui::main_window(Engine::new(), || None)?;
     window.show()?;
 
+    press(&window, &[], " ");
+
     assert!(!window.get_player_available());
-    assert_eq!(find(&window, "Play")?.accessible_enabled(), Some(false));
+    assert!(find(&window, "Player").is_err());
     Ok(())
 }
 
