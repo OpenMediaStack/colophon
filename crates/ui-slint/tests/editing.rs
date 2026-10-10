@@ -60,6 +60,21 @@ fn enter_keeps_a_new_title() -> TestResult {
 }
 
 #[test]
+fn the_disc_is_edited_like_the_track() -> TestResult {
+    let (window, _folder) = window_with_a_selected_track()?;
+
+    retype(&window, "Disc", "2")?;
+    press(&window, &[], Key::Return);
+    retype(&window, "Disc total", "3")?;
+    press(&window, &[], Key::Return);
+
+    assert_eq!(value(&window, "Disc")?, "2");
+    assert_eq!(value(&window, "Disc total")?, "3");
+    assert!(shows(&window, "1 file with unsaved changes"));
+    Ok(())
+}
+
+#[test]
 fn escape_puts_the_value_back() -> TestResult {
     let (window, _folder) = window_with_a_selected_track()?;
 

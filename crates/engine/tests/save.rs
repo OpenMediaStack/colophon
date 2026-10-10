@@ -47,6 +47,21 @@ fn saving_writes_every_pending_change() -> TestResult {
 }
 
 #[test]
+fn saving_writes_the_disc_and_the_number_of_discs() -> TestResult {
+    let (folder, mut engine) = two_tracks()?;
+    engine.execute(Command::Select(0));
+    engine.execute(Command::Edit(Edit::Disc(Some(2))));
+    engine.execute(Command::Edit(Edit::DiscTotal(Some(3))));
+
+    engine.execute(Command::Save);
+    poll_until_saved(&mut engine)?;
+
+    let tags = read(&folder.path().join("1.mp3"))?.tags;
+    assert_eq!((tags.disc, tags.disc_total), (Some(2), Some(3)));
+    Ok(())
+}
+
+#[test]
 fn undoing_a_saved_edit_brings_the_old_value_back_to_save() -> TestResult {
     let (folder, mut engine) = two_tracks()?;
     engine.execute(Command::Select(0));

@@ -76,6 +76,8 @@ fn one_track_shows_its_tags_and_its_file() -> TestResult {
         ("Year", "2019"),
         ("Track", "3"),
         ("Track total", "12"),
+        ("Disc", "1"),
+        ("Disc total", "2"),
         ("Comment", "Recorded in one take."),
     ] {
         let shown = common::input(&window, field)?.accessible_value();
@@ -176,6 +178,8 @@ fn three_tracks() -> InspectedTracks {
         year: modified("2024"),
         track: mixed(),
         track_total: text("8"),
+        disc: text("1"),
+        disc_total: text("1"),
         genre: modified("Synthwave"),
         comment: text("Remastered from the original tapes, 2025 reissue."),
         audio_shared: true,
