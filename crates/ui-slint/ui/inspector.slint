@@ -71,6 +71,9 @@ export struct InspectedTracks {
     year: InspectorField,
     track: InspectorField,
     track-total: InspectorField,
+    // What looks wrong beside the rest of their albums, in at least one of the tracks.
+    missing-number: bool,
+    odd-album-artist: bool,
     disc: InspectorField,
     disc-total: InspectorField,
     genre: InspectorField,
@@ -330,6 +333,29 @@ component FileValue inherits Text {
     color: Theme.text-primary;
 }
 
+// Something that looks wrong in the tags, with the warning colour and sign.
+component Warning inherits HorizontalLayout {
+    in property <string> text;
+
+    spacing: 6px;
+
+    Image {
+        width: 14px;
+        height: 14px;
+        y: 1px;
+        source: @image-url("images/triangle-alert.svg");
+        colorize: Theme.warning;
+    }
+
+    Text {
+        horizontal-stretch: 1;
+        wrap: word-wrap;
+        text: root.text;
+        font-size: 12px;
+        color: Theme.warning;
+    }
+}
+
 // The panel at the right of the window: the tags of the selected tracks.
 export component Inspector inherits Rectangle {
     in property <InspectorState> state;
@@ -560,6 +586,14 @@ export component Inspector inherits Rectangle {
 
                     SectionLabel {
                         text: @tr("Tags").to-uppercase();
+                    }
+
+                    if root.tracks.missing-number: Warning {
+                        text: root.tracks.count == 1 ? @tr("This track has no number, unlike the rest of its album.") : @tr("Some of these tracks have no number, unlike the rest of their albums.");
+                    }
+
+                    if root.tracks.odd-album-artist: Warning {
+                        text: root.tracks.count == 1 ? @tr("Its album artist differs from the rest of its album.") : @tr("Some of these tracks have an album artist that differs from the rest of their albums.");
                     }
 
                     GridLayout {

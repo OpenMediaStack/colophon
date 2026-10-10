@@ -7,6 +7,7 @@ mod listing;
 mod playback;
 mod preferences;
 mod selection;
+mod warnings;
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::PathBuf;
@@ -28,6 +29,7 @@ pub use listing::{Album, AlbumKey, Groups, Sort, SortColumn, Source};
 pub use playback::{Output, PlayError, Playback};
 pub use preferences::Preferences;
 pub use selection::{Selection, Step};
+pub use warnings::Warnings;
 
 /// A user action. The UI turns buttons, menu items and shortcuts into commands.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -370,6 +372,19 @@ impl Engine {
     /// The albums and artists of the library.
     pub fn groups(&self) -> Groups {
         listing::groups(&self.library.tracks)
+    }
+
+    /// The tracks whose tags look wrong beside the rest of their album, with what does.
+    pub fn warnings(&self) -> BTreeMap<usize, Warnings> {
+        warnings::warnings(
+            self.library
+                .tracks
+                .iter()
+                .enumerate()
+                .filter_map(|(index, track)| {
+                    Some((index, track.path.as_path(), self.tags_of(index)?))
+                }),
+        )
     }
 
     /// The tags a track shows: those waiting to be saved, or else its file's.
