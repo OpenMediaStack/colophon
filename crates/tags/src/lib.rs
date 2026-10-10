@@ -1,6 +1,7 @@
 //! Colophon's tags: what an audio file says about itself. No UI types.
 
 mod bitrate_mode;
+mod layout;
 mod read;
 mod write;
 
@@ -8,6 +9,9 @@ use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
 
+pub use layout::{
+    FrameFlags, FrameLayout, FrameValue, Id3v2Layout, Layout, LayoutError, TextEncoding, layout,
+};
 pub use read::{ReadError, read};
 pub use write::{Id3v1Loss, WriteError, formats_after_write, id3v1_losses, write};
 

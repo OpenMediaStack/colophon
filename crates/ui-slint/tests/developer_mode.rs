@@ -84,3 +84,34 @@ fn undo_takes_a_version_back() -> TestResult {
     assert!(checked(&window, "2.4")?);
     Ok(())
 }
+
+#[test]
+fn the_frames_of_a_track_show_where_they_are() -> TestResult {
+    let (window, _folder) = window_with_an_id3v2_3_track()?;
+    assert!(!shows(&window, "TIT2"));
+
+    window.invoke_run(WindowCommand::ToggleDeveloperMode);
+
+    assert!(shows(
+        &window,
+        "ID3v2.3.0 · 226 bytes · 10 bytes of padding"
+    ));
+    assert!(shows(&window, "TIT2 Paper Satellites"));
+    assert!(shows(&window, "at 10 · 18 bytes · ISO-8859-1"));
+    Ok(())
+}
+
+#[test]
+fn the_frames_show_again_once_saved() -> TestResult {
+    let (window, _folder) = window_with_an_id3v2_3_track()?;
+    window.invoke_run(WindowCommand::ToggleDeveloperMode);
+
+    find(&window, "2.4")?.invoke_accessible_default_action();
+    window.invoke_run(WindowCommand::Save);
+    wait_until(&window, "the save", |window| {
+        !window.get_saving() && window.get_modified_count() == 0
+    })?;
+
+    assert_eq!(window.get_tag_layout().version, "4.0");
+    Ok(())
+}
