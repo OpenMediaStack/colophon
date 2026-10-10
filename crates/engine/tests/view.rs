@@ -124,6 +124,7 @@ fn command_ids_are_unique() {
         Command::Undo,
         Command::Redo,
         Command::Revert,
+        Command::Save,
     ];
 
     let ids: HashSet<_> = commands.iter().map(Command::id).collect();

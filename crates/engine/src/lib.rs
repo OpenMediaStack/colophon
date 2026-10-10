@@ -8,8 +8,10 @@ mod selection;
 use std::path::PathBuf;
 use std::sync::mpsc::TryRecvError;
 
+use colophon_library::tags::WriteError;
 use colophon_library::{
-    AUDIO_EXTENSIONS, ScanError, ScanEvent, ScanHandle, ScanOutcome, spawn_scan,
+    AUDIO_EXTENSIONS, SaveEvent, SaveHandle, SaveJob, ScanError, ScanEvent, ScanHandle,
+    ScanOutcome, spawn_save, spawn_scan,
 };
 
 pub use colophon_library::{Track, tags};
@@ -45,6 +47,8 @@ pub enum Command {
     Redo,
     /// Brings the selected tracks back to their files' tags.
     Revert,
+    /// Writes every pending change to its file, in the background.
+    Save,
 }
 
 impl Command {
@@ -68,6 +72,7 @@ impl Command {
             Command::Undo => "edit.undo",
             Command::Redo => "edit.redo",
             Command::Revert => "tags.revert",
+            Command::Save => "tags.save",
         }
     }
 }
@@ -107,6 +112,26 @@ pub enum ScanStatus {
     Failed,
 }
 
+/// How far a save has got.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SaveProgress {
+    pub done: usize,
+    pub total: usize,
+}
+
+/// A file a save could not write. Its changes stay pending.
+#[derive(Debug)]
+pub struct SaveFailure {
+    pub track: usize,
+    pub error: WriteError,
+}
+
+#[derive(Debug)]
+struct Saving {
+    handle: SaveHandle,
+    progress: SaveProgress,
+}
+
 /// The opened folder and what its scan found so far.
 #[derive(Debug, Default)]
 pub struct Library {
@@ -122,6 +147,8 @@ pub struct Engine {
     library: Library,
     selection: Selection,
     edits: Edits,
+    saving: Option<Saving>,
+    save_failures: Vec<SaveFailure>,
     scan: Option<ScanHandle>,
 }
 
@@ -145,6 +172,16 @@ impl Engine {
     /// The pending changes to the tags, and their history.
     pub fn edits(&self) -> &Edits {
         &self.edits
+    }
+
+    /// How far the running save has got, if one runs.
+    pub fn saving(&self) -> Option<SaveProgress> {
+        self.saving.as_ref().map(|saving| saving.progress)
+    }
+
+    /// The files the last save could not write.
+    pub fn save_failures(&self) -> &[SaveFailure] {
+        &self.save_failures
     }
 
     /// The tags a track shows: those waiting to be saved, or else its file's.
@@ -196,12 +233,19 @@ impl Engine {
             Command::Revert => self
                 .edits
                 .revert(&self.library.tracks, self.selection.iter()),
+            Command::Save => self.save(),
         }
     }
 
     /// Takes in what the running scan reported since the last call, and says whether the library changed.
     /// The UI calls it regularly while a scan runs; it never waits.
     pub fn poll(&mut self) -> bool {
+        let scanned = self.poll_scan();
+        let saved = self.poll_save();
+        scanned || saved
+    }
+
+    fn poll_scan(&mut self) -> bool {
         let Some(scan) = &self.scan else {
             return false;
         };
@@ -232,6 +276,89 @@ impl Engine {
         changed
     }
 
+    /// Starts writing every pending change, unless a save already runs.
+    fn save(&mut self) {
+        if self.saving.is_some() {
+            return;
+        }
+        let jobs: Vec<SaveJob> = self
+            .edits
+            .modified()
+            .filter_map(|(track, tags)| {
+                Some(SaveJob {
+                    track,
+                    path: self.library.tracks.get(track)?.path.clone(),
+                    tags: tags.clone(),
+                })
+            })
+            .collect();
+        if jobs.is_empty() {
+            return;
+        }
+        self.save_failures.clear();
+        let total = jobs.len();
+        match spawn_save(jobs.clone()) {
+            Ok(handle) => {
+                self.saving = Some(Saving {
+                    handle,
+                    progress: SaveProgress { done: 0, total },
+                });
+            }
+            Err(error) => {
+                self.save_failures = jobs
+                    .into_iter()
+                    .map(|job| SaveFailure {
+                        track: job.track,
+                        error: WriteError::Io(std::io::Error::from(error.kind())),
+                    })
+                    .collect();
+            }
+        }
+    }
+
+    /// Takes in the files the save wrote: each track gets what its file now holds, and its
+    /// pending tags go once the file holds them. A change made meanwhile stays pending.
+    fn poll_save(&mut self) -> bool {
+        let Some(saving) = &self.saving else {
+            return false;
+        };
+        let mut events = Vec::new();
+        let mut finished = false;
+        loop {
+            match saving.handle.events().try_recv() {
+                Ok(SaveEvent::Finished) | Err(TryRecvError::Disconnected) => {
+                    finished = true;
+                    break;
+                }
+                Ok(event) => events.push(event),
+                Err(TryRecvError::Empty) => break,
+            }
+        }
+        let changed = finished || !events.is_empty();
+        for event in events {
+            let SaveEvent::Written { track, result } = event else {
+                continue;
+            };
+            if let Some(saving) = &mut self.saving {
+                saving.progress.done += 1;
+            }
+            match result {
+                Ok(written) => {
+                    if let Some(saved) = self.library.tracks.get_mut(track) {
+                        saved.metadata = Ok(written.metadata);
+                        saved.size = written.size;
+                    }
+                    self.edits.settle(&self.library.tracks, track);
+                }
+                Err(error) => self.save_failures.push(SaveFailure { track, error }),
+            }
+        }
+        if finished {
+            self.saving = None;
+        }
+        changed
+    }
+
     fn has_track(&self, track: usize) -> bool {
         track < self.library.tracks.len()
     }
@@ -240,6 +367,8 @@ impl Engine {
         self.scan = None;
         self.selection = Selection::default();
         self.edits = Edits::default();
+        self.saving = None;
+        self.save_failures.clear();
         self.library = Library {
             folder: Some(folder.clone()),
             ..Library::default()

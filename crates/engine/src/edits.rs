@@ -208,6 +208,13 @@ impl Edits {
         }
     }
 
+    /// Forgets a track's pending tags once its file holds them, after a save.
+    pub(crate) fn settle(&mut self, tracks: &[Track], track: usize) {
+        if let Some(tags) = self.pending.get(&track).cloned() {
+            self.want(tracks, track, tags);
+        }
+    }
+
     /// Takes in a change that does change something as the latest step of the history.
     fn record(&mut self, tracks: &[Track], changes: Vec<Change>) {
         let changes: Vec<Change> = changes

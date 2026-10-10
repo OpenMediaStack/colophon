@@ -1,11 +1,13 @@
-//! Colophon's library: finding the audio files of a folder and reading them. No UI types.
+//! Colophon's library: finding the audio files of a folder, reading and writing them. No UI types.
 
+mod save;
 mod scan;
 
 use std::path::PathBuf;
 use std::time::SystemTime;
 
 pub use colophon_tags as tags;
+pub use save::{SaveEvent, SaveHandle, SaveJob, Written, spawn_save};
 pub use scan::{ScanError, ScanEvent, ScanHandle, ScanOutcome, scan, spawn_scan};
 
 /// The extensions of the files Colophon reads. Later versions add other formats here.
