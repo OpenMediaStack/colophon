@@ -154,6 +154,47 @@ component SectionLabel inherits Text {
     color: Theme.text-tertiary;
 }
 
+// The title of a section, which hides the section or shows it again.
+component SectionHeader inherits Rectangle {
+    in property <string> text;
+    in-out property <bool> open: true;
+
+    height: 16px;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-expandable: true;
+    accessible-expanded: root.open;
+    accessible-action-default => {
+        root.open = !root.open;
+    }
+
+    HorizontalLayout {
+        alignment: start;
+        spacing: 4px;
+
+        Image {
+            width: 12px;
+            y: (parent.height - self.height) / 2;
+            source: @image-url("images/chevron-down.svg");
+            colorize: touch.has-hover ? Theme.text-secondary : Theme.text-tertiary;
+            transform-rotation: root.open ? 0deg : -90deg;
+            animate transform-rotation { duration: 100ms; }
+        }
+
+        SectionLabel {
+            vertical-alignment: center;
+            text: root.text.to-uppercase();
+            color: touch.has-hover ? Theme.text-secondary : Theme.text-tertiary;
+        }
+    }
+
+    touch := TouchArea {
+        clicked => {
+            root.open = !root.open;
+        }
+    }
+}
+
 component FieldLabel inherits HorizontalLayout {
     in property <string> text;
     in property <length> size: 13px;
@@ -436,6 +477,12 @@ export component Inspector inherits Rectangle {
     callback toggle-unsynchronisation;
     // Marks the selected tracks to be written again as they are.
     callback rewrite;
+    // Which sections show their content; the others show their title alone.
+    in-out property <bool> tags-open: true;
+    in-out property <bool> file-open: true;
+    in-out property <bool> spectrum-open: true;
+    in-out property <bool> tag-format-open: true;
+    in-out property <bool> frames-open: true;
     // How the tags of the single selected track are laid out, in developer mode.
     in property <bool> has-layout;
     in property <TagLayout> layout;
@@ -669,186 +716,198 @@ export component Inspector inherits Rectangle {
                 VerticalLayout {
                     spacing: 8px;
 
-                    SectionLabel {
-                        text: @tr("Tags").to-uppercase();
+                    SectionHeader {
+                        text: @tr("Tags");
+                        open <=> root.tags-open;
                     }
 
-                    if root.tracks.missing-number: Warning {
-                        text: root.tracks.count == 1 ? @tr("This track has no number, unlike the rest of its album.") : @tr("Some of these tracks have no number, unlike the rest of their albums.");
-                    }
+                    // Folded rather than left out, since the genre suggestions follow the genre field.
+                    Rectangle {
+                        height: root.tags-open ? tags-content.preferred-height : 0px;
+                        clip: true;
+                        visible: root.tags-open;
 
-                    if root.tracks.odd-album-artist: Warning {
-                        text: root.tracks.count == 1 ? @tr("Its album artist differs from the rest of its album.") : @tr("Some of these tracks have an album artist that differs from the rest of their albums.");
-                    }
+                        tags-content := VerticalLayout {
+                            spacing: 8px;
 
-                    GridLayout {
-                        spacing-horizontal: 8px;
-                        spacing-vertical: 6px;
-
-                        Row {
-                            FieldLabel {
-                                text: @tr("Title");
-                                modified: root.tracks.title.modified;
+                            if root.tracks.missing-number: Warning {
+                                text: root.tracks.count == 1 ? @tr("This track has no number, unlike the rest of its album.") : @tr("Some of these tracks have no number, unlike the rest of their albums.");
                             }
 
-                            EditField {
-                                field: root.tracks.title;
-                                tag: TagField.title;
-                                label: @tr("Title");
-                            }
-                        }
-
-                        Row {
-                            FieldLabel {
-                                text: @tr("Artist");
-                                modified: root.tracks.artist.modified;
+                            if root.tracks.odd-album-artist: Warning {
+                                text: root.tracks.count == 1 ? @tr("Its album artist differs from the rest of its album.") : @tr("Some of these tracks have an album artist that differs from the rest of their albums.");
                             }
 
-                            EditField {
-                                field: root.tracks.artist;
-                                tag: TagField.artist;
-                                label: @tr("Artist");
-                            }
-                        }
+                            GridLayout {
+                                spacing-horizontal: 8px;
+                                spacing-vertical: 6px;
 
-                        Row {
-                            FieldLabel {
-                                text: @tr("Album artist");
-                                modified: root.tracks.album-artist.modified;
-                            }
+                                Row {
+                                    FieldLabel {
+                                        text: @tr("Title");
+                                        modified: root.tracks.title.modified;
+                                    }
 
-                            EditField {
-                                field: root.tracks.album-artist;
-                                tag: TagField.album-artist;
-                                label: @tr("Album artist");
-                            }
-                        }
-
-                        Row {
-                            FieldLabel {
-                                text: @tr("Album");
-                                modified: root.tracks.album.modified;
-                            }
-
-                            EditField {
-                                field: root.tracks.album;
-                                tag: TagField.album;
-                                label: @tr("Album");
-                            }
-                        }
-
-                        Row {
-                            FieldLabel {
-                                text: @tr("Year");
-                                modified: root.tracks.year.modified;
-                            }
-
-                            EditField {
-                                field: root.tracks.year;
-                                tag: TagField.year;
-                                label: @tr("Year");
-                                mono: true;
-                            }
-                        }
-
-                        Row {
-                            FieldLabel {
-                                text: @tr("Track");
-                                modified: root.tracks.track.modified || root.tracks.track-total.modified;
-                            }
-
-                            HorizontalLayout {
-                                spacing: 6px;
-                                alignment: start;
-
-                                EditField {
-                                    width: 72px;
-                                    field: root.tracks.track;
-                                    tag: TagField.track;
-                                    label: @tr("Track");
-                                    mono: true;
-                                    mixed-text: @tr("Multiple");
+                                    EditField {
+                                        field: root.tracks.title;
+                                        tag: TagField.title;
+                                        label: @tr("Title");
+                                    }
                                 }
 
-                                Text {
-                                    vertical-alignment: center;
-                                    text: @tr("of");
-                                    color: Theme.text-tertiary;
+                                Row {
+                                    FieldLabel {
+                                        text: @tr("Artist");
+                                        modified: root.tracks.artist.modified;
+                                    }
+
+                                    EditField {
+                                        field: root.tracks.artist;
+                                        tag: TagField.artist;
+                                        label: @tr("Artist");
+                                    }
                                 }
 
-                                EditField {
-                                    width: 52px;
-                                    field: root.tracks.track-total;
-                                    tag: TagField.track-total;
-                                    label: @tr("Track total");
-                                    mono: true;
-                                    mixed-text: "…";
-                                }
-                            }
-                        }
+                                Row {
+                                    FieldLabel {
+                                        text: @tr("Album artist");
+                                        modified: root.tracks.album-artist.modified;
+                                    }
 
-                        Row {
-                            FieldLabel {
-                                text: @tr("Disc");
-                                modified: root.tracks.disc.modified || root.tracks.disc-total.modified;
-                            }
-
-                            HorizontalLayout {
-                                spacing: 6px;
-                                alignment: start;
-
-                                EditField {
-                                    width: 72px;
-                                    field: root.tracks.disc;
-                                    tag: TagField.disc;
-                                    label: @tr("Disc");
-                                    mono: true;
-                                    mixed-text: @tr("Multiple");
+                                    EditField {
+                                        field: root.tracks.album-artist;
+                                        tag: TagField.album-artist;
+                                        label: @tr("Album artist");
+                                    }
                                 }
 
-                                Text {
-                                    vertical-alignment: center;
-                                    text: @tr("of");
-                                    color: Theme.text-tertiary;
+                                Row {
+                                    FieldLabel {
+                                        text: @tr("Album");
+                                        modified: root.tracks.album.modified;
+                                    }
+
+                                    EditField {
+                                        field: root.tracks.album;
+                                        tag: TagField.album;
+                                        label: @tr("Album");
+                                    }
                                 }
 
-                                EditField {
-                                    width: 52px;
-                                    field: root.tracks.disc-total;
-                                    tag: TagField.disc-total;
-                                    label: @tr("Disc total");
-                                    mono: true;
-                                    mixed-text: "…";
+                                Row {
+                                    FieldLabel {
+                                        text: @tr("Year");
+                                        modified: root.tracks.year.modified;
+                                    }
+
+                                    EditField {
+                                        field: root.tracks.year;
+                                        tag: TagField.year;
+                                        label: @tr("Year");
+                                        mono: true;
+                                    }
                                 }
-                            }
-                        }
 
-                        Row {
-                            FieldLabel {
-                                text: @tr("Genre");
-                                modified: root.tracks.genre.modified;
-                            }
+                                Row {
+                                    FieldLabel {
+                                        text: @tr("Track");
+                                        modified: root.tracks.track.modified || root.tracks.track-total.modified;
+                                    }
 
-                            genre-field := EditField {
-                                field: root.tracks.genre;
-                                tag: TagField.genre;
-                                label: @tr("Genre");
-                                suggests: true;
-                            }
-                        }
+                                    HorizontalLayout {
+                                        spacing: 6px;
+                                        alignment: start;
 
-                        Row {
-                            FieldLabel {
-                                text: @tr("Comment");
-                                modified: root.tracks.comment.modified;
-                            }
+                                        EditField {
+                                            width: 72px;
+                                            field: root.tracks.track;
+                                            tag: TagField.track;
+                                            label: @tr("Track");
+                                            mono: true;
+                                            mixed-text: @tr("Multiple");
+                                        }
 
-                            EditField {
-                                height: 46px;
-                                field: root.tracks.comment;
-                                tag: TagField.comment;
-                                label: @tr("Comment");
-                                multiline: true;
+                                        Text {
+                                            vertical-alignment: center;
+                                            text: @tr("of");
+                                            color: Theme.text-tertiary;
+                                        }
+
+                                        EditField {
+                                            width: 52px;
+                                            field: root.tracks.track-total;
+                                            tag: TagField.track-total;
+                                            label: @tr("Track total");
+                                            mono: true;
+                                            mixed-text: "…";
+                                        }
+                                    }
+                                }
+
+                                Row {
+                                    FieldLabel {
+                                        text: @tr("Disc");
+                                        modified: root.tracks.disc.modified || root.tracks.disc-total.modified;
+                                    }
+
+                                    HorizontalLayout {
+                                        spacing: 6px;
+                                        alignment: start;
+
+                                        EditField {
+                                            width: 72px;
+                                            field: root.tracks.disc;
+                                            tag: TagField.disc;
+                                            label: @tr("Disc");
+                                            mono: true;
+                                            mixed-text: @tr("Multiple");
+                                        }
+
+                                        Text {
+                                            vertical-alignment: center;
+                                            text: @tr("of");
+                                            color: Theme.text-tertiary;
+                                        }
+
+                                        EditField {
+                                            width: 52px;
+                                            field: root.tracks.disc-total;
+                                            tag: TagField.disc-total;
+                                            label: @tr("Disc total");
+                                            mono: true;
+                                            mixed-text: "…";
+                                        }
+                                    }
+                                }
+
+                                Row {
+                                    FieldLabel {
+                                        text: @tr("Genre");
+                                        modified: root.tracks.genre.modified;
+                                    }
+
+                                    genre-field := EditField {
+                                        field: root.tracks.genre;
+                                        tag: TagField.genre;
+                                        label: @tr("Genre");
+                                        suggests: true;
+                                    }
+                                }
+
+                                Row {
+                                    FieldLabel {
+                                        text: @tr("Comment");
+                                        modified: root.tracks.comment.modified;
+                                    }
+
+                                    EditField {
+                                        height: 46px;
+                                        field: root.tracks.comment;
+                                        tag: TagField.comment;
+                                        label: @tr("Comment");
+                                        multiline: true;
+                                    }
+                                }
                             }
                         }
                     }
@@ -857,65 +916,70 @@ export component Inspector inherits Rectangle {
                 VerticalLayout {
                     spacing: 8px;
 
-                    SectionLabel {
-                        text: @tr("File").to-uppercase();
+                    SectionHeader {
+                        text: @tr("File");
+                        open <=> root.file-open;
                     }
 
-                    GridLayout {
-                        spacing-horizontal: 8px;
-                        spacing-vertical: 4px;
+                    if root.file-open: VerticalLayout {
+                        spacing: 8px;
 
-                        Row {
-                            FieldLabel {
-                                text: @tr("Audio");
-                                size: 12px;
+                        GridLayout {
+                            spacing-horizontal: 8px;
+                            spacing-vertical: 4px;
+
+                            Row {
+                                FieldLabel {
+                                    text: @tr("Audio");
+                                    size: 12px;
+                                }
+
+                                FileValue {
+                                    text: root.audio-text();
+                                }
                             }
 
-                            FileValue {
-                                text: root.audio-text();
-                            }
-                        }
+                            Row {
+                                FieldLabel {
+                                    text: @tr("Size");
+                                    size: 12px;
+                                }
 
-                        Row {
-                            FieldLabel {
-                                text: @tr("Size");
-                                size: 12px;
-                            }
-
-                            FileValue {
-                                text: root.tracks.count == 1 ? root.size-text(root.tracks.size) : @tr("{} total", root.size-text(root.tracks.size));
-                                mono: true;
-                            }
-                        }
-
-                        Row {
-                            FieldLabel {
-                                text: @tr("Tags");
-                                size: 12px;
+                                FileValue {
+                                    text: root.tracks.count == 1 ? root.size-text(root.tracks.size) : @tr("{} total", root.size-text(root.tracks.size));
+                                    mono: true;
+                                }
                             }
 
-                            FileValue {
-                                text: root.tracks.formats.mixed ? @tr("Multiple values") : root.tracks.formats.text == "" ? @tr("None") : root.tracks.formats.text;
+                            Row {
+                                FieldLabel {
+                                    text: @tr("Tags");
+                                    size: 12px;
+                                }
+
+                                FileValue {
+                                    text: root.tracks.formats.mixed ? @tr("Multiple values") : root.tracks.formats.text == "" ? @tr("None") : root.tracks.formats.text;
+                                }
                             }
-                        }
 
-                        if root.tracks.has-changes: Row {
-                            FieldLabel {
-                                text: @tr("Saved as");
-                                size: 12px;
+                            if root.tracks.has-changes: Row {
+                                FieldLabel {
+                                    text: @tr("Saved as");
+                                    size: 12px;
+                                }
+
+                                FileValue {
+                                    text: root.tracks.saved-as.mixed ? @tr("Multiple values") : root.tracks.saved-as.text;
+                                }
                             }
 
-                            FileValue {
-                                text: root.tracks.saved-as.mixed ? @tr("Multiple values") : root.tracks.saved-as.text;
-                            }
-                        }
+                            if root.lost-names(root.tracks.id3v1-losses) != "": Row {
+                                Rectangle { }
 
-                        if root.lost-names(root.tracks.id3v1-losses) != "": Row {
-                            Rectangle { }
-
-                            FileValue {
-                                text: @tr("ID3v1 will keep only part of: {}", root.lost-names(root.tracks.id3v1-losses));
-                                color: Theme.warning;
+                                FileValue {
+                                    text: @tr("ID3v1 will keep only part of: {}", root.lost-names(root.tracks.id3v1-losses));
+                                    color: Theme.warning;
+                                }
                             }
                         }
                     }
@@ -924,167 +988,177 @@ export component Inspector inherits Rectangle {
                 if root.tracks.count == 1 && root.has-spectrum: VerticalLayout {
                     spacing: 8px;
 
-                    SectionLabel {
-                        text: @tr("Spectrum").to-uppercase();
+                    SectionHeader {
+                        text: @tr("Spectrum");
+                        open <=> root.spectrum-open;
                     }
 
-                    Rectangle {
-                        // The image's own width would widen the inspector.
-                        min-width: 0px;
-                        preferred-width: 0px;
-                        height: 96px;
-                        border-radius: 4px;
-                        clip: true;
-                        accessible-role: image;
-                        accessible-label: @tr("Spectrum");
+                    if root.spectrum-open: VerticalLayout {
+                        spacing: 8px;
 
-                        Image {
-                            width: 100%;
-                            height: 100%;
-                            source: root.spectrum.image;
-                            image-fit: fill;
+                        Rectangle {
+                            // The image's own width would widen the inspector.
+                            min-width: 0px;
+                            preferred-width: 0px;
+                            height: 96px;
+                            border-radius: 4px;
+                            clip: true;
+                            accessible-role: image;
+                            accessible-label: @tr("Spectrum");
+
+                            Image {
+                                width: 100%;
+                                height: 100%;
+                                source: root.spectrum.image;
+                                image-fit: fill;
+                            }
+
+                            Text {
+                                x: 6px;
+                                y: 4px;
+                                text: root.kilohertz(root.spectrum.nyquist);
+                                font-size: 10px;
+                                color: #FFFFFFB3;
+                            }
                         }
 
-                        Text {
-                            x: 6px;
-                            y: 4px;
-                            text: root.kilohertz(root.spectrum.nyquist);
-                            font-size: 10px;
-                            color: #FFFFFFB3;
+                        FileValue {
+                            text: root.spectrum.holds-sound ? @tr("Holds frequencies up to {}", root.kilohertz(root.spectrum.highest)) : @tr("Holds no sound");
+                            color: Theme.text-secondary;
                         }
-                    }
-
-                    FileValue {
-                        text: root.spectrum.holds-sound ? @tr("Holds frequencies up to {}", root.kilohertz(root.spectrum.highest)) : @tr("Holds no sound");
-                        color: Theme.text-secondary;
                     }
                 }
 
                 if root.developer-mode: VerticalLayout {
                     spacing: 8px;
 
-                    SectionLabel {
-                        text: @tr("Tag format").to-uppercase();
+                    SectionHeader {
+                        text: @tr("Tag format");
+                        open <=> root.tag-format-open;
                     }
 
-                    GridLayout {
-                        spacing-horizontal: 8px;
-                        spacing-vertical: 6px;
+                    if root.tag-format-open: VerticalLayout {
+                        spacing: 8px;
 
-                        Row {
-                            FieldLabel {
-                                text: @tr("Write ID3v2");
+                        GridLayout {
+                            spacing-horizontal: 8px;
+                            spacing-vertical: 6px;
+
+                            Row {
+                                FieldLabel {
+                                    text: @tr("Write ID3v2");
+                                }
+
+                                Segmented {
+                                    label: @tr("Write ID3v2");
+                                    segments: [
+                                        { label: @tr("None") },
+                                        { label: "2.2", mono: true },
+                                        { label: "2.3", mono: true },
+                                        { label: "2.4", mono: true },
+                                    ];
+                                    selected: root.tracks.id3v2-choice;
+                                    chosen(index) => {
+                                        root.choose-id3v2(index);
+                                    }
+                                }
                             }
 
-                            Segmented {
-                                label: @tr("Write ID3v2");
-                                segments: [
-                                    { label: @tr("None") },
-                                    { label: "2.2", mono: true },
-                                    { label: "2.3", mono: true },
-                                    { label: "2.4", mono: true },
-                                ];
-                                selected: root.tracks.id3v2-choice;
-                                chosen(index) => {
-                                    root.choose-id3v2(index);
+                            Row {
+                                FieldLabel {
+                                    text: @tr("Write ID3v1");
+                                }
+
+                                Segmented {
+                                    label: @tr("Write ID3v1");
+                                    segments: [
+                                        { label: @tr("None") },
+                                        { label: "1.0", mono: true },
+                                        { label: "1.1", mono: true },
+                                    ];
+                                    selected: root.tracks.id3v1-choice;
+                                    chosen(index) => {
+                                        root.choose-id3v1(index);
+                                    }
+                                }
+                            }
+
+                            if root.conversion-text() != "": Row {
+                                Rectangle { }
+
+                                Text {
+                                    text: root.conversion-text();
+                                    wrap: word-wrap;
+                                    font-size: 12px;
+                                    color: Theme.text-tertiary;
                                 }
                             }
                         }
 
-                        Row {
-                            FieldLabel {
-                                text: @tr("Write ID3v1");
-                            }
+                        FieldLabel {
+                            text: @tr("Text encoding");
+                            padding-left: 0;
+                        }
 
-                            Segmented {
-                                label: @tr("Write ID3v1");
-                                segments: [
-                                    { label: @tr("None") },
-                                    { label: "1.0", mono: true },
-                                    { label: "1.1", mono: true },
-                                ];
-                                selected: root.tracks.id3v1-choice;
-                                chosen(index) => {
-                                    root.choose-id3v1(index);
+                        Segmented {
+                            fit-labels: true;
+                            label: @tr("Text encoding");
+                            segments: [
+                                { label: @tr("Auto") },
+                                { label: "Latin-1" },
+                                { label: "UTF-16" },
+                                { label: "UTF-16BE" },
+                                { label: "UTF-8" },
+                            ];
+                            selected: root.encoding-choice;
+                            chosen(index) => {
+                                root.choose-encoding(index);
+                            }
+                        }
+
+                        FieldLabel {
+                            text: @tr("Padding");
+                            padding-left: 0;
+                        }
+
+                        Segmented {
+                            label: @tr("Padding");
+                            segments: [
+                                { label: @tr("Auto") },
+                                { label: "0", mono: true },
+                                { label: "256", mono: true },
+                                { label: "1024", mono: true },
+                                { label: "4096", mono: true },
+                            ];
+                            selected: root.padding-choice;
+                            chosen(index) => {
+                                root.choose-padding(index);
+                            }
+                        }
+
+                        Checkbox {
+                            text: @tr("Unsynchronisation");
+                            checked: root.unsynchronisation;
+                            toggled => {
+                                root.toggle-unsynchronisation();
+                            }
+                        }
+
+                        Text {
+                            wrap: word-wrap;
+                            text: @tr("These apply to every file saved in developer mode. UTF-16BE and UTF-8 need ID3v2.4; earlier versions get UTF-16.");
+                            font-size: 12px;
+                            color: Theme.text-tertiary;
+                        }
+
+                        HorizontalLayout {
+                            alignment: start;
+
+                            Button {
+                                text: @tr("Rewrite Selected Files");
+                                clicked => {
+                                    root.rewrite();
                                 }
-                            }
-                        }
-
-                        if root.conversion-text() != "": Row {
-                            Rectangle { }
-
-                            Text {
-                                text: root.conversion-text();
-                                wrap: word-wrap;
-                                font-size: 12px;
-                                color: Theme.text-tertiary;
-                            }
-                        }
-                    }
-
-                    FieldLabel {
-                        text: @tr("Text encoding");
-                        padding-left: 0;
-                    }
-
-                    Segmented {
-                        fit-labels: true;
-                        label: @tr("Text encoding");
-                        segments: [
-                            { label: @tr("Auto") },
-                            { label: "Latin-1" },
-                            { label: "UTF-16" },
-                            { label: "UTF-16BE" },
-                            { label: "UTF-8" },
-                        ];
-                        selected: root.encoding-choice;
-                        chosen(index) => {
-                            root.choose-encoding(index);
-                        }
-                    }
-
-                    FieldLabel {
-                        text: @tr("Padding");
-                        padding-left: 0;
-                    }
-
-                    Segmented {
-                        label: @tr("Padding");
-                        segments: [
-                            { label: @tr("Auto") },
-                            { label: "0", mono: true },
-                            { label: "256", mono: true },
-                            { label: "1024", mono: true },
-                            { label: "4096", mono: true },
-                        ];
-                        selected: root.padding-choice;
-                        chosen(index) => {
-                            root.choose-padding(index);
-                        }
-                    }
-
-                    Checkbox {
-                        text: @tr("Unsynchronisation");
-                        checked: root.unsynchronisation;
-                        toggled => {
-                            root.toggle-unsynchronisation();
-                        }
-                    }
-
-                    Text {
-                        wrap: word-wrap;
-                        text: @tr("These apply to every file saved in developer mode. UTF-16BE and UTF-8 need ID3v2.4; earlier versions get UTF-16.");
-                        font-size: 12px;
-                        color: Theme.text-tertiary;
-                    }
-
-                    HorizontalLayout {
-                        alignment: start;
-
-                        Button {
-                            text: @tr("Rewrite Selected Files");
-                            clicked => {
-                                root.rewrite();
                             }
                         }
                     }
@@ -1093,66 +1167,71 @@ export component Inspector inherits Rectangle {
                 if root.developer-mode && root.has-layout: VerticalLayout {
                     spacing: 8px;
 
-                    SectionLabel {
-                        text: @tr("Frames").to-uppercase();
+                    SectionHeader {
+                        text: @tr("Frames");
+                        open <=> root.frames-open;
                     }
 
-                    Text {
-                        wrap: word-wrap;
-                        text: root.layout.has-id3v2 ? @tr("ID3v2.{} · {} bytes · {} bytes of padding", root.layout.version, root.layout.size, root.layout.padding) : @tr("No ID3v2 tag");
-                        font-size: 12px;
-                        color: Theme.text-secondary;
-                    }
+                    if root.frames-open: VerticalLayout {
+                        spacing: 8px;
 
-                    if root.tag-flags() != "": Text {
-                        wrap: word-wrap;
-                        text: root.tag-flags();
-                        font-size: 12px;
-                        color: Theme.text-secondary;
-                    }
+                        Text {
+                            wrap: word-wrap;
+                            text: root.layout.has-id3v2 ? @tr("ID3v2.{} · {} bytes · {} bytes of padding", root.layout.version, root.layout.size, root.layout.padding) : @tr("No ID3v2 tag");
+                            font-size: 12px;
+                            color: Theme.text-secondary;
+                        }
 
-                    for frame in root.layout.frames: VerticalLayout {
-                        spacing: 1px;
-                        accessible-role: list-item;
-                        accessible-label: frame.id + " " + root.frame-value(frame);
+                        if root.tag-flags() != "": Text {
+                            wrap: word-wrap;
+                            text: root.tag-flags();
+                            font-size: 12px;
+                            color: Theme.text-secondary;
+                        }
 
-                        HorizontalLayout {
-                            spacing: 8px;
+                        for frame in root.layout.frames: VerticalLayout {
+                            spacing: 1px;
+                            accessible-role: list-item;
+                            accessible-label: frame.id + " " + root.frame-value(frame);
 
-                            Text {
-                                width: 40px;
-                                text: frame.id;
-                                font-family: "JetBrains Mono";
-                                font-size: 12px;
-                                color: Theme.text-primary;
+                            HorizontalLayout {
+                                spacing: 8px;
+
+                                Text {
+                                    width: 40px;
+                                    text: frame.id;
+                                    font-family: "JetBrains Mono";
+                                    font-size: 12px;
+                                    color: Theme.text-primary;
+                                }
+
+                                Text {
+                                    horizontal-stretch: 1;
+                                    text: root.frame-value(frame);
+                                    overflow: elide;
+                                    font-size: 12px;
+                                    color: frame.kind == FrameKind.text ? Theme.text-primary : Theme.text-secondary;
+                                }
                             }
 
-                            Text {
-                                horizontal-stretch: 1;
-                                text: root.frame-value(frame);
-                                overflow: elide;
-                                font-size: 12px;
-                                color: frame.kind == FrameKind.text ? Theme.text-primary : Theme.text-secondary;
+                            HorizontalLayout {
+                                padding-left: 48px;
+
+                                Text {
+                                    text: root.frame-details(frame);
+                                    wrap: word-wrap;
+                                    font-size: 11px;
+                                    color: Theme.text-tertiary;
+                                }
                             }
                         }
 
-                        HorizontalLayout {
-                            padding-left: 48px;
-
-                            Text {
-                                text: root.frame-details(frame);
-                                wrap: word-wrap;
-                                font-size: 11px;
-                                color: Theme.text-tertiary;
-                            }
+                        if root.layout.has-id3v1: Text {
+                            wrap: word-wrap;
+                            text: @tr("ID3v1 at {}, 128 bytes", root.layout.id3v1-offset);
+                            font-size: 12px;
+                            color: Theme.text-secondary;
                         }
-                    }
-
-                    if root.layout.has-id3v1: Text {
-                        wrap: word-wrap;
-                        text: @tr("ID3v1 at {}, 128 bytes", root.layout.id3v1-offset);
-                        font-size: 12px;
-                        color: Theme.text-secondary;
                     }
                 }
             }
