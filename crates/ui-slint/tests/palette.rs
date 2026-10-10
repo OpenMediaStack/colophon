@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use colophon_engine::Engine;
 use colophon_ui::{AppWindow, ComponentHandle, Theme, WindowCommand};
-use slint::platform::{Key, PointerEventButton};
+use slint::platform::{Key, PointerEventButton, WindowEvent};
 use tempfile::TempDir;
 
 use common::{TestResult, assert_matches_reference, find, press, shows, type_text};
@@ -115,6 +115,10 @@ fn the_palette_matches_its_references() -> TestResult {
         window.global::<Theme>().set_dark(dark);
         open_palette(&window)?;
         type_text(&window, "id3");
+        // The text cursor blinks; leaving the window hides it, whatever time it is.
+        window
+            .window()
+            .dispatch_event(WindowEvent::WindowActiveChanged(false));
         assert_matches_reference(&window, &format!("palette-{theme}.png"))?;
     }
     Ok(())
