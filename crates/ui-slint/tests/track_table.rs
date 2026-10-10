@@ -417,10 +417,12 @@ fn the_table_matches_its_references() -> TestResult {
                 title: "06 Damaged file".into(),
                 ..TrackRow::default()
             };
-            for row in &mut rows[7..=9] {
-                row.selected = true;
+            for (index, row) in rows.iter_mut().enumerate() {
+                let selected = |index: usize| matches!(index, 7..=9 | 12);
+                row.selected = selected(index);
+                row.selected_above = row.selected && index > 0 && selected(index - 1);
+                row.selected_below = row.selected && selected(index + 1);
             }
-            rows[8].focused = true;
             let window = window_with(rows, width as f32, height as f32)?;
             window.global::<Theme>().set_dark(dark);
             window.show()?;

@@ -22,8 +22,9 @@ export struct TrackRow {
     file: string,
     folder: string,
     selected: bool,
-    // The track the arrow keys move from.
-    focused: bool,
+    // The rows next to a selected one are selected too: the selection's outline runs on past them.
+    selected-above: bool,
+    selected-below: bool,
 }
 
 // The columns the table shows besides status, number and title, which are always there.
@@ -159,15 +160,13 @@ component TableRow inherits Rectangle {
     in property <length> status-width;
     in property <length> number-width;
     in property <TrackColumnWidths> widths;
-    // The table has the keyboard focus, which outlines the focused track.
+    // The table has the keyboard focus, which outlines each run of selected rows.
     in property <bool> table-focused;
     // A press of the left button, with Command (Ctrl elsewhere) or Shift held.
     callback pressed(bool, bool);
 
     height: 26px;
     background: root.track.selected ? Theme.accent-selection : touch.has-hover ? Theme.surface-3 : transparent;
-    border-width: root.track.focused && root.table-focused ? 1px : 0px;
-    border-color: Theme.focus-ring;
 
     HorizontalLayout {
         alignment: start;
@@ -196,7 +195,6 @@ component TableRow inherits Rectangle {
             width: root.widths.title;
             text: root.track.title;
             text-color: root.track.status == TrackStatus.unreadable ? Theme.error : root.track.untitled ? Theme.text-tertiary : Theme.text-primary;
-            weight: root.track.selected ? 500 : 400;
         }
 
         if root.widths.artist > 0: Cell {
@@ -240,6 +238,32 @@ component TableRow inherits Rectangle {
 
     RowDivider {
         y: root.height - 1px;
+    }
+
+    if root.track.selected && root.table-focused: Rectangle {
+        Rectangle {
+            x: 0;
+            width: 1px;
+            background: Theme.focus-ring;
+        }
+
+        Rectangle {
+            x: parent.width - 1px;
+            width: 1px;
+            background: Theme.focus-ring;
+        }
+
+        if !root.track.selected-above: Rectangle {
+            y: 0;
+            height: 1px;
+            background: Theme.focus-ring;
+        }
+
+        if !root.track.selected-below: Rectangle {
+            y: parent.height - 1px;
+            height: 1px;
+            background: Theme.focus-ring;
+        }
     }
 
     // Slint reports the Command key of macOS as control, so one test covers every platform.

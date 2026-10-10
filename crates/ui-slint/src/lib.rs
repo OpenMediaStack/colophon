@@ -154,23 +154,15 @@ impl Bridge {
         self.show_selection(&window, engine.selection());
     }
 
-    /// Marks the selected rows and the focused one, touching only the rows that change.
+    /// Marks the selected rows, touching only the rows that change.
     fn show_selection(&self, window: &AppWindow, selection: &Selection) {
         for index in 0..self.tracks.row_count() {
             let Some(row) = self.tracks.row_data(index) else {
                 continue;
             };
-            let selected = selection.contains(index);
-            let focused = selection.focus() == Some(index);
-            if row.selected != selected || row.focused != focused {
-                self.tracks.set_row_data(
-                    index,
-                    TrackRow {
-                        selected,
-                        focused,
-                        ..row
-                    },
-                );
+            let marks = SelectionMarks::of(index, |track| selection.contains(track));
+            if SelectionMarks::from(&row) != marks {
+                self.tracks.set_row_data(index, marks.on(row));
             }
         }
         window.set_focused_row(selection.focus().map_or(-1, count));
@@ -195,6 +187,45 @@ impl Bridge {
         }
         window.set_longest(longest.clone());
         self.tracks.extend(rows);
+    }
+}
+
+/// How a row shows the selection: selected, and whether the rows above and below are too, so that
+/// a run of selected rows gets one outline.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct SelectionMarks {
+    selected: bool,
+    above: bool,
+    below: bool,
+}
+
+impl SelectionMarks {
+    fn of(index: usize, is_selected: impl Fn(usize) -> bool) -> Self {
+        let selected = is_selected(index);
+        Self {
+            selected,
+            above: selected && index.checked_sub(1).is_some_and(&is_selected),
+            below: selected && is_selected(index + 1),
+        }
+    }
+
+    fn on(self, row: TrackRow) -> TrackRow {
+        TrackRow {
+            selected: self.selected,
+            selected_above: self.above,
+            selected_below: self.below,
+            ..row
+        }
+    }
+}
+
+impl From<&TrackRow> for SelectionMarks {
+    fn from(row: &TrackRow) -> Self {
+        Self {
+            selected: row.selected,
+            above: row.selected_above,
+            below: row.selected_below,
+        }
     }
 }
 
@@ -487,6 +518,22 @@ mod tests {
 
         assert_eq!(longest.title, "Long Exposure at Night");
         assert_eq!(longest.artist, "Cassette Bloom");
+    }
+
+    #[test]
+    fn a_run_of_selected_rows_is_marked_as_one() {
+        let selected = |track: usize| matches!(track, 2..=4 | 7);
+        let marks = |index| {
+            let marks = SelectionMarks::of(index, selected);
+            (marks.selected, marks.above, marks.below)
+        };
+
+        assert_eq!(marks(1), (false, false, false));
+        assert_eq!(marks(2), (true, false, true));
+        assert_eq!(marks(3), (true, true, true));
+        assert_eq!(marks(4), (true, true, false));
+        assert_eq!(marks(5), (false, false, false));
+        assert_eq!(marks(7), (true, false, false));
     }
 
     #[test]
