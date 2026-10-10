@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 use colophon_engine::Engine;
 use colophon_ui::{
-    AppWindow, ByteSize, ComponentHandle, InspectedTracks, InspectorField, InspectorState,
-    ReadProblem, ScanState, SizeUnit, Theme, UnreadableFile,
+    AppWindow, BitrateMode, ByteSize, ComponentHandle, InspectedTracks, InspectorField,
+    InspectorState, ReadProblem, ScanState, SizeUnit, Theme, UnreadableFile,
 };
 use slint::platform::{Key, PointerEventButton};
 use tempfile::TempDir;
@@ -67,8 +67,8 @@ fn one_track_shows_its_tags_and_its_file() -> TestResult {
         "Small Hours · Marlowe Kite",
         "Various Artists",
         "Recorded in one take.",
-        "MP3 · 64 kbps · 44.1 kHz",
-        "1 KB",
+        "MP3 · 64\u{a0}kbps\u{a0}CBR · 44.1\u{a0}kHz",
+        "1\u{a0}KB",
         "ID3v2.3",
     ] {
         assert!(shows(&window, value), "{value} is missing");
@@ -85,7 +85,7 @@ fn several_tracks_show_what_they_share() -> TestResult {
 
     assert!(shows(&window, "2 tracks selected"));
     assert!(shows(&window, "Multiple values"));
-    assert!(shows(&window, "2 KB total"));
+    assert!(shows(&window, "2\u{a0}KB total"));
     Ok(())
 }
 
@@ -100,7 +100,7 @@ fn an_unreadable_track_explains_why() -> TestResult {
         &window,
         "This file is damaged, or it is not an MP3: Colophon could not make sense of it."
     ));
-    assert!(shows(&window, "3 bytes"));
+    assert!(shows(&window, "3\u{a0}bytes"));
     Ok(())
 }
 
@@ -111,8 +111,11 @@ fn the_inspector_writes_numbers_in_french() -> TestResult {
 
     find(&window, "Marlowe Kite")?.mock_single_click(PointerEventButton::Left);
 
-    assert!(shows(&window, "MP3 · 64 kbit/s · 44,1 kHz"));
-    assert!(shows(&window, "1 Ko"));
+    assert!(shows(
+        &window,
+        "MP3 · 64\u{a0}kbit/s\u{a0}CBR · 44,1\u{a0}kHz"
+    ));
+    assert!(shows(&window, "1\u{a0}Ko"));
     Ok(())
 }
 
@@ -163,6 +166,7 @@ fn the_inspector_matches_its_references() -> TestResult {
         comment: text("Remastered from the original tapes, 2025 reissue."),
         audio_shared: true,
         bitrate: 320,
+        bitrate_mode: BitrateMode::Constant,
         sample_rate_whole: 44,
         sample_rate_tenth: 1,
         formats: text("ID3v2.3, ID3v1.1"),

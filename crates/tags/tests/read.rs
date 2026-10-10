@@ -3,7 +3,7 @@ mod common;
 use std::fs;
 use std::time::Duration;
 
-use colophon_tags::{Id3v1Version, Id3v2Version, ReadError, TagFormat, Tags, read};
+use colophon_tags::{BitrateMode, Id3v1Version, Id3v2Version, ReadError, TagFormat, Tags, read};
 
 use common::{TestResult, fixture};
 
@@ -215,6 +215,7 @@ fn a_constant_bitrate_gives_its_audio_properties() -> TestResult {
     );
     assert_eq!(audio.sample_rate, Some(44_100));
     assert_eq!(audio.channels, Some(2));
+    assert_eq!(audio.bitrate_mode, Some(BitrateMode::Constant));
     Ok(())
 }
 
@@ -226,6 +227,24 @@ fn a_variable_bitrate_gives_its_audio_properties() -> TestResult {
     assert!(audio.bitrate.is_some());
     assert_eq!(audio.sample_rate, Some(48_000));
     assert_eq!(audio.channels, Some(1));
+    assert_eq!(audio.bitrate_mode, Some(BitrateMode::Variable));
+    Ok(())
+}
+
+#[test]
+fn a_variable_bitrate_without_a_header_shows_in_its_frames() -> TestResult {
+    let audio = read(&fixture("vbr_no_header.mp3"))?.audio;
+
+    assert_eq!(audio.bitrate_mode, Some(BitrateMode::Variable));
+    Ok(())
+}
+
+#[test]
+fn a_constant_bitrate_without_a_header_shows_in_its_frames() -> TestResult {
+    for name in ["no_tag.mp3", "v23_full.mp3", "v1_1_ascii.mp3"] {
+        let audio = read(&fixture(name))?.audio;
+        assert_eq!(audio.bitrate_mode, Some(BitrateMode::Constant), "{name}");
+    }
     Ok(())
 }
 

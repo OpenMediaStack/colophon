@@ -253,6 +253,11 @@ ffmpeg "${sine[@]}" -ac 2 -ar 44100 -b:a 128k "${no_tags[@]}" cbr_stereo.mp3
 # Expect: about 1 s, 48000 Hz, 1 channel, the average bitrate ffprobe reports.
 ffmpeg "${sine[@]}" -ac 1 -ar 48000 -q:a 6 "${no_tags[@]}" vbr_mono.mp3
 
+# vbr_no_header.mp3: the same variable bitrate sine without its Xing header, as old encoders wrote it.
+# Only the frames' own bitrates tell it varies: 192 kbps for the first, then 40 and 32.
+# Expect: a variable bitrate, 48000 Hz, 1 channel.
+ffmpeg "${sine[@]}" -ac 1 -ar 48000 -q:a 6 -write_xing 0 "${no_tags[@]}" vbr_no_header.mp3
+
 # tiny_tag.mp3: a 3 byte file that is only "TAG".
 # Expect: an error, no panic.
 printf 'TAG' >tiny_tag.mp3
@@ -266,3 +271,6 @@ done
 
 # ffmpeg reads no APE tag in an MP3, so ffprobe has nothing to compare with in ape.mp3.
 rm ffprobe/ape.txt
+# Without a header, lofty estimates a variable bitrate file's duration and bitrate from its first
+# frame, while ffprobe reads every frame: they disagree on vbr_no_header.mp3 by design.
+rm ffprobe/vbr_no_header.txt

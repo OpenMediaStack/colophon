@@ -1,6 +1,6 @@
 mod common;
 
-use colophon_engine::tags::{Id3v2Version, ReadError, TagFormat};
+use colophon_engine::tags::{BitrateMode, Id3v2Version, ReadError, TagFormat};
 use colophon_engine::{AudioLine, Command, Inspection, Shared, Summary};
 
 use common::{TestResult, engine_reading, folder_with_fixtures};
@@ -46,7 +46,8 @@ fn one_track_shows_its_tags_and_its_file() -> TestResult {
         summary.audio,
         Shared::Same(AudioLine {
             bitrate: 64,
-            sample_rate: 44_100
+            sample_rate: 44_100,
+            mode: Some(BitrateMode::Constant),
         })
     );
     assert_eq!(

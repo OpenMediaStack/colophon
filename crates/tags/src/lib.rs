@@ -1,5 +1,6 @@
 //! Colophon's tags: what an audio file says about itself. No UI types.
 
+mod bitrate_mode;
 mod read;
 
 use std::fmt;
@@ -39,9 +40,17 @@ pub struct AudioProperties {
     pub duration: Option<Duration>,
     /// In kilobits per second, averaged over the file when the bitrate varies.
     pub bitrate: Option<u32>,
+    pub bitrate_mode: Option<BitrateMode>,
     /// In hertz.
     pub sample_rate: Option<u32>,
     pub channels: Option<u8>,
+}
+
+/// Whether the bitrate stays the same over the whole file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BitrateMode {
+    Constant,
+    Variable,
 }
 
 /// A kind of tag found in a file, with its version.

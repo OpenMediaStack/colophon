@@ -1,5 +1,5 @@
 use colophon_library::Track;
-use colophon_library::tags::{ReadError, TagFormat};
+use colophon_library::tags::{BitrateMode, ReadError, TagFormat};
 
 use crate::Selection;
 
@@ -49,6 +49,7 @@ pub struct AudioLine {
     pub bitrate: u32,
     /// In hertz.
     pub sample_rate: u32,
+    pub mode: Option<BitrateMode>,
 }
 
 /// The selected tracks whose tags could be read, field by field.
@@ -130,6 +131,7 @@ fn summarise(selected: &[&Track]) -> Summary {
                 .map(|(bitrate, sample_rate)| AudioLine {
                     bitrate,
                     sample_rate,
+                    mode: audio.bitrate_mode,
                 })
         })),
         formats: Shared::of(read.iter().map(|metadata| Some(metadata.formats.clone()))),
