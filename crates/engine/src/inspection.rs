@@ -84,6 +84,8 @@ pub struct Summary {
     pub modified: BTreeSet<Field>,
     /// The tags the selected tracks with pending changes will hold once saved.
     pub saved_as: Shared<Vec<TagFormat>>,
+    /// How many of them saving converts to other tags or versions.
+    pub converted: usize,
     /// What the ID3v1 tags of the selected tracks with pending changes will lose of them.
     pub id3v1_losses: BTreeSet<Id3v1Loss>,
 }
@@ -181,6 +183,12 @@ fn summarise(tracks: &[Track], selected: &[(usize, &Track)], edits: &Edits) -> S
         saved_as: Shared::of(pending.iter().map(|(tags, metadata, versions)| {
             Some(formats_after_write(&metadata.formats, tags, *versions))
         })),
+        converted: pending
+            .iter()
+            .filter(|(tags, metadata, versions)| {
+                formats_after_write(&metadata.formats, tags, *versions) != metadata.formats
+            })
+            .count(),
         id3v1_losses: pending
             .iter()
             .filter_map(|(tags, _, versions)| Some(id3v1_losses(tags, versions.id3v1?)))
