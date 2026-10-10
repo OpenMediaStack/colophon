@@ -245,3 +245,23 @@ fn a_click_on_a_column_name_sorts_by_it() -> TestResult {
     assert_eq!(first(&window), "c");
     Ok(())
 }
+
+#[test]
+fn a_long_folder_path_keeps_the_inspector_in_the_window() -> TestResult {
+    let folder = tempfile::tempdir()?;
+    let deep = folder
+        .path()
+        .join("A folder with a long name to widen the table")
+        .join("Another folder with a long name to widen it more")
+        .join("And a third one, so that the path is long enough");
+    fs::create_dir_all(&deep)?;
+    fs::write(deep.join("01.mp3"), b"ID3")?;
+    let window = open_main_window(Some(deep))?;
+
+    find(&window, "Open folder")?.invoke_accessible_default_action();
+    wait_until_shown(&window, "1 track")?;
+
+    let inspector = find(&window, "Inspector")?;
+    assert!(inspector.absolute_position().x + inspector.size().width <= 1440.0);
+    Ok(())
+}
