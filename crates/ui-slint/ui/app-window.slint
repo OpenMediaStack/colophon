@@ -134,6 +134,8 @@ export component AppWindow inherits Window {
     in property <string> player-position;
     in property <string> player-duration;
     in property <float> player-volume;
+    in property <image> player-waveform;
+    in property <bool> player-has-waveform;
     callback player-seek(float);
     callback player-set-volume(float);
     // The application's name, then the source the table lists.
@@ -473,6 +475,8 @@ export component AppWindow inherits Window {
                     position: root.player-position;
                     duration: root.player-duration;
                     volume: root.player-volume;
+                    waveform: root.player-waveform;
+                    has-waveform: root.player-has-waveform;
                     play-pause => {
                         root.run(Command.play-pause);
                     }

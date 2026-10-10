@@ -160,3 +160,16 @@ fn without_a_sound_device_the_player_is_off() -> TestResult {
     assert_eq!(find(&window, "Play")?.accessible_enabled(), Some(false));
     Ok(())
 }
+
+#[test]
+fn the_waveform_shows_once_read() -> TestResult {
+    let (window, _folder, _fake) = window_playing()?;
+
+    press(&window, &[], " ");
+
+    common::wait_until(&window, "the waveform", |window| {
+        window.get_player_has_waveform()
+    })?;
+    assert!(window.get_player_waveform().size().width > 0);
+    Ok(())
+}

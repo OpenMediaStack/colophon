@@ -115,6 +115,7 @@ pub fn main_window(
         thumbnails: RefCell::default(),
         thumbnail_timer: Timer::default(),
         shown_playing: Cell::default(),
+        waveform: RefCell::default(),
     });
     bridge.show();
     window.on_run({
@@ -344,6 +345,15 @@ struct Bridge {
     thumbnail_timer: Timer,
     /// The track marked as playing in the table.
     shown_playing: Cell<Option<usize>>,
+    /// The playing track's waveform, read on a thread of its own.
+    waveform: RefCell<WaveformDrawing>,
+}
+
+/// The track whose waveform shows or is being read.
+#[derive(Default)]
+struct WaveformDrawing {
+    track: Option<usize>,
+    reading: Option<Receiver<Option<SharedPixelBuffer<Rgba8Pixel>>>>,
 }
 
 /// Album covers drawn small, by the address of their shared bytes, and those being drawn.
@@ -552,6 +562,7 @@ fn poll_engine(bridge: &Rc<Bridge>) {
     } else if let Some(window) = bridge.window.upgrade() {
         show_playback(&window, &bridge.engine.borrow());
     }
+    bridge.take_waveform();
     if bridge.engine.borrow().saving().is_none() {
         after_save(bridge);
     }
@@ -627,6 +638,7 @@ impl Bridge {
         });
         show_saving(&window, &engine);
         show_playback(&window, &engine);
+        self.read_waveform(&window, &engine);
         self.show_departure(&window, &engine);
     }
 
@@ -764,6 +776,54 @@ impl Bridge {
         window.set_shown_kind(kind);
         window.set_shown_index(index);
         window.set_shown_label(label.into());
+    }
+
+    /// Reads the waveform of a track that starts playing, on a thread of its own.
+    fn read_waveform(&self, window: &AppWindow, engine: &Engine) {
+        let playing = engine.playback().track;
+        let mut drawing = self.waveform.borrow_mut();
+        if drawing.track == playing {
+            return;
+        }
+        drawing.track = playing;
+        drawing.reading = None;
+        window.set_player_has_waveform(false);
+        let Some(path) = playing
+            .and_then(|track| engine.library().tracks.get(track))
+            .map(|track| track.path.clone())
+        else {
+            return;
+        };
+        let (sender, reading) = std::sync::mpsc::channel();
+        let spawned = std::thread::Builder::new()
+            .name("waveform".to_string())
+            .spawn(move || {
+                let bars = colophon_player::Waveform::read(&path)
+                    .ok()
+                    .map(|waveform| waveform_bars(&waveform.peaks(WAVEFORM_BARS)));
+                let _ = sender.send(bars);
+            });
+        if spawned.is_ok() {
+            drawing.reading = Some(reading);
+        }
+    }
+
+    /// Shows the waveform once read.
+    fn take_waveform(&self) {
+        let mut drawing = self.waveform.borrow_mut();
+        let Some(reading) = &drawing.reading else {
+            return;
+        };
+        let bars = match reading.try_recv() {
+            Ok(bars) => bars,
+            Err(TryRecvError::Empty) => return,
+            Err(TryRecvError::Disconnected) => None,
+        };
+        drawing.reading = None;
+        if let (Some(window), Some(bars)) = (self.window.upgrade(), bars) {
+            window.set_player_waveform(Image::from_rgba8(bars));
+            window.set_player_has_waveform(true);
+        }
     }
 
     /// Draws on a thread of their own the album covers not drawn yet, then shows them as they come.
@@ -1227,6 +1287,37 @@ fn field<T>(value: &Shared<T>, modified: bool, text: impl Fn(&T) -> String) -> I
 /// The size covers are decoded at: the inspector draws them at 64 points, twice that on a sharp
 /// screen.
 const COVER_PIXELS: u32 = 128;
+
+/// The bars of the player's waveform, and their size in pixels: a bar and a gap.
+const WAVEFORM_BARS: usize = 240;
+const BAR_WIDTH: u32 = 2;
+const BAR_STRIDE: u32 = 3;
+const WAVEFORM_HEIGHT: u32 = 72;
+
+/// White bars on transparency, one per peak, that the window tints.
+fn waveform_bars(peaks: &[colophon_player::Peak]) -> SharedPixelBuffer<Rgba8Pixel> {
+    let width = u32::try_from(peaks.len()).unwrap_or(0) * BAR_STRIDE;
+    let mut buffer = SharedPixelBuffer::<Rgba8Pixel>::new(width.max(1), WAVEFORM_HEIGHT);
+    let middle = WAVEFORM_HEIGHT as f32 / 2.0;
+    let row_length = buffer.width() as usize;
+    let pixels = buffer.make_mut_slice();
+    for (bar, peak) in peaks.iter().enumerate() {
+        // At least a line, so that silence still shows where the track is.
+        let top = (middle - peak.high.clamp(0.0, 1.0) * middle).min(middle - 1.0) as usize;
+        let bottom = (middle - peak.low.clamp(-1.0, 0.0) * middle).max(middle + 1.0) as usize;
+        let left = bar * BAR_STRIDE as usize;
+        for row in top..bottom.min(WAVEFORM_HEIGHT as usize) {
+            let start = row * row_length + left;
+            pixels[start..start + BAR_WIDTH as usize].fill(Rgba8Pixel {
+                r: 255,
+                g: 255,
+                b: 255,
+                a: 255,
+            });
+        }
+    }
+    buffer
+}
 
 /// The size album covers are decoded at for the sidebar, which draws them at 18 points.
 const THUMBNAIL_PIXELS: u32 = 36;
