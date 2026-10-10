@@ -353,6 +353,11 @@ export component Inspector inherits Rectangle {
     callback replace-cover;
     callback extract-cover;
     callback remove-cover;
+    // The unreadable file: shown in the system's file manager, whose name the button takes, or
+    // its details put on the clipboard.
+    in property <string> reveal-text;
+    callback reveal-file;
+    callback copy-details;
 
     property <length> scrollbar-size: 10px;
     property <length> actions-height: 53px;
@@ -1035,6 +1040,25 @@ export component Inspector inherits Rectangle {
                 FileValue {
                     text: root.size-text(root.unreadable.size);
                     mono: true;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: start;
+
+            Button {
+                text: root.reveal-text;
+                clicked => {
+                    root.reveal-file();
+                }
+            }
+
+            Button {
+                text: @tr("Copy details");
+                clicked => {
+                    root.copy-details();
                 }
             }
         }

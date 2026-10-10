@@ -1,15 +1,22 @@
 #[cfg(target_os = "macos")]
 mod macos;
 
+use std::cell::RefCell;
+use std::ffi::OsString;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::process;
 
 use colophon_engine::{Engine, Preferences};
 use colophon_ui::{ComponentHandle, Dialogs, PlatformError};
 
-/// The system's file dialogs.
-struct SystemDialogs;
+/// The system's file dialogs, file manager and clipboard.
+#[derive(Default)]
+struct SystemDialogs {
+    /// On Linux, what is copied lasts only as long as the clipboard that copied it.
+    clipboard: RefCell<Option<arboard::Clipboard>>,
+}
 
 impl Dialogs for SystemDialogs {
     fn pick_folder(&self) -> Option<PathBuf> {
@@ -31,6 +38,41 @@ impl Dialogs for SystemDialogs {
 
     fn pick_save_path(&self, suggested: &str) -> Option<PathBuf> {
         rfd::FileDialog::new().set_file_name(suggested).save_file()
+    }
+
+    fn reveal(&self, path: &Path) {
+        // A file manager that does not start leaves nothing to undo.
+        let _ = reveal_command(path).spawn();
+    }
+
+    fn copy(&self, text: &str) {
+        let mut clipboard = self.clipboard.borrow_mut();
+        if clipboard.is_none() {
+            *clipboard = arboard::Clipboard::new().ok();
+        }
+        if let Some(clipboard) = clipboard.as_mut() {
+            let _ = clipboard.set_text(text);
+        }
+    }
+}
+
+/// Opens the system's file manager on a file: selected in the Finder and the Explorer, its
+/// folder elsewhere.
+fn reveal_command(path: &Path) -> process::Command {
+    if cfg!(target_os = "macos") {
+        let mut command = process::Command::new("open");
+        command.arg("-R").arg(path);
+        command
+    } else if cfg!(target_os = "windows") {
+        let mut select = OsString::from("/select,");
+        select.push(path);
+        let mut command = process::Command::new("explorer");
+        command.arg(select);
+        command
+    } else {
+        let mut command = process::Command::new("xdg-open");
+        command.arg(path.parent().unwrap_or(path));
+        command
     }
 }
 
@@ -70,7 +112,8 @@ fn main() -> Result<(), PlatformError> {
     if let Some(path) = &path {
         engine.restore(recall(path));
     }
-    let window = colophon_ui::main_window_keeping(engine, SystemDialogs, move |preferences| {
+    let dialogs = SystemDialogs::default();
+    let window = colophon_ui::main_window_keeping(engine, dialogs, move |preferences| {
         // Without its preferences, Colophon works the same; it only forgets them.
         if let Some(path) = &path {
             let _ = keep(path, preferences);

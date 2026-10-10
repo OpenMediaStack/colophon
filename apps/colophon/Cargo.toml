@@ -8,6 +8,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+arboard.workspace = true
 colophon-engine.workspace = true
 colophon-player.workspace = true
 colophon-ui.workspace = true
