@@ -12,7 +12,7 @@ use colophon_engine::{
     AudioLine, Column, ColumnWidths, Command, Edit, Engine, Field, Inspection, Library, ScanStatus,
     Selection, Shared, Step, Summary, Track, ViewState,
 };
-use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
+use slint::{CloseRequestResponse, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 
 mod generated {
     // Slint's generated code unwraps internally; the lints stay on for our own code.
@@ -24,14 +24,17 @@ mod generated {
 pub use generated::Command as WindowCommand;
 pub use generated::{
     AppWindow, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, InspectorField, InspectorState,
-    ReadProblem, ScanState, SizeUnit, TagEditing, TagField, Theme, TrackColumn, TrackColumnWidths,
-    TrackColumns, TrackRow, TrackStatus, UnreadableFile,
+    Leaving, ReadProblem, ScanState, SizeUnit, TagEditing, TagField, Theme, TrackColumn,
+    TrackColumnWidths, TrackColumns, TrackRow, TrackStatus, UnreadableFile, UnsavedChoice,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
 /// How often the window takes in what a running scan or save did: often enough to look live,
 /// rarely enough to update the table in batches.
 const POLL_INTERVAL: Duration = Duration::from_millis(50);
+
+/// How many modified tracks the unsaved changes dialog names.
+const NAMED_TRACKS: usize = 3;
 
 /// Creates the main window and hands its user actions to the engine, which then drives what it shows.
 /// `pick_folder` asks the user for a folder, usually through the system's dialog.
@@ -50,6 +53,7 @@ pub fn main_window(
         shown_modified: RefCell::default(),
         poll_timer: Timer::default(),
         pick_folder: Box::new(pick_folder),
+        departure: RefCell::default(),
     });
     bridge.show();
     window.on_run({
@@ -103,7 +107,31 @@ pub fn main_window(
         let bridge = Rc::clone(&bridge);
         move |widths| execute(&bridge, Command::ResizeColumns(engine_widths(widths)))
     });
+    window.window().on_close_requested({
+        let bridge = Rc::clone(&bridge);
+        move || {
+            if bridge.has_changes() {
+                ask(&bridge, Destination::Quit);
+                CloseRequestResponse::KeepWindowShown
+            } else {
+                CloseRequestResponse::HideWindow
+            }
+        }
+    });
+    window.on_unsaved_changes({
+        let bridge = Rc::clone(&bridge);
+        move |choice| answer(&bridge, choice)
+    });
     Ok(window)
+}
+
+/// Asks the window to close, as its close button does, and says whether it closed: it stays open
+/// while it asks what to do with pending changes.
+pub fn request_close(window: &AppWindow) -> bool {
+    window
+        .window()
+        .dispatch_event(slint::platform::WindowEvent::CloseRequested);
+    !window.window().is_visible()
 }
 
 struct Bridge {
@@ -116,6 +144,26 @@ struct Bridge {
     shown_modified: RefCell<BTreeSet<usize>>,
     poll_timer: Timer,
     pick_folder: Box<dyn Fn() -> Option<PathBuf>>,
+    departure: RefCell<Option<Departure>>,
+}
+
+/// Where the user was going when pending changes stopped them.
+enum Destination {
+    Quit,
+    Folder(PathBuf),
+}
+
+/// A departure held up by pending changes.
+enum Departure {
+    /// The window asks what to do with them.
+    Asking(Destination),
+    /// Waits for the running save to end, then saves what is left first when `save` holds.
+    AfterSave {
+        destination: Destination,
+        save: bool,
+    },
+    /// Goes once this save has written every file.
+    Saving(Destination),
 }
 
 fn run(bridge: &Rc<Bridge>, command: generated::Command) {
@@ -134,11 +182,93 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         generated::Command::Redo => Command::Redo,
         generated::Command::Revert => Command::Revert,
         generated::Command::OpenFolder => match (bridge.pick_folder)() {
+            Some(folder) if bridge.has_changes() => {
+                ask(bridge, Destination::Folder(folder));
+                return;
+            }
             Some(folder) => Command::OpenFolder(folder),
             None => return,
         },
     };
     execute(bridge, command);
+}
+
+fn ask(bridge: &Rc<Bridge>, destination: Destination) {
+    bridge
+        .departure
+        .replace(Some(Departure::Asking(destination)));
+    bridge.show();
+}
+
+fn answer(bridge: &Rc<Bridge>, choice: UnsavedChoice) {
+    let Some(Departure::Asking(destination)) = bridge.departure.take() else {
+        return;
+    };
+    let saving = bridge.engine.borrow().saving().is_some();
+    match choice {
+        UnsavedChoice::Cancel => bridge.show(),
+        UnsavedChoice::Save | UnsavedChoice::Discard if saving => {
+            let save = choice == UnsavedChoice::Save;
+            bridge
+                .departure
+                .replace(Some(Departure::AfterSave { destination, save }));
+            bridge.show();
+        }
+        UnsavedChoice::Save => save_then_go(bridge, destination),
+        UnsavedChoice::Discard => go(bridge, destination),
+    }
+}
+
+fn save_then_go(bridge: &Rc<Bridge>, destination: Destination) {
+    execute(bridge, Command::Save);
+    let (saving, failed) = {
+        let engine = bridge.engine.borrow();
+        (
+            engine.saving().is_some(),
+            !engine.save_failures().is_empty(),
+        )
+    };
+    if saving {
+        bridge
+            .departure
+            .replace(Some(Departure::Saving(destination)));
+    } else if !failed {
+        go(bridge, destination);
+    }
+}
+
+/// Goes on with a departure that waited for the save, once it has ended. A file it could not
+/// write keeps the user where they are, with the failure in the status bar.
+fn after_save(bridge: &Rc<Bridge>) {
+    match bridge.departure.take() {
+        Some(Departure::AfterSave {
+            destination,
+            save: true,
+        }) => save_then_go(bridge, destination),
+        Some(Departure::AfterSave {
+            destination,
+            save: false,
+        }) => go(bridge, destination),
+        Some(Departure::Saving(destination)) => {
+            if bridge.engine.borrow().save_failures().is_empty() {
+                go(bridge, destination);
+            }
+        }
+        waiting => {
+            bridge.departure.replace(waiting);
+        }
+    }
+}
+
+fn go(bridge: &Rc<Bridge>, destination: Destination) {
+    match destination {
+        Destination::Quit => {
+            if let Some(window) = bridge.window.upgrade() {
+                window.hide().ok();
+            }
+        }
+        Destination::Folder(folder) => execute(bridge, Command::OpenFolder(folder)),
+    }
 }
 
 fn execute(bridge: &Rc<Bridge>, command: Command) {
@@ -152,14 +282,30 @@ fn execute(bridge: &Rc<Bridge>, command: Command) {
 /// Polls the engine on a timer while a scan or a save runs. The timer holds the bridge weakly,
 /// since the bridge owns the timer.
 fn watch_engine(bridge: &Rc<Bridge>) {
+    if bridge.poll_timer.running() {
+        return;
+    }
     let bridge_weak: Weak<Bridge> = Rc::downgrade(bridge);
     bridge
         .poll_timer
         .start(TimerMode::Repeated, POLL_INTERVAL, move || {
             if let Some(bridge) = bridge_weak.upgrade() {
-                bridge.poll_engine();
+                poll_engine(&bridge);
             }
         });
+}
+
+fn poll_engine(bridge: &Rc<Bridge>) {
+    let changed = bridge.engine.borrow_mut().poll();
+    if changed {
+        bridge.show();
+    }
+    if bridge.engine.borrow().saving().is_none() {
+        after_save(bridge);
+    }
+    if !bridge.engine_busy() {
+        bridge.poll_timer.stop();
+    }
 }
 
 impl Bridge {
@@ -168,14 +314,8 @@ impl Bridge {
         engine.library().status == ScanStatus::Scanning || engine.saving().is_some()
     }
 
-    fn poll_engine(&self) {
-        let changed = self.engine.borrow_mut().poll();
-        if changed {
-            self.show();
-        }
-        if !self.engine_busy() {
-            self.poll_timer.stop();
-        }
+    fn has_changes(&self) -> bool {
+        self.engine.borrow().edits().modified_count() > 0
     }
 
     fn show(&self) {
@@ -189,6 +329,30 @@ impl Bridge {
         self.show_selection(&window, engine.selection());
         show_inspection(&window, engine.library(), engine.inspection());
         show_saving(&window, &engine);
+        self.show_departure(&window, &engine);
+    }
+
+    /// Shows the unsaved changes dialog while it asks, naming the first modified tracks as the
+    /// table titles them.
+    fn show_departure(&self, window: &AppWindow, engine: &Engine) {
+        let departure = self.departure.borrow();
+        let Some(Departure::Asking(destination)) = departure.as_ref() else {
+            window.set_asking_to_save(false);
+            return;
+        };
+        window.set_leaving(match destination {
+            Destination::Quit => Leaving::Quit,
+            Destination::Folder(_) => Leaving::OpenFolder,
+        });
+        let titles: Vec<SharedString> = engine
+            .edits()
+            .modified()
+            .take(NAMED_TRACKS)
+            .filter_map(|(track, _)| self.tracks.row_data(track))
+            .map(|row| row.title)
+            .collect();
+        window.set_unsaved_titles(ModelRc::new(VecModel::from(titles)));
+        window.set_asking_to_save(true);
     }
 
     /// Marks the selected rows, touching only the rows that change.
