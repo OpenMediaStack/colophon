@@ -1,6 +1,7 @@
 //! Colophon's application state and the commands that change it. No UI types.
 
 mod columns;
+mod edits;
 mod inspection;
 mod selection;
 
@@ -13,6 +14,7 @@ use colophon_library::{
 
 pub use colophon_library::{Track, tags};
 pub use columns::{Column, ColumnWidths, Columns};
+pub use edits::{Edit, Edits, Field};
 pub use inspection::{AudioLine, Inspection, Shared, Summary};
 pub use selection::{Selection, Step};
 
@@ -37,6 +39,12 @@ pub enum Command {
     MoveSelection(Step),
     /// A Shift arrow: the selection grows or shrinks by one track.
     ExtendSelection(Step),
+    /// A new value for one field of every selected track.
+    Edit(Edit),
+    Undo,
+    Redo,
+    /// Brings the selected tracks back to their files' tags.
+    Revert,
 }
 
 impl Command {
@@ -56,6 +64,10 @@ impl Command {
             Command::SelectAll => "selection.select_all",
             Command::MoveSelection(_) => "selection.move",
             Command::ExtendSelection(_) => "selection.extend",
+            Command::Edit(_) => "tags.edit",
+            Command::Undo => "edit.undo",
+            Command::Redo => "edit.redo",
+            Command::Revert => "tags.revert",
         }
     }
 }
@@ -109,6 +121,7 @@ pub struct Engine {
     view: ViewState,
     library: Library,
     selection: Selection,
+    edits: Edits,
     scan: Option<ScanHandle>,
 }
 
@@ -129,9 +142,22 @@ impl Engine {
         &self.selection
     }
 
+    /// The pending changes to the tags, and their history.
+    pub fn edits(&self) -> &Edits {
+        &self.edits
+    }
+
+    /// The tags a track shows: those waiting to be saved, or else its file's.
+    pub fn tags_of(&self, track: usize) -> Option<&colophon_library::tags::Tags> {
+        self.edits.pending(track).or_else(|| {
+            let metadata = self.library.tracks.get(track)?.metadata.as_ref().ok()?;
+            Some(&metadata.tags)
+        })
+    }
+
     /// What the inspector shows of the selected tracks.
     pub fn inspection(&self) -> Inspection<'_> {
-        inspection::inspect(&self.library.tracks, &self.selection)
+        inspection::inspect(&self.library.tracks, &self.selection, &self.edits)
     }
 
     pub fn execute(&mut self, command: Command) {
@@ -161,6 +187,15 @@ impl Engine {
             Command::ExtendSelection(step) => {
                 self.selection.step(step, self.library.tracks.len(), true);
             }
+            Command::Edit(edit) => {
+                self.edits
+                    .edit(&self.library.tracks, self.selection.iter(), &edit);
+            }
+            Command::Undo => self.edits.undo(&self.library.tracks),
+            Command::Redo => self.edits.redo(&self.library.tracks),
+            Command::Revert => self
+                .edits
+                .revert(&self.library.tracks, self.selection.iter()),
         }
     }
 
@@ -204,6 +239,7 @@ impl Engine {
     fn open_folder(&mut self, folder: PathBuf) {
         self.scan = None;
         self.selection = Selection::default();
+        self.edits = Edits::default();
         self.library = Library {
             folder: Some(folder.clone()),
             ..Library::default()

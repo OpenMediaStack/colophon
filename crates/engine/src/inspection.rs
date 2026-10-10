@@ -1,7 +1,9 @@
-use colophon_library::Track;
-use colophon_library::tags::{BitrateMode, ReadError, TagFormat};
+use std::collections::BTreeSet;
 
-use crate::Selection;
+use colophon_library::Track;
+use colophon_library::tags::{BitrateMode, ReadError, TagFormat, Tags};
+
+use crate::{Edits, Field, Selection};
 
 /// What the inspector shows of the selected tracks.
 #[derive(Debug)]
@@ -73,40 +75,48 @@ pub struct Summary {
     pub formats: Shared<Vec<TagFormat>>,
     /// The size of every selected file, in bytes.
     pub size: u64,
+    /// The fields with a value waiting to be saved, in at least one selected track.
+    pub modified: BTreeSet<Field>,
 }
 
-pub(crate) fn inspect<'a>(tracks: &'a [Track], selection: &Selection) -> Inspection<'a> {
-    let selected: Vec<&Track> = selection
+pub(crate) fn inspect<'a>(
+    tracks: &'a [Track],
+    selection: &Selection,
+    edits: &Edits,
+) -> Inspection<'a> {
+    let selected: Vec<(usize, &Track)> = selection
         .iter()
-        .filter_map(|index| tracks.get(index))
+        .filter_map(|index| Some((index, tracks.get(index)?)))
         .collect();
     match selected.as_slice() {
         [] => Inspection::Nothing,
-        [track] => match &track.metadata {
-            Ok(_) => Inspection::Tracks(Box::new(summarise(&selected))),
+        [(_, track)] => match &track.metadata {
             Err(error) => Inspection::Unreadable { track, error },
+            Ok(_) => Inspection::Tracks(Box::new(summarise(tracks, &selected, edits))),
         },
-        _ => Inspection::Tracks(Box::new(summarise(&selected))),
+        _ => Inspection::Tracks(Box::new(summarise(tracks, &selected, edits))),
     }
 }
 
-fn summarise(selected: &[&Track]) -> Summary {
-    let read: Vec<_> = selected
+fn summarise(tracks: &[Track], selected: &[(usize, &Track)], edits: &Edits) -> Summary {
+    // The tags each readable track shows: those waiting to be saved, or else its file's.
+    let read: Vec<(&Tags, _)> = selected
         .iter()
-        .filter_map(|track| track.metadata.as_ref().ok())
+        .filter_map(|(index, track)| {
+            let metadata = track.metadata.as_ref().ok()?;
+            Some((edits.pending(*index).unwrap_or(&metadata.tags), metadata))
+        })
         .collect();
-    let tags = || read.iter().map(|metadata| &metadata.tags);
+    let tags = || read.iter().map(|(tags, _)| *tags);
     let text = |field: fn(&colophon_library::tags::Tags) -> &Option<String>| {
         Shared::of(tags().map(|tags| field(tags).clone()))
     };
-    let heading = match selected {
-        [track] => track.metadata.as_ref().ok().and_then(|metadata| {
-            metadata.tags.title.clone().or_else(|| {
-                track
-                    .path
-                    .file_stem()
-                    .map(|stem| stem.to_string_lossy().into_owned())
-            })
+    let heading = match (selected, read.as_slice()) {
+        ([(_, track)], [(tags, _)]) => tags.title.clone().or_else(|| {
+            track
+                .path
+                .file_stem()
+                .map(|stem| stem.to_string_lossy().into_owned())
         }),
         _ => None,
     };
@@ -123,7 +133,7 @@ fn summarise(selected: &[&Track]) -> Summary {
         track_total: Shared::of(tags().map(|tags| tags.track_total)),
         genre: text(|tags| &tags.genre),
         comment: text(|tags| &tags.comment),
-        audio: Shared::of(read.iter().map(|metadata| {
+        audio: Shared::of(read.iter().map(|(_, metadata)| {
             let audio = &metadata.audio;
             audio
                 .bitrate
@@ -134,8 +144,12 @@ fn summarise(selected: &[&Track]) -> Summary {
                     mode: audio.bitrate_mode,
                 })
         })),
-        formats: Shared::of(read.iter().map(|metadata| Some(metadata.formats.clone()))),
-        size: selected.iter().map(|track| track.size).sum(),
+        formats: Shared::of(
+            read.iter()
+                .map(|(_, metadata)| Some(metadata.formats.clone())),
+        ),
+        size: selected.iter().map(|(_, track)| track.size).sum(),
+        modified: edits.modified_fields(tracks, selected.iter().map(|(index, _)| *index)),
     }
 }
 
