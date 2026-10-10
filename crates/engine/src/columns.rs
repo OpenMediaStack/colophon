@@ -25,10 +25,13 @@ impl Column {
         Column::Folder,
     ];
 
-    /// The columns of the mockup. The tag formats and the file's place are there for whoever
-    /// wants them.
+    /// The columns of the mockup, the bitrate aside. The bitrate, the tag formats and the file's
+    /// place are there for whoever wants them.
     fn shown_by_default(self) -> bool {
-        !matches!(self, Column::Tags | Column::File | Column::Folder)
+        !matches!(
+            self,
+            Column::Bitrate | Column::Tags | Column::File | Column::Folder
+        )
     }
 
     fn bit(self) -> u16 {

@@ -42,7 +42,7 @@ fn toggling_twice_restores_the_panel() {
 }
 
 #[test]
-fn the_table_shows_the_columns_of_the_mockup_at_start() {
+fn the_table_shows_the_columns_of_the_mockup_but_the_bitrate_at_start() {
     let engine = Engine::new();
 
     let shown: Vec<Column> = Column::ALL
@@ -57,8 +57,7 @@ fn the_table_shows_the_columns_of_the_mockup_at_start() {
             Column::Album,
             Column::Year,
             Column::Genre,
-            Column::Time,
-            Column::Bitrate
+            Column::Time
         ]
     );
 }

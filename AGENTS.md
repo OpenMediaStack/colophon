@@ -155,7 +155,7 @@ Each step ends on something Florent can run. Cut a step into slices before start
 7. **Player.** Play, pause, seek, a playhead that stays in sync over a 6 minute track.
 8. **Waveform and spectrum.** The min/max pyramid for instant zoom and scrub, the spectrum, then a multi-band waveform.
 9. **Album batch edit.** Edit the fields shared by every track of an album at once.
-10. **Polish.** Command palette, keyboard shortcuts, hover transitions, icons, empty and error states.
+10. **Polish.** Command palette, keyboard shortcuts, hover transitions, icons, empty and error states. Preferences kept between launches in a settings file: the columns shown and their widths, the panels, the window size.
 11. **Advanced developer tools.** Padding size, unsynchronisation, compression, text encoding per frame, and a raw frame view with each frame's ID, offset, size, flags and decoded value. `lofty` covers padding and the text encoding of ID3v2 frames; the rest goes through the `id3` crate or a small reader of our own. Check before planning.
 
 Later versions:
