@@ -31,11 +31,12 @@ mod generated {
 /// What the window asks the engine to run, before the bridge turns it into a [`Command`].
 pub use generated::Command as WindowCommand;
 pub use generated::{
-    AppWindow, BitrateMode, ByteSize, CoverState, DropTarget, Id3v1Losses, Id3v1Policy,
+    AppWindow, BitrateMode, ByteSize, CoverState, DropTarget, FrameKind, Id3v1Losses, Id3v1Policy,
     InspectedTracks, InspectorField, InspectorState, Kilohertz, PaletteAction, PaletteEntry,
     PaletteMatch, ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit, SourceKind,
-    TagEditing, TagField, TagRemoval, Theme, Toast, ToastMessage, TrackColumn, TrackColumnWidths,
-    TrackColumns, TrackRow, TrackSpectrum, TrackStatus, UnreadableFile, UnsavedChoice,
+    TagEditing, TagField, TagFrame, TagLayout, TagRemoval, Theme, Toast, ToastMessage, TrackColumn,
+    TrackColumnWidths, TrackColumns, TrackRow, TrackSpectrum, TrackStatus, UnreadableFile,
+    UnsavedChoice,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -156,6 +157,7 @@ pub fn main_window_keeping(
         hovered: RefCell::default(),
         dropped: RefCell::default(),
         drop_timer: Timer::default(),
+        layout_of: Cell::default(),
     });
     bridge.show();
     window.on_run({
@@ -505,6 +507,8 @@ struct Bridge {
     hovered: RefCell<Vec<PathBuf>>,
     dropped: RefCell<Vec<PathBuf>>,
     drop_timer: Timer,
+    /// The track whose tag layout shows, read again after each save.
+    layout_of: Cell<Option<usize>>,
 }
 
 /// How long a toast stays: a success briefly, an error long enough to act on it.
@@ -926,6 +930,8 @@ fn poll_engine(bridge: &Rc<Bridge>) {
         && bridge.engine.borrow().saving().is_none()
     {
         bridge.toast_save(saving.total);
+        // The files changed: their layout shows again with the rest.
+        bridge.layout_of.set(None);
     }
     if changed {
         bridge.show();
@@ -1021,6 +1027,7 @@ impl Bridge {
         show_playback(&window, &engine);
         self.read_waveform(&window, &engine);
         self.read_spectrum(&window, &engine);
+        self.show_layout(&window, &engine);
         self.show_departure(&window, &engine);
         self.toast_play_failure(&engine);
         let preferences = engine.preferences();
@@ -1346,6 +1353,31 @@ impl Bridge {
                     bridge.take_spectrum();
                 }
             });
+    }
+
+    /// In developer mode, shows how the tags of the single selected track are laid out.
+    fn show_layout(&self, window: &AppWindow, engine: &Engine) {
+        let alone = match engine.inspection() {
+            Inspection::Tracks(summary)
+                if engine.view().developer_mode
+                    && summary.count == 1
+                    && summary.unreadable == 0 =>
+            {
+                engine.selection().iter().next()
+            }
+            _ => None,
+        };
+        if alone == self.layout_of.get() {
+            return;
+        }
+        self.layout_of.set(alone);
+        let layout = alone
+            .and_then(|track| engine.library().tracks.get(track))
+            .and_then(|track| tags::layout(&track.path).ok());
+        window.set_has_layout(layout.is_some());
+        if let Some(layout) = layout {
+            window.set_tag_layout(tag_layout(&layout));
+        }
     }
 
     /// Shows the spectrum once read.
@@ -2361,6 +2393,70 @@ fn duration_text(duration: Duration) -> String {
         format!("{hours}:{minutes:02}:{seconds:02}")
     } else {
         format!("{minutes}:{seconds:02}")
+    }
+}
+
+fn tag_layout(layout: &tags::Layout) -> TagLayout {
+    let number = |value: u64| i32::try_from(value).unwrap_or(i32::MAX);
+    let id3v2 = layout.id3v2.as_ref();
+    let frames: Vec<TagFrame> = id3v2
+        .map(|tag| tag.frames.iter().map(tag_frame).collect())
+        .unwrap_or_default();
+    TagLayout {
+        has_id3v2: id3v2.is_some(),
+        version: id3v2
+            .map(|tag| {
+                let major = match tag.version {
+                    Id3v2Version::V2_2 => 2,
+                    Id3v2Version::V2_3 => 3,
+                    Id3v2Version::V2_4 => 4,
+                };
+                format!("{major}.{}", tag.revision)
+            })
+            .unwrap_or_default()
+            .into(),
+        size: number(id3v2.map_or(0, |tag| u64::from(tag.size))),
+        padding: number(id3v2.map_or(0, |tag| u64::from(tag.padding))),
+        unsynchronisation: id3v2.is_some_and(|tag| tag.unsynchronisation),
+        extended_header: id3v2.is_some_and(|tag| tag.extended_header),
+        experimental: id3v2.is_some_and(|tag| tag.experimental),
+        footer: id3v2.is_some_and(|tag| tag.footer),
+        frames: ModelRc::new(VecModel::from(frames)),
+        has_id3v1: layout.id3v1.is_some(),
+        id3v1_offset: number(layout.id3v1.unwrap_or(0)),
+    }
+}
+
+fn tag_frame(frame: &tags::FrameLayout) -> TagFrame {
+    let number = |value: usize| i32::try_from(value).unwrap_or(i32::MAX);
+    let (kind, value, data_size) = match &frame.value {
+        tags::FrameValue::Text(text) => (FrameKind::Text, text.clone(), 0),
+        tags::FrameValue::Picture { mime, size } => (FrameKind::Picture, mime.clone(), *size),
+        tags::FrameValue::Sealed => (FrameKind::Sealed, String::new(), 0),
+        tags::FrameValue::Binary => (FrameKind::Binary, String::new(), 0),
+    };
+    let encoding = match frame.encoding {
+        Some(tags::TextEncoding::Latin1) => "ISO-8859-1",
+        Some(tags::TextEncoding::Utf16) => "UTF-16",
+        Some(tags::TextEncoding::Utf16Be) => "UTF-16BE",
+        Some(tags::TextEncoding::Utf8) => "UTF-8",
+        None => "",
+    };
+    let flags = frame.flags;
+    TagFrame {
+        id: frame.id.as_str().into(),
+        kind,
+        value: value.into(),
+        data_size: number(data_size),
+        offset: i32::try_from(frame.offset).unwrap_or(i32::MAX),
+        size: i32::try_from(frame.size).unwrap_or(i32::MAX),
+        encoding: encoding.into(),
+        read_only: flags.read_only,
+        grouping: flags.grouping,
+        compression: flags.compression,
+        encryption: flags.encryption,
+        unsynchronisation: flags.unsynchronisation,
+        data_length: flags.data_length,
     }
 }
 

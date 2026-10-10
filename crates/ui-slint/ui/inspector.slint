@@ -101,6 +101,46 @@ export struct InspectedTracks {
 
 export enum ReadProblem { cannot-open, damaged, reader-failed }
 
+// What a frame of an ID3v2 tag holds.
+export enum FrameKind { text, picture, sealed, binary }
+
+// A frame of an ID3v2 tag, as developer mode shows it.
+export struct TagFrame {
+    id: string,
+    kind: FrameKind,
+    // Its text, or the type of its picture.
+    value: string,
+    // The size of its picture.
+    data-size: int,
+    // Where its header starts in the file, and the size of its content.
+    offset: int,
+    size: int,
+    // The encoding of its text, as the specification names it; empty for other frames.
+    encoding: string,
+    read-only: bool,
+    grouping: bool,
+    compression: bool,
+    encryption: bool,
+    unsynchronisation: bool,
+    data-length: bool,
+}
+
+// How the tags of a file are laid out, byte by byte.
+export struct TagLayout {
+    has-id3v2: bool,
+    // Its version and revision, such as 3.0.
+    version: string,
+    size: int,
+    padding: int,
+    unsynchronisation: bool,
+    extended-header: bool,
+    experimental: bool,
+    footer: bool,
+    frames: [TagFrame],
+    has-id3v1: bool,
+    id3v1-offset: int,
+}
+
 export struct UnreadableFile {
     path: string,
     problem: ReadProblem,
@@ -386,6 +426,41 @@ export component Inspector inherits Rectangle {
     callback copy-details;
     // An image dragged over the window would replace the cover.
     in property <bool> cover-drop;
+    // How the tags of the single selected track are laid out, in developer mode.
+    in property <bool> has-layout;
+    in property <TagLayout> layout;
+
+    pure function frame-value(frame: TagFrame) -> string {
+        return frame.kind == FrameKind.text ? frame.value
+            : frame.kind == FrameKind.picture ? @tr("{}, {} bytes", frame.value, frame.data-size)
+            : frame.kind == FrameKind.sealed ? @tr("Compressed or encrypted")
+            : @tr("{n} byte of data" | "{n} bytes of data" % frame.size);
+    }
+
+    // Two parts of a line, with a dot between them when both are there.
+    pure function joined(first: string, second: string) -> string {
+        return first == "" ? second : second == "" ? first : first + " · " + second;
+    }
+
+    pure function frame-details(frame: TagFrame) -> string {
+        return root.joined(root.joined(root.joined(root.joined(root.joined(root.joined(root.joined(
+            @tr("at {}", frame.offset) + " · " + @tr("{n} byte" | "{n} bytes" % frame.size),
+            frame.encoding),
+            frame.read-only ? @tr("read only") : ""),
+            frame.grouping ? @tr("grouped") : ""),
+            frame.compression ? @tr("compressed") : ""),
+            frame.encryption ? @tr("encrypted") : ""),
+            frame.unsynchronisation ? @tr("unsynchronised") : ""),
+            frame.data-length ? @tr("data length") : "");
+    }
+
+    pure function tag-flags() -> string {
+        return root.joined(root.joined(root.joined(
+            root.layout.unsynchronisation ? @tr("Unsynchronised") : "",
+            root.layout.extended-header ? @tr("Extended header") : ""),
+            root.layout.experimental ? @tr("Experimental") : ""),
+            root.layout.footer ? @tr("Footer") : "");
+    }
 
     property <length> scrollbar-size: 10px;
     property <length> actions-height: 53px;
@@ -935,6 +1010,72 @@ export component Inspector inherits Rectangle {
                                 color: Theme.text-tertiary;
                             }
                         }
+                    }
+                }
+
+                if root.developer-mode && root.has-layout: VerticalLayout {
+                    spacing: 8px;
+
+                    SectionLabel {
+                        text: @tr("Frames").to-uppercase();
+                    }
+
+                    Text {
+                        wrap: word-wrap;
+                        text: root.layout.has-id3v2 ? @tr("ID3v2.{} · {} bytes · {} bytes of padding", root.layout.version, root.layout.size, root.layout.padding) : @tr("No ID3v2 tag");
+                        font-size: 12px;
+                        color: Theme.text-secondary;
+                    }
+
+                    if root.tag-flags() != "": Text {
+                        wrap: word-wrap;
+                        text: root.tag-flags();
+                        font-size: 12px;
+                        color: Theme.text-secondary;
+                    }
+
+                    for frame in root.layout.frames: VerticalLayout {
+                        spacing: 1px;
+                        accessible-role: list-item;
+                        accessible-label: frame.id + " " + root.frame-value(frame);
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            Text {
+                                width: 40px;
+                                text: frame.id;
+                                font-family: "JetBrains Mono";
+                                font-size: 12px;
+                                color: Theme.text-primary;
+                            }
+
+                            Text {
+                                horizontal-stretch: 1;
+                                text: root.frame-value(frame);
+                                overflow: elide;
+                                font-size: 12px;
+                                color: frame.kind == FrameKind.text ? Theme.text-primary : Theme.text-secondary;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 48px;
+
+                            Text {
+                                text: root.frame-details(frame);
+                                wrap: word-wrap;
+                                font-size: 11px;
+                                color: Theme.text-tertiary;
+                            }
+                        }
+                    }
+
+                    if root.layout.has-id3v1: Text {
+                        wrap: word-wrap;
+                        text: @tr("ID3v1 at {}, 128 bytes", root.layout.id3v1-offset);
+                        font-size: 12px;
+                        color: Theme.text-secondary;
                     }
                 }
             }

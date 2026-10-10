@@ -6,10 +6,11 @@ use std::path::PathBuf;
 
 use colophon_engine::Engine;
 use colophon_ui::{
-    AppWindow, BitrateMode, ByteSize, ComponentHandle, InspectedTracks, InspectorField,
-    InspectorState, ReadProblem, ScanState, SizeUnit, Theme, UnreadableFile,
+    AppWindow, BitrateMode, ByteSize, ComponentHandle, FrameKind, InspectedTracks, InspectorField,
+    InspectorState, ReadProblem, ScanState, SizeUnit, TagFrame, TagLayout, Theme, UnreadableFile,
 };
 use slint::platform::{Key, PointerEventButton};
+use slint::{ModelRc, VecModel};
 use tempfile::TempDir;
 
 use common::{TestResult, assert_matches_reference, find, shows};
@@ -240,6 +241,87 @@ fn the_tag_format_section_matches_its_references() -> TestResult {
         window.global::<Theme>().set_dark(dark);
         window.show()?;
         assert_matches_reference(&window, &format!("inspector-developer-{theme}.png"))?;
+    }
+    Ok(())
+}
+
+fn text_frame(id: &str, value: &str, offset: i32, size: i32) -> TagFrame {
+    TagFrame {
+        id: id.into(),
+        kind: FrameKind::Text,
+        value: value.into(),
+        offset,
+        size,
+        encoding: "UTF-16".into(),
+        ..TagFrame::default()
+    }
+}
+
+#[test]
+fn the_frames_section_matches_its_references() -> TestResult {
+    let frames = vec![
+        text_frame("TIT2", "Neon Overpass", 10, 31),
+        text_frame("TPE1", "Cassette Bloom", 51, 33),
+        TagFrame {
+            read_only: true,
+            ..text_frame("TALB", "Analog Hearts", 94, 31)
+        },
+        TagFrame {
+            id: "APIC".into(),
+            kind: FrameKind::Picture,
+            value: "image/jpeg".into(),
+            data_size: 48_213,
+            offset: 135,
+            size: 48_239,
+            encoding: "ISO-8859-1".into(),
+            ..TagFrame::default()
+        },
+        TagFrame {
+            id: "PRIV".into(),
+            kind: FrameKind::Binary,
+            offset: 48_384,
+            size: 41,
+            ..TagFrame::default()
+        },
+        TagFrame {
+            id: "TXXX".into(),
+            kind: FrameKind::Sealed,
+            offset: 48_435,
+            size: 64,
+            compression: true,
+            data_length: true,
+            ..TagFrame::default()
+        },
+    ];
+    for (dark, theme) in [(true, "dark"), (false, "light")] {
+        let window = window_inspecting(
+            InspectorState::Tracks,
+            InspectedTracks {
+                count: 1,
+                heading: "Neon Overpass".into(),
+                ..three_tracks()
+            },
+            UnreadableFile::default(),
+        )?;
+        window
+            .window()
+            .set_size(slint::LogicalSize::new(1440.0, 1500.0));
+        window.set_developer_mode(true);
+        window.set_has_layout(true);
+        window.set_tag_layout(TagLayout {
+            has_id3v2: true,
+            version: "3.0".into(),
+            size: 50_176,
+            padding: 1_667,
+            unsynchronisation: true,
+            frames: ModelRc::new(VecModel::from(frames.clone())),
+            has_id3v1: true,
+            id3v1_offset: 5_211_904,
+            ..TagLayout::default()
+        });
+        window.global::<Theme>().set_dark(dark);
+        window.show()?;
+        assert_matches_reference(&window, &format!("inspector-frames-{theme}.png"))?;
     }
     Ok(())
 }
