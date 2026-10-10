@@ -1,0 +1,10 @@
+export enum TagField { title, artist, album-artist, album, year, track, track-total, genre, comment }
+
+// What the fields of the inspector and the table need from the engine: whether a text can be
+// kept, keeping it (the last argument says it goes on with what was typed before), and undoing
+// what was typed.
+export global TagEditing {
+    pure callback invalid(TagField, string) -> bool;
+    callback commit(TagField, string, bool);
+    callback cancel-typing;
+}

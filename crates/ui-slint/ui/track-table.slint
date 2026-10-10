@@ -1,5 +1,6 @@
 import { Theme } from "theme.slint";
 import { ListView, ScrollBar, ToolbarButton } from "widgets.slint";
+import { TagEditing, TagField } from "tag-editing.slint";
 
 export enum TrackStatus { normal, modified, unreadable }
 
@@ -150,6 +151,88 @@ component HeaderProbe inherits Probe {
     font-weight: 500;
 }
 
+// Edits one cell in place. Like the inspector's fields, each key is kept at once so that saving
+// never misses what was just typed; Return closes the editor, Escape undoes the typing.
+component CellEditor inherits Rectangle {
+    in property <TagField> tag;
+    in property <string> value;
+    in property <string> label;
+    in property <bool> mono;
+    in property <TextHorizontalAlignment> text-alignment: left;
+    // Done editing, and whether the table takes the keyboard back.
+    callback finished(bool);
+
+    property <bool> invalid: TagEditing.invalid(root.tag, input.text);
+    property <bool> typing;
+
+    // Shows the cell's value, all of it selected, and takes the keyboard.
+    public function start() {
+        input.text = root.value;
+        root.typing = false;
+        input.focus();
+        input.select-all();
+    }
+
+    function cancel() {
+        if root.typing {
+            TagEditing.cancel-typing();
+            root.typing = false;
+        }
+    }
+
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: root.invalid ? Theme.error : Theme.focus-ring;
+    background: Theme.surface-2;
+
+    input := TextInput {
+        x: 7px;
+        width: parent.width - 14px;
+        single-line: true;
+        vertical-alignment: center;
+        horizontal-alignment: root.text-alignment;
+        font-family: root.mono ? "JetBrains Mono" : "Inter";
+        font-size: root.mono ? 12px : 13px;
+        color: Theme.text-primary;
+        selection-background-color: Theme.accent-selection;
+        selection-foreground-color: Theme.text-primary;
+        accessible-label: root.label;
+
+        edited => {
+            if root.invalid {
+                root.cancel();
+            } else if self.text != root.value {
+                TagEditing.commit(root.tag, self.text, root.typing);
+                root.typing = true;
+            }
+        }
+        accepted => {
+            if !root.invalid {
+                root.typing = false;
+                root.finished(true);
+            }
+        }
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.cancel();
+                root.finished(true);
+                return accept;
+            }
+            return reject;
+        }
+        // Read when the change is handled: the editor may have taken the keyboard back meanwhile.
+        changed has-focus => {
+            if !self.has-focus && root.visible {
+                if root.invalid {
+                    root.cancel();
+                }
+                root.typing = false;
+                root.finished(false);
+            }
+        }
+    }
+}
+
 component RowDivider inherits Rectangle {
     height: 1px;
     background: Theme.border-row;
@@ -162,8 +245,51 @@ component TableRow inherits Rectangle {
     in property <TrackColumnWidths> widths;
     // The table has the keyboard focus, which outlines each run of selected rows.
     in property <bool> table-focused;
+    // One of the row's cells is being edited, and which.
+    in property <bool> editing;
+    in property <TagField> editing-field;
     // A press of the left button, with Command (Ctrl elsewhere) or Shift held.
     callback pressed(bool, bool);
+    // A double click on a cell that can be edited.
+    callback edit(TagField);
+    callback finished-editing(bool);
+
+    // Where the editable cells start, a hidden column taking no room.
+    property <length> title-x: root.status-width + root.number-width;
+    property <length> artist-x: root.title-x + root.widths.title;
+    property <length> album-x: root.artist-x + root.widths.artist;
+    property <length> year-x: root.album-x + root.widths.album;
+    property <length> genre-x: root.year-x + root.widths.year;
+    property <length> genre-end: root.genre-x + root.widths.genre;
+
+    pure function field-x(field: TagField) -> length {
+        return field == TagField.track ? root.status-width : field == TagField.title ? root.title-x : field == TagField.artist ? root.artist-x : field == TagField.album ? root.album-x : field == TagField.year ? root.year-x : root.genre-x;
+    }
+
+    pure function field-width(field: TagField) -> length {
+        return field == TagField.track ? root.number-width : field == TagField.title ? root.widths.title : field == TagField.artist ? root.widths.artist : field == TagField.album ? root.widths.album : field == TagField.year ? root.widths.year : root.widths.genre;
+    }
+
+    pure function field-value(field: TagField) -> string {
+        return field == TagField.track ? root.track.number : field == TagField.title ? root.track.title : field == TagField.artist ? root.track.artist : field == TagField.album ? root.track.album : field == TagField.year ? root.track.year : root.track.genre;
+    }
+
+    pure function field-name(field: TagField) -> string {
+        return field == TagField.track ? @tr("Track") : field == TagField.title ? @tr("Title") : field == TagField.artist ? @tr("Artist") : field == TagField.album ? @tr("Album") : field == TagField.year ? @tr("Year") : @tr("Genre");
+    }
+
+    // Slint runs changed handlers after the event that set the property, so the editor shows once
+    // it is visible.
+    changed editing => {
+        if root.editing {
+            editor.start();
+        }
+    }
+    changed editing-field => {
+        if root.editing {
+            editor.start();
+        }
+    }
 
     height: 26px;
     background: root.track.selected ? Theme.accent-selection : touch.has-hover ? Theme.surface-3 : transparent;
@@ -282,6 +408,40 @@ component TableRow inherits Rectangle {
                 root.pressed(event.modifiers.control, event.modifiers.shift);
             }
         }
+        double-clicked => {
+            if root.track.status == TrackStatus.unreadable {
+                return;
+            }
+            if self.mouse-x >= root.status-width && self.mouse-x < root.title-x {
+                root.edit(TagField.track);
+            } else if self.mouse-x < root.artist-x {
+                root.edit(TagField.title);
+            } else if self.mouse-x < root.album-x {
+                root.edit(TagField.artist);
+            } else if self.mouse-x < root.year-x {
+                root.edit(TagField.album);
+            } else if self.mouse-x < root.genre-x {
+                root.edit(TagField.year);
+            } else if self.mouse-x < root.genre-end {
+                root.edit(TagField.genre);
+            }
+        }
+    }
+
+    editor := CellEditor {
+        x: root.field-x(root.editing-field);
+        y: 1px;
+        width: root.field-width(root.editing-field) - 1px;
+        height: root.height - 2px;
+        visible: root.editing;
+        tag: root.editing-field;
+        value: root.field-value(root.editing-field);
+        label: root.field-name(root.editing-field);
+        mono: root.editing-field == TagField.track || root.editing-field == TagField.year;
+        text-alignment: self.mono ? right : left;
+        finished(take-keyboard) => {
+            root.finished-editing(take-keyboard);
+        }
     }
 }
 
@@ -297,6 +457,7 @@ export component TrackTable inherits Rectangle {
     in property <TrackRow> longest;
     // The row the arrow keys move from, -1 for none. The table scrolls to keep it in view.
     in property <int> focused-row: -1;
+    in property <int> selected-count;
     callback track-pressed(int, bool, bool);
     callback select-all;
     // An arrow key: up or down, and whether Shift extends the selection.
@@ -392,6 +553,15 @@ export component TrackTable inherits Rectangle {
     property <length> rows-height: root.rows.length * root.row-height;
     property <length> scroll-x;
     property <length> scroll-y;
+    // The row whose cell is being edited, -1 for none, and the cell.
+    property <int> editing-row: -1;
+    property <TagField> editing-field;
+
+    function start-editing(row: int, field: TagField) {
+        root.reveal(row);
+        root.editing-row = row;
+        root.editing-field = field;
+    }
 
     // Keeps the lists in bounds when the window grows or a new folder empties the table.
     function clamp-scroll() {
@@ -413,6 +583,10 @@ export component TrackTable inherits Rectangle {
 
     changed focused-row => {
         root.reveal(root.focused-row);
+        if root.editing-row >= 0 && root.editing-row != root.focused-row {
+            root.editing-row = -1;
+            keys.focus();
+        }
     }
 
     init => {
@@ -493,6 +667,11 @@ export component TrackTable inherits Rectangle {
             }
             if event.modifiers.control && (event.text == "a" || event.text == "A") {
                 root.select-all();
+                return accept;
+            }
+            // Return edits the title of the one selected track, as Return renames a file in the Finder.
+            if event.text == Key.Return && root.selected-count == 1 && root.focused-row >= 0 && root.rows[root.focused-row].status != TrackStatus.unreadable {
+                root.start-editing(root.focused-row, TagField.title);
                 return accept;
             }
             return reject;
@@ -845,9 +1024,22 @@ export component TrackTable inherits Rectangle {
             number-width: root.number-width;
             widths: root.widths;
             table-focused: keys.has-focus;
+            editing: index == root.editing-row;
+            editing-field: root.editing-field;
             pressed(toggle, extend) => {
                 keys.focus();
                 root.track-pressed(index, toggle, extend);
+            }
+            edit(field) => {
+                root.start-editing(index, field);
+            }
+            finished-editing(take-keyboard) => {
+                if root.editing-row == index {
+                    root.editing-row = -1;
+                }
+                if take-keyboard {
+                    keys.focus();
+                }
             }
         }
     }

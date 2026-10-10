@@ -1,5 +1,6 @@
 import { Theme } from "theme.slint";
 import { Button, ScrollBar } from "widgets.slint";
+import { TagEditing, TagField } from "tag-editing.slint";
 
 // Empty while no folder is open.
 export enum InspectorState { empty, nothing-selected, tracks, unreadable }
@@ -9,16 +10,6 @@ export struct InspectorField {
     text: string,
     mixed: bool,
     modified: bool,
-}
-
-export enum TagField { title, artist, album-artist, album, year, track, track-total, genre, comment }
-
-// What the inspector's fields need from the engine: whether a text can be kept, keeping it (the
-// last argument says it goes on with what was typed before), and undoing what was typed.
-export global TagEditing {
-    pure callback invalid(TagField, string) -> bool;
-    callback commit(TagField, string, bool);
-    callback cancel-typing;
 }
 
 // The fields an ID3v1 tag will not hold whole.
