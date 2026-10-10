@@ -191,10 +191,12 @@ export component ScrollBar inherits Rectangle {
     }
 }
 
-// A button of the inspector's actions: the main one in the accent colour, the others bordered.
+// A button of the inspector's actions: the main one in the accent colour, or in the error colour
+// when it destroys something, the others bordered.
 export component Button inherits Rectangle {
     in property <string> text;
     in property <bool> primary;
+    in property <bool> destructive;
     in property <bool> enabled: true;
     callback clicked;
 
@@ -202,7 +204,9 @@ export component Button inherits Rectangle {
     border-radius: 4px;
     border-width: root.primary ? 0px : 1px;
     border-color: Theme.border-strong;
-    background: !root.primary ? (touch.has-hover && root.enabled ? Theme.surface-3 : transparent) : touch.has-hover && root.enabled ? Theme.accent-hover : Theme.accent;
+    background: !root.primary ? (touch.has-hover && root.enabled ? Theme.surface-3 : transparent)
+        : root.destructive ? (touch.has-hover && root.enabled ? Theme.error.brighter(10%) : Theme.error)
+        : touch.has-hover && root.enabled ? Theme.accent-hover : Theme.accent;
     opacity: root.enabled ? 1 : 0.5;
     animate background { duration: 100ms; }
     accessible-role: button;
@@ -223,7 +227,7 @@ export component Button inherits Rectangle {
             horizontal-alignment: center;
             text: root.text;
             font-weight: root.primary ? 500 : 400;
-            color: root.primary ? Theme.on-accent : Theme.text-primary;
+            color: !root.primary ? Theme.text-primary : root.destructive ? Theme.on-error : Theme.on-accent;
         }
     }
 

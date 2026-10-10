@@ -9,10 +9,11 @@ import { EmptyState } from "empty-state.slint";
 import { ScanState, StatusBar } from "status-bar.slint";
 import { TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, TrackTable } from "track-table.slint";
 import { Leaving, UnsavedChanges, UnsavedChoice } from "unsaved-changes.slint";
+import { ConfirmTagRemoval, RemovedTag, TagRemoval } from "tag-removal.slint";
 import { BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
 
-export { Theme, Leaving, UnsavedChoice, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, Leaving, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
@@ -82,6 +83,12 @@ export component AppWindow inherits Window {
     // The titles of the first modified tracks, for the question.
     in property <[string]> unsaved-titles;
     callback unsaved-changes(UnsavedChoice);
+    // Set while the window asks before removing a tag from files.
+    in property <bool> confirming-removal;
+    in property <TagRemoval> removal;
+    callback removal-answered(bool);
+    // A dialog is up: the menu items that act on the library wait for it.
+    property <bool> modal: root.asking-to-save || root.confirming-removal;
     // Dialog buttons in the order of Windows. Tests set it so that their captures do not depend
     // on the machine.
     in property <bool> windows-buttons: Platform.os == OperatingSystemType.windows;
@@ -133,7 +140,7 @@ export component AppWindow inherits Window {
             MenuItem {
                 title: @tr("Open Folder…");
                 shortcut: @keys(Control + O);
-                enabled: !root.asking-to-save;
+                enabled: !root.modal;
                 activated => {
                     root.run(Command.open-folder);
                 }
@@ -144,7 +151,7 @@ export component AppWindow inherits Window {
             MenuItem {
                 title: @tr("Save");
                 shortcut: @keys(Control + S);
-                enabled: root.modified-count > 0 && !root.saving && !root.asking-to-save;
+                enabled: root.modified-count > 0 && !root.saving && !root.modal;
                 activated => {
                     root.run(Command.save);
                 }
@@ -157,7 +164,7 @@ export component AppWindow inherits Window {
             MenuItem {
                 title: @tr("Undo");
                 shortcut: @keys(Control + Z);
-                enabled: root.can-undo && !root.asking-to-save;
+                enabled: root.can-undo && !root.modal;
                 activated => {
                     root.run(Command.undo);
                 }
@@ -166,7 +173,7 @@ export component AppWindow inherits Window {
             MenuItem {
                 title: @tr("Redo");
                 shortcut: @keys(Control + Shift + Z);
-                enabled: root.can-redo && !root.asking-to-save;
+                enabled: root.can-redo && !root.modal;
                 activated => {
                     root.run(Command.redo);
                 }
@@ -363,6 +370,16 @@ export component AppWindow inherits Window {
         windows-order: root.windows-buttons;
         chose(choice) => {
             root.unsaved-changes(choice);
+        }
+    }
+
+    if root.confirming-removal: ConfirmTagRemoval {
+        width: root.width;
+        height: root.height;
+        removal: root.removal;
+        windows-order: root.windows-buttons;
+        answered(remove) => {
+            root.removal-answered(remove);
         }
     }
 }

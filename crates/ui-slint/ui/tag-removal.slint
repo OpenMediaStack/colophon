@@ -1,0 +1,61 @@
+import { Theme } from "theme.slint";
+import { Dialog } from "dialog.slint";
+
+export enum RemovedTag { id3v1, id3v2 }
+
+// A tag about to be removed from files, and the files that have it.
+export struct TagRemoval {
+    tag: RemovedTag,
+    count: int,
+    // The names of the first files, and how many others there are.
+    files: [string],
+    others: int,
+}
+
+// Asks before a tag goes: nothing else would say what the files lose.
+export component ConfirmTagRemoval inherits Dialog {
+    in property <TagRemoval> removal;
+    callback answered(bool);
+
+    property <bool> id3v1: root.removal.tag == RemovedTag.id3v1;
+
+    title: root.id3v1 ? @tr("Remove the ID3v1 tag from {n} file?" | "Remove the ID3v1 tag from {n} files?" % root.removal.count) : @tr("Remove the ID3v2 tag from {n} file?" | "Remove the ID3v2 tag from {n} files?" % root.removal.count);
+    message: root.id3v1 ? @tr("Some old players and car stereos only read ID3v1. After saving, these files will no longer have one.") : @tr("ID3v2 holds what ID3v1 cannot: the album artist, the track total, long titles and comments, the cover. After saving, these files will lose them.");
+    primary-text: root.id3v1 ? @tr("Remove ID3v1") : @tr("Remove ID3v2");
+    cancel-text: root.id3v1 ? @tr("Keep ID3v1") : @tr("Keep ID3v2");
+    destructive: true;
+    primary => {
+        root.answered(true);
+    }
+    cancel => {
+        root.answered(false);
+    }
+
+    Rectangle {
+        border-radius: 4px;
+        border-width: 1px;
+        border-color: Theme.border-subtle;
+        background: Theme.surface-1;
+        accessible-role: list;
+        accessible-label: @tr("Files");
+
+        VerticalLayout {
+            padding: 10px;
+            spacing: 2px;
+
+            for file in root.removal.files: Text {
+                text: file;
+                overflow: elide;
+                font-family: "JetBrains Mono";
+                font-size: 12px;
+                color: Theme.text-primary;
+            }
+
+            if root.removal.others > 0: Text {
+                text: @tr("and {n} other file" | "and {n} other files" % root.removal.others);
+                font-size: 12px;
+                color: Theme.text-tertiary;
+            }
+        }
+    }
+}

@@ -24,8 +24,9 @@ mod generated {
 pub use generated::Command as WindowCommand;
 pub use generated::{
     AppWindow, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, InspectorField, InspectorState,
-    Leaving, ReadProblem, ScanState, SizeUnit, TagEditing, TagField, Theme, TrackColumn,
-    TrackColumnWidths, TrackColumns, TrackRow, TrackStatus, UnreadableFile, UnsavedChoice,
+    Leaving, ReadProblem, RemovedTag, ScanState, SizeUnit, TagEditing, TagField, TagRemoval, Theme,
+    TrackColumn, TrackColumnWidths, TrackColumns, TrackRow, TrackStatus, UnreadableFile,
+    UnsavedChoice,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -35,6 +36,9 @@ const POLL_INTERVAL: Duration = Duration::from_millis(50);
 
 /// How many modified tracks the unsaved changes dialog names.
 const NAMED_TRACKS: usize = 3;
+
+/// How many files the dialog that asks before removing a tag lists.
+const LISTED_FILES: usize = 8;
 
 /// The choices of the inspector's Tag format section, in their order.
 const ID3V2_CHOICES: [Option<Id3v2Version>; 4] = [
@@ -66,6 +70,7 @@ pub fn main_window(
         departure: RefCell::default(),
         genres: RefCell::default(),
         genres_read_from: Cell::default(),
+        removal: Cell::default(),
     });
     bridge.show();
     window.on_run({
@@ -126,10 +131,7 @@ pub fn main_window(
         let bridge = Rc::clone(&bridge);
         move |index| {
             if let Some(version) = choice(&ID3V2_CHOICES, index) {
-                execute(
-                    &bridge,
-                    Command::ChooseVersion(VersionChoice::Id3v2(version)),
-                );
+                choose_version(&bridge, VersionChoice::Id3v2(version));
             }
         }
     });
@@ -137,10 +139,19 @@ pub fn main_window(
         let bridge = Rc::clone(&bridge);
         move |index| {
             if let Some(version) = choice(&ID3V1_CHOICES, index) {
-                execute(
-                    &bridge,
-                    Command::ChooseVersion(VersionChoice::Id3v1(version)),
-                );
+                choose_version(&bridge, VersionChoice::Id3v1(version));
+            }
+        }
+    });
+    window.on_removal_answered({
+        let bridge = Rc::clone(&bridge);
+        move |remove| {
+            let removal = bridge.removal.take();
+            if let Some(window) = bridge.window.upgrade() {
+                window.set_confirming_removal(false);
+            }
+            if let Some(choice) = removal.filter(|_| remove) {
+                execute(&bridge, Command::ChooseVersion(choice));
             }
         }
     });
@@ -189,6 +200,8 @@ struct Bridge {
     /// The genres to suggest, and the state of the library they were read from.
     genres: RefCell<Vec<String>>,
     genres_read_from: Cell<Option<GenreSource>>,
+    /// A tag removal that waits for the user's answer.
+    removal: Cell<Option<VersionChoice>>,
 }
 
 /// What changes the genres to suggest: tracks found, and files saved.
@@ -244,6 +257,34 @@ fn run(bridge: &Rc<Bridge>, command: generated::Command) {
         },
     };
     execute(bridge, command);
+}
+
+/// Chooses a tag version for the selected tracks, after asking first when the choice removes a
+/// tag some of their files have.
+fn choose_version(bridge: &Rc<Bridge>, choice: VersionChoice) {
+    let tag = match choice {
+        VersionChoice::Id3v2(None) => RemovedTag::Id3v2,
+        VersionChoice::Id3v1(None) => RemovedTag::Id3v1,
+        _ => return execute(bridge, Command::ChooseVersion(choice)),
+    };
+    let files = bridge.files_losing(tag);
+    let Some(window) = bridge.window.upgrade().filter(|_| !files.is_empty()) else {
+        return execute(bridge, Command::ChooseVersion(choice));
+    };
+    window.set_removal(TagRemoval {
+        tag,
+        count: count(files.len()),
+        others: count(files.len().saturating_sub(LISTED_FILES)),
+        files: ModelRc::new(VecModel::from(
+            files
+                .into_iter()
+                .take(LISTED_FILES)
+                .map(SharedString::from)
+                .collect::<Vec<_>>(),
+        )),
+    });
+    bridge.removal.set(Some(choice));
+    window.set_confirming_removal(true);
 }
 
 fn ask(bridge: &Rc<Bridge>, destination: Destination) {
@@ -365,6 +406,37 @@ impl Bridge {
     fn engine_busy(&self) -> bool {
         let engine = self.engine.borrow();
         engine.library().status == ScanStatus::Scanning || engine.saving().is_some()
+    }
+
+    /// The names of the selected files that have `tag` and would keep it when saved.
+    fn files_losing(&self, tag: RemovedTag) -> Vec<String> {
+        let engine = self.engine.borrow();
+        let tracks = &engine.library().tracks;
+        engine
+            .selection()
+            .iter()
+            .filter_map(|index| {
+                let track = tracks.get(index)?;
+                let formats = &track.metadata.as_ref().ok()?.formats;
+                let versions = engine.edits().versions(tracks, index)?;
+                let (has, kept) = match tag {
+                    RemovedTag::Id3v1 => (
+                        formats
+                            .iter()
+                            .any(|format| matches!(format, tags::TagFormat::Id3v1(_))),
+                        versions.id3v1.is_some(),
+                    ),
+                    RemovedTag::Id3v2 => (
+                        formats
+                            .iter()
+                            .any(|format| matches!(format, tags::TagFormat::Id3v2(_))),
+                        versions.id3v2.is_some(),
+                    ),
+                };
+                let name = track.path.file_name()?.to_string_lossy().into_owned();
+                (has && kept).then_some(name)
+            })
+            .collect()
     }
 
     fn has_changes(&self) -> bool {
