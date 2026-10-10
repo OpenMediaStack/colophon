@@ -2,7 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use colophon_library::Track;
 use colophon_library::tags::{
-    Cover, Id3v1Version, Id3v2Version, Metadata, TagVersions, Tags, formats_after_write,
+    Cover, Id3v1Version, Id3v2Version, Metadata, TagFormat, TagVersions, Tags, WritePolicy,
+    formats_after_write,
 };
 
 /// A field of the inspector, which an edit changes.
@@ -150,6 +151,8 @@ pub struct Edits {
     pending: BTreeMap<usize, Tags>,
     /// The tag versions the user chose, kept once saved so that the next save writes them again.
     chosen: BTreeMap<usize, TagVersions>,
+    /// The versions to write the other tracks in.
+    policy: WritePolicy,
     undo: Vec<Action>,
     redo: Vec<Action>,
 }
@@ -166,15 +169,55 @@ impl Edits {
         self.pending.iter().map(|(track, tags)| (*track, tags))
     }
 
-    /// The tag versions to write a track in: those the user chose, or else Colophon's.
+    /// The tag versions to write a track in: those the user chose, or else the policy's.
     pub fn versions(&self, tracks: &[Track], track: usize) -> Option<TagVersions> {
         let saved = saved(tracks, track)?;
         Some(
             self.chosen
                 .get(&track)
                 .copied()
-                .unwrap_or_else(|| TagVersions::default_for(&saved.formats)),
+                .unwrap_or_else(|| TagVersions::following(self.policy, &saved.formats)),
         )
+    }
+
+    /// The same, but a track the policy alone would strip of its ID3v1 tag keeps it.
+    pub(crate) fn versions_keeping_id3v1(
+        &self,
+        tracks: &[Track],
+        track: usize,
+    ) -> Option<TagVersions> {
+        let versions = self.versions(tracks, track)?;
+        if self.chosen.contains_key(&track) || versions.id3v1.is_some() {
+            return Some(versions);
+        }
+        let id3v1 = saved(tracks, track)?
+            .formats
+            .iter()
+            .find_map(|format| match format {
+                TagFormat::Id3v1(version) => Some(*version),
+                _ => None,
+            });
+        Some(TagVersions { id3v1, ..versions })
+    }
+
+    /// The tracks with changes that saving would strip of their ID3v1 tag because the policy
+    /// never writes one, and not because the user chose so for them.
+    pub fn losing_id3v1_to_policy(&self, tracks: &[Track]) -> Vec<usize> {
+        self.pending
+            .keys()
+            .copied()
+            .filter(|track| {
+                self.versions(tracks, *track) != self.versions_keeping_id3v1(tracks, *track)
+            })
+            .collect()
+    }
+
+    pub fn policy(&self) -> WritePolicy {
+        self.policy
+    }
+
+    pub(crate) fn set_policy(&mut self, policy: WritePolicy) {
+        self.policy = policy;
     }
 
     pub fn modified_count(&self) -> usize {

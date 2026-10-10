@@ -104,14 +104,51 @@ impl TagVersions {
     /// What Colophon writes unless asked otherwise: ID3v2.4, and ID3v1.1 where the file has an
     /// ID3v1 tag.
     pub fn default_for(formats: &[TagFormat]) -> Self {
+        Self::following(WritePolicy::default(), formats)
+    }
+
+    /// What `policy` writes in a file that holds `formats`.
+    pub fn following(policy: WritePolicy, formats: &[TagFormat]) -> Self {
         let has_id3v1 = formats
             .iter()
             .any(|format| matches!(format, TagFormat::Id3v1(_)));
+        let id3v1 = match policy.id3v1 {
+            Id3v1Policy::Keep => has_id3v1,
+            Id3v1Policy::Always => true,
+            Id3v1Policy::Never => false,
+        };
         Self {
-            id3v2: Some(Id3v2Version::V2_4),
-            id3v1: has_id3v1.then_some(Id3v1Version::V1_1),
+            id3v2: Some(policy.id3v2),
+            id3v1: id3v1.then_some(Id3v1Version::V1_1),
         }
     }
+}
+
+/// The tags written in files the user chose no versions for: ID3v2 in this version, and ID3v1
+/// as the policy says.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct WritePolicy {
+    pub id3v2: Id3v2Version,
+    pub id3v1: Id3v1Policy,
+}
+
+impl Default for WritePolicy {
+    fn default() -> Self {
+        Self {
+            id3v2: Id3v2Version::V2_4,
+            id3v1: Id3v1Policy::Keep,
+        }
+    }
+}
+
+/// Which files get an ID3v1 tag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum Id3v1Policy {
+    /// Those that have one already.
+    #[default]
+    Keep,
+    Always,
+    Never,
 }
 
 impl fmt::Display for TagFormat {
@@ -125,5 +162,44 @@ impl fmt::Display for TagFormat {
             TagFormat::Ape => "APE",
         };
         f.write_str(name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const WITH_ID3V1: [TagFormat; 2] = [
+        TagFormat::Id3v2(Id3v2Version::V2_3),
+        TagFormat::Id3v1(Id3v1Version::V1_0),
+    ];
+    const WITHOUT_ID3V1: [TagFormat; 1] = [TagFormat::Id3v2(Id3v2Version::V2_3)];
+
+    fn writing(id3v1: Id3v1Policy, formats: &[TagFormat]) -> TagVersions {
+        let policy = WritePolicy {
+            id3v2: Id3v2Version::V2_3,
+            id3v1,
+        };
+        TagVersions::following(policy, formats)
+    }
+
+    #[test]
+    fn the_policy_chooses_the_versions_to_write() {
+        let id3v1 = |policy, formats: &[TagFormat]| writing(policy, formats).id3v1;
+
+        assert_eq!(
+            writing(Id3v1Policy::Keep, &WITH_ID3V1).id3v2,
+            Some(Id3v2Version::V2_3)
+        );
+        assert_eq!(
+            id3v1(Id3v1Policy::Keep, &WITH_ID3V1),
+            Some(Id3v1Version::V1_1)
+        );
+        assert_eq!(id3v1(Id3v1Policy::Keep, &WITHOUT_ID3V1), None);
+        assert_eq!(
+            id3v1(Id3v1Policy::Always, &WITHOUT_ID3V1),
+            Some(Id3v1Version::V1_1)
+        );
+        assert_eq!(id3v1(Id3v1Policy::Never, &WITH_ID3V1), None);
     }
 }

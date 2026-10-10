@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::TryRecvError;
 use std::time::Duration;
 
-use colophon_library::tags::WriteError;
+use colophon_library::tags::{WriteError, WritePolicy};
 use colophon_library::{
     SaveEvent, SaveHandle, SaveJob, ScanError, ScanEvent, ScanHandle, ScanOutcome, spawn_save,
     spawn_scan,
@@ -72,6 +72,10 @@ pub enum Command {
     ChooseVersion(VersionChoice),
     /// Writes every pending change to its file, in the background.
     Save,
+    /// The same, but the files the write policy alone would strip of their ID3v1 tag keep it.
+    SaveKeepingId3v1,
+    /// The versions to write the tracks the user chose none for in.
+    SetWritePolicy(WritePolicy),
     /// Lists the tracks of a source in the table.
     ShowSource(Source),
     /// Lists only the tracks whose title, artist, album or file name holds this text.
@@ -122,6 +126,8 @@ impl Command {
             Command::SelectAlbum => "selection.select_album",
             Command::ChooseVersion(_) => "tags.choose_version",
             Command::Save => "tags.save",
+            Command::SaveKeepingId3v1 => "tags.save_keeping_id3v1",
+            Command::SetWritePolicy(_) => "settings.write_policy",
             Command::ShowSource(_) => "view.show_source",
             Command::Filter(_) => "view.filter",
             Command::SortBy(_) => "view.sort_by",
@@ -267,13 +273,21 @@ impl Engine {
         Preferences {
             view: self.view,
             volume: (self.playback.volume * 100.0).round() as u8,
+            writing: self.edits.policy(),
         }
     }
 
     /// Starts from the preferences of the last launch.
     pub fn restore(&mut self, preferences: Preferences) {
         self.view = preferences.view;
+        self.edits.set_policy(preferences.writing);
         self.execute(Command::SetVolume(preferences.volume));
+    }
+
+    /// The tracks with changes that saving would strip of their ID3v1 tag because the write
+    /// policy never writes one: saving them asks first.
+    pub fn losing_id3v1_to_policy(&self) -> Vec<usize> {
+        self.edits.losing_id3v1_to_policy(&self.library.tracks)
     }
 
     /// A sound device exists, so tracks can play.
@@ -461,7 +475,9 @@ impl Engine {
                 self.edits
                     .choose_versions(&self.library.tracks, self.selection.iter(), choice);
             }
-            Command::Save => self.save(),
+            Command::Save => self.save(false),
+            Command::SaveKeepingId3v1 => self.save(true),
+            Command::SetWritePolicy(policy) => self.edits.set_policy(policy),
             Command::ShowSource(source) => {
                 self.source = source;
                 self.relist();
@@ -657,19 +673,24 @@ impl Engine {
     }
 
     /// Starts writing every pending change, unless a save already runs.
-    fn save(&mut self) {
+    fn save(&mut self, keeping_id3v1: bool) {
         if self.saving.is_some() {
             return;
         }
+        let tracks = &self.library.tracks;
         let jobs: Vec<SaveJob> = self
             .edits
             .modified()
             .filter_map(|(track, tags)| {
                 Some(SaveJob {
                     track,
-                    path: self.library.tracks.get(track)?.path.clone(),
+                    path: tracks.get(track)?.path.clone(),
                     tags: tags.clone(),
-                    versions: self.edits.versions(&self.library.tracks, track)?,
+                    versions: if keeping_id3v1 {
+                        self.edits.versions_keeping_id3v1(tracks, track)?
+                    } else {
+                        self.edits.versions(tracks, track)?
+                    },
                 })
             })
             .collect();

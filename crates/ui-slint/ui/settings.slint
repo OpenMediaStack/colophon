@@ -1,0 +1,112 @@
+import { Theme } from "theme.slint";
+import { Dialog } from "dialog.slint";
+import { Checkbox, Segmented } from "widgets.slint";
+
+// Which files get an ID3v1 tag.
+export enum Id3v1Policy { keep, always, never }
+
+component SettingLabel inherits Text {
+    vertical-alignment: center;
+    color: Theme.text-secondary;
+}
+
+component Hint inherits Text {
+    wrap: word-wrap;
+    font-size: 12px;
+    color: Theme.text-tertiary;
+}
+
+// The defaults for writing tags, and developer mode. A choice applies at once.
+export component Settings inherits Dialog {
+    // The ID3v2 version written by default is 2.3 rather than 2.4.
+    in property <bool> id3v2-3;
+    in property <Id3v1Policy> id3v1-policy;
+    in property <bool> developer-mode;
+    callback choose-id3v2-3(bool);
+    callback choose-id3v1-policy(Id3v1Policy);
+    callback toggle-developer-mode;
+    callback close;
+
+    title: @tr("Settings");
+    primary-text: @tr("Done");
+    cancel-text: "";
+    primary => {
+        root.close();
+    }
+    cancel => {
+        root.close();
+    }
+
+    GridLayout {
+        spacing-horizontal: 16px;
+        spacing-vertical: 8px;
+
+        Row {
+            SettingLabel {
+                text: @tr("ID3v2 version");
+            }
+
+            Segmented {
+                label: @tr("ID3v2 version");
+                segments: [{ label: "2.3", mono: true }, { label: "2.4", mono: true }];
+                selected: root.id3v2-3 ? 0 : 1;
+                chosen(index) => {
+                    root.choose-id3v2-3(index == 0);
+                }
+            }
+        }
+
+        Row {
+            Rectangle { }
+
+            Hint {
+                text: root.id3v2-3 ? @tr("Read by every player, the oldest included.") : @tr("The current version, with UTF-8 text.");
+            }
+        }
+
+        Row {
+            SettingLabel {
+                text: @tr("ID3v1 tag");
+            }
+
+            Segmented {
+                label: @tr("ID3v1 tag");
+                segments: [{ label: @tr("Keep") }, { label: @tr("Always") }, { label: @tr("Never") }];
+                selected: root.id3v1-policy == Id3v1Policy.keep ? 0 : root.id3v1-policy == Id3v1Policy.always ? 1 : 2;
+                chosen(index) => {
+                    root.choose-id3v1-policy(index == 0 ? Id3v1Policy.keep : index == 1 ? Id3v1Policy.always : Id3v1Policy.never);
+                }
+            }
+        }
+
+        Row {
+            Rectangle { }
+
+            Hint {
+                text: root.id3v1-policy == Id3v1Policy.keep ? @tr("Rewritten in the files that have one, added to none.") : root.id3v1-policy == Id3v1Policy.always ? @tr("Written in every file saved.") : @tr("Removed from the files saved, after asking.");
+            }
+        }
+
+        Row {
+            SettingLabel {
+                text: @tr("Developer");
+            }
+
+            Checkbox {
+                text: @tr("Developer mode");
+                checked: root.developer-mode;
+                toggled => {
+                    root.toggle-developer-mode();
+                }
+            }
+        }
+
+        Row {
+            Rectangle { }
+
+            Hint {
+                text: @tr("Choose the tag versions of each file in the inspector, ID3v2.2 included.");
+            }
+        }
+    }
+}
