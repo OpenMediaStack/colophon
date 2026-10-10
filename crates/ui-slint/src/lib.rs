@@ -30,9 +30,9 @@ mod generated {
 pub use generated::Command as WindowCommand;
 pub use generated::{
     AppWindow, BitrateMode, ByteSize, CoverState, Id3v1Losses, InspectedTracks, InspectorField,
-    InspectorState, ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit, SourceKind,
-    TagEditing, TagField, TagRemoval, Theme, TrackColumn, TrackColumnWidths, TrackColumns,
-    TrackRow, TrackStatus, UnreadableFile, UnsavedChoice,
+    InspectorState, Kilohertz, ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit,
+    SourceKind, TagEditing, TagField, TagRemoval, Theme, TrackColumn, TrackColumnWidths,
+    TrackColumns, TrackRow, TrackSpectrum, TrackStatus, UnreadableFile, UnsavedChoice,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -116,6 +116,8 @@ pub fn main_window(
         thumbnail_timer: Timer::default(),
         shown_playing: Cell::default(),
         waveform: RefCell::default(),
+        spectrum: RefCell::default(),
+        spectrum_timer: Timer::default(),
     });
     bridge.show();
     window.on_run({
@@ -347,6 +349,24 @@ struct Bridge {
     shown_playing: Cell<Option<usize>>,
     /// The playing track's waveform, read on a thread of its own.
     waveform: RefCell<WaveformDrawing>,
+    /// The spectrum of the single selected track, read on a thread of its own.
+    spectrum: RefCell<SpectrumDrawing>,
+    spectrum_timer: Timer,
+}
+
+/// The track whose spectrum shows or is being read.
+#[derive(Default)]
+struct SpectrumDrawing {
+    track: Option<usize>,
+    reading: Option<Receiver<Option<DrawnSpectrum>>>,
+}
+
+/// A spectrum's pixels, the highest frequency its file can hold and the highest it holds, in
+/// hertz.
+struct DrawnSpectrum {
+    pixels: SharedPixelBuffer<Rgba8Pixel>,
+    nyquist: u32,
+    highest: Option<u32>,
 }
 
 /// The track whose waveform shows or is being read.
@@ -639,6 +659,7 @@ impl Bridge {
         show_saving(&window, &engine);
         show_playback(&window, &engine);
         self.read_waveform(&window, &engine);
+        self.read_spectrum(&window, &engine);
         self.show_departure(&window, &engine);
     }
 
@@ -806,6 +827,79 @@ impl Bridge {
         if spawned.is_ok() {
             drawing.reading = Some(reading);
         }
+    }
+
+    /// Reads the spectrum of a track selected alone, on a thread of its own.
+    fn read_spectrum(&self, window: &AppWindow, engine: &Engine) {
+        let alone = match engine.inspection() {
+            Inspection::Tracks(summary) if summary.count == 1 && summary.unreadable == 0 => {
+                engine.selection().iter().next()
+            }
+            _ => None,
+        };
+        let mut drawing = self.spectrum.borrow_mut();
+        if drawing.track == alone {
+            return;
+        }
+        drawing.track = alone;
+        drawing.reading = None;
+        window.set_has_spectrum(false);
+        let Some(path) = alone
+            .and_then(|track| engine.library().tracks.get(track))
+            .map(|track| track.path.clone())
+        else {
+            return;
+        };
+        let (sender, reading) = std::sync::mpsc::channel();
+        let spawned = std::thread::Builder::new()
+            .name("spectrum".to_string())
+            .spawn(move || {
+                let drawn = colophon_player::Spectrum::read(&path, SPECTRUM_COLUMNS, SPECTRUM_ROWS)
+                    .ok()
+                    .map(|spectrum| DrawnSpectrum {
+                        pixels: spectrum_pixels(&spectrum),
+                        nyquist: spectrum.nyquist,
+                        highest: spectrum.highest,
+                    });
+                let _ = sender.send(drawn);
+            });
+        if spawned.is_err() {
+            return;
+        }
+        drawing.reading = Some(reading);
+        let me = self.me.clone();
+        self.spectrum_timer
+            .start(TimerMode::Repeated, POLL_INTERVAL, move || {
+                if let Some(bridge) = me.upgrade() {
+                    bridge.take_spectrum();
+                }
+            });
+    }
+
+    /// Shows the spectrum once read.
+    fn take_spectrum(&self) {
+        let mut drawing = self.spectrum.borrow_mut();
+        let Some(reading) = &drawing.reading else {
+            self.spectrum_timer.stop();
+            return;
+        };
+        let drawn = match reading.try_recv() {
+            Ok(drawn) => drawn,
+            Err(TryRecvError::Empty) => return,
+            Err(TryRecvError::Disconnected) => None,
+        };
+        drawing.reading = None;
+        self.spectrum_timer.stop();
+        let (Some(window), Some(drawn)) = (self.window.upgrade(), drawn) else {
+            return;
+        };
+        window.set_spectrum(TrackSpectrum {
+            image: Image::from_rgba8(drawn.pixels),
+            nyquist: kilohertz(drawn.nyquist),
+            holds_sound: drawn.highest.is_some(),
+            highest: kilohertz(drawn.highest.unwrap_or_default()),
+        });
+        window.set_has_spectrum(true);
     }
 
     /// Shows the waveform once read.
@@ -1317,6 +1411,64 @@ fn waveform_bars(peaks: &[colophon_player::Peak]) -> SharedPixelBuffer<Rgba8Pixe
         }
     }
     buffer
+}
+
+/// The inspector's spectrum, in pixels: twice the 288 by 96 points it is drawn at.
+const SPECTRUM_COLUMNS: usize = 576;
+const SPECTRUM_ROWS: usize = 192;
+
+/// The magma colour map, dark for silence to pale yellow for the loudest, as Spek draws spectra.
+const MAGMA: [(f32, [u8; 3]); 6] = [
+    (0.0, [0x0b, 0x0b, 0x10]),
+    (0.3, [0x3b, 0x0f, 0x70]),
+    (0.55, [0x8c, 0x29, 0x81]),
+    (0.75, [0xde, 0x49, 0x68]),
+    (0.9, [0xfe, 0x9f, 0x6d]),
+    (1.0, [0xfc, 0xfd, 0xbf]),
+];
+
+fn magma(level: f32) -> Rgba8Pixel {
+    let level = level.clamp(0.0, 1.0);
+    let upper = MAGMA
+        .iter()
+        .position(|(stop, _)| *stop >= level)
+        .unwrap_or(MAGMA.len() - 1)
+        .max(1);
+    let (from, low) = MAGMA[upper - 1];
+    let (to, high) = MAGMA[upper];
+    let mix = ((level - from) / (to - from)).clamp(0.0, 1.0);
+    let channel =
+        |at: usize| (f32::from(low[at]) + (f32::from(high[at]) - f32::from(low[at])) * mix) as u8;
+    Rgba8Pixel {
+        r: channel(0),
+        g: channel(1),
+        b: channel(2),
+        a: 255,
+    }
+}
+
+/// A spectrum drawn with the lowest frequencies at the bottom.
+fn spectrum_pixels(spectrum: &colophon_player::Spectrum) -> SharedPixelBuffer<Rgba8Pixel> {
+    let width = u32::try_from(spectrum.columns).unwrap_or(1).max(1);
+    let height = u32::try_from(spectrum.rows).unwrap_or(1).max(1);
+    let mut buffer = SharedPixelBuffer::<Rgba8Pixel>::new(width, height);
+    let pixels = buffer.make_mut_slice();
+    for row in 0..spectrum.rows {
+        for column in 0..spectrum.columns {
+            let level = spectrum.levels[row * spectrum.columns + column];
+            pixels[(spectrum.rows - 1 - row) * spectrum.columns + column] = magma(level);
+        }
+    }
+    buffer
+}
+
+/// A frequency in hertz as tenths of kilohertz, rounded.
+fn kilohertz(hertz: u32) -> Kilohertz {
+    let tenths = (hertz + 50) / 100;
+    Kilohertz {
+        whole: number(tenths / 10),
+        tenth: number(tenths % 10),
+    }
 }
 
 /// The size album covers are decoded at for the sidebar, which draws them at 18 points.

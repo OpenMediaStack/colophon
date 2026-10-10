@@ -39,6 +39,21 @@ export struct ByteSize {
 // What the selected tracks share of their covers.
 export enum CoverState { none, shared, mixed }
 
+// A frequency in tenths of kilohertz, which the window writes as the user's language does.
+export struct Kilohertz {
+    whole: int,
+    tenth: int,
+}
+
+// The spectrum of a single selected track: loudness by frequency over time, the highest frequency
+// the file can hold and the highest it holds.
+export struct TrackSpectrum {
+    image: image,
+    nyquist: Kilohertz,
+    holds-sound: bool,
+    highest: Kilohertz,
+}
+
 export struct InspectedTracks {
     count: int,
     unreadable: int,
@@ -325,6 +340,9 @@ export component Inspector inherits Rectangle {
     in property <bool> saving;
     // Shows the Tag format section, which chooses the versions to write.
     in property <bool> developer-mode;
+    // The spectrum of the single selected track, once read.
+    in property <bool> has-spectrum;
+    in property <TrackSpectrum> spectrum;
     callback revert;
     callback save;
     // A choice of the Tag format section, by its place.
@@ -377,6 +395,10 @@ export component Inspector inherits Rectangle {
             return @tr("Saving converts {n} file to {0}." | "Saving converts {n} files to {0}." % root.tracks.converted, root.tracks.saved-as.text);
         }
         return @tr("Saving converts {n} file from {0} to {1}." | "Saving converts {n} files from {0} to {1}." % root.tracks.converted, root.tracks.formats.text, root.tracks.saved-as.text);
+    }
+
+    pure function kilohertz(frequency: Kilohertz) -> string {
+        return frequency.tenth == 0 ? @tr("{}\u{a0}kHz", frequency.whole) : @tr("{0}.{1}\u{a0}kHz", frequency.whole, frequency.tenth);
     }
 
     pure function audio-text() -> string {
@@ -732,6 +754,45 @@ export component Inspector inherits Rectangle {
                                 color: Theme.warning;
                             }
                         }
+                    }
+                }
+
+                if root.tracks.count == 1 && root.has-spectrum: VerticalLayout {
+                    spacing: 8px;
+
+                    SectionLabel {
+                        text: @tr("Spectrum").to-uppercase();
+                    }
+
+                    Rectangle {
+                        // The image's own width would widen the inspector.
+                        min-width: 0px;
+                        preferred-width: 0px;
+                        height: 96px;
+                        border-radius: 4px;
+                        clip: true;
+                        accessible-role: image;
+                        accessible-label: @tr("Spectrum");
+
+                        Image {
+                            width: 100%;
+                            height: 100%;
+                            source: root.spectrum.image;
+                            image-fit: fill;
+                        }
+
+                        Text {
+                            x: 6px;
+                            y: 4px;
+                            text: root.kilohertz(root.spectrum.nyquist);
+                            font-size: 10px;
+                            color: #FFFFFFB3;
+                        }
+                    }
+
+                    FileValue {
+                        text: root.spectrum.holds-sound ? @tr("Holds frequencies up to {}", root.kilohertz(root.spectrum.highest)) : @tr("Holds no sound");
+                        color: Theme.text-secondary;
                     }
                 }
 
