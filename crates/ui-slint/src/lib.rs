@@ -5,6 +5,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
+use std::sync::Arc;
 use std::time::Duration;
 
 use colophon_engine::tags::{self, Id3v1Loss, Id3v1Version, Id3v2Version, ReadError};
@@ -13,7 +14,10 @@ use colophon_engine::{
     ScanStatus, Selection, Shared, Sort, SortColumn, Source, Step, Summary, Track, VersionChoice,
     ViewState,
 };
-use slint::{CloseRequestResponse, Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
+use slint::{
+    CloseRequestResponse, Image, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer, SharedString,
+    Timer, TimerMode, VecModel,
+};
 
 mod generated {
     // Slint's generated code unwraps internally; the lints stay on for our own code.
@@ -24,10 +28,10 @@ mod generated {
 /// What the window asks the engine to run, before the bridge turns it into a [`Command`].
 pub use generated::Command as WindowCommand;
 pub use generated::{
-    AppWindow, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, InspectorField, InspectorState,
-    ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit, SourceKind, TagEditing, TagField,
-    TagRemoval, Theme, TrackColumn, TrackColumnWidths, TrackColumns, TrackRow, TrackStatus,
-    UnreadableFile, UnsavedChoice,
+    AppWindow, BitrateMode, ByteSize, CoverState, Id3v1Losses, InspectedTracks, InspectorField,
+    InspectorState, ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit, SourceKind,
+    TagEditing, TagField, TagRemoval, Theme, TrackColumn, TrackColumnWidths, TrackColumns,
+    TrackRow, TrackStatus, UnreadableFile, UnsavedChoice,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -62,6 +66,17 @@ pub trait Dialogs {
     fn pick_files(&self) -> Vec<PathBuf> {
         Vec::new()
     }
+
+    /// A JPEG or PNG image to use as a cover.
+    fn pick_image(&self) -> Option<PathBuf> {
+        None
+    }
+
+    /// Where to save a file, starting from the name `suggested`.
+    fn pick_save_path(&self, suggested: &str) -> Option<PathBuf> {
+        let _ = suggested;
+        None
+    }
 }
 
 /// A function that picks a folder, for windows that never ask for anything else.
@@ -94,6 +109,7 @@ pub fn main_window(
         genres_read_from: Cell::default(),
         removal: Cell::default(),
         sources: RefCell::default(),
+        drawn_cover: RefCell::default(),
     });
     bridge.show();
     window.on_run({
@@ -202,6 +218,43 @@ pub fn main_window(
         let bridge = Rc::clone(&bridge);
         move |text| execute(&bridge, Command::Filter(text.into()))
     });
+    window.on_replace_cover({
+        let bridge = Rc::clone(&bridge);
+        move || {
+            let Some(cover) = bridge
+                .dialogs
+                .pick_image()
+                .and_then(|path| cover_from(&path))
+            else {
+                return;
+            };
+            execute(&bridge, Command::Edit(Edit::Cover(Some(cover))));
+        }
+    });
+    window.on_remove_cover({
+        let bridge = Rc::clone(&bridge);
+        move || execute(&bridge, Command::Edit(Edit::Cover(None)))
+    });
+    window.on_extract_cover({
+        let bridge = Rc::clone(&bridge);
+        move || {
+            let cover = match bridge.engine.borrow().inspection() {
+                Inspection::Tracks(summary) => match summary.cover {
+                    Shared::Same(cover) => Some(cover),
+                    Shared::Empty | Shared::Mixed => None,
+                },
+                Inspection::Nothing | Inspection::Unreadable { .. } => None,
+            };
+            let Some(cover) = cover else {
+                return;
+            };
+            let name = format!("cover.{}", cover_extension(&cover));
+            if let Some(path) = bridge.dialogs.pick_save_path(&name) {
+                // A failure leaves nothing behind; there is no message to show it yet.
+                let _ = std::fs::write(path, &*cover.data);
+            }
+        }
+    });
     window.on_sort_by({
         let bridge = Rc::clone(&bridge);
         move |column| execute(&bridge, Command::SortBy(engine_sort_column(column)))
@@ -258,6 +311,8 @@ struct Bridge {
     removal: Cell<Option<VersionChoice>>,
     /// The folders, albums and artists the sidebar lists, by their place in it.
     sources: RefCell<Sources>,
+    /// The cover drawn last, so that a selection shown again does not decode it again.
+    drawn_cover: RefCell<Option<(Arc<[u8]>, Image)>>,
 }
 
 /// The sources the sidebar lists, and the state of the library they were read from.
@@ -499,7 +554,9 @@ impl Bridge {
         show_library(&window, engine.library());
         self.show_tracks(&window, &engine);
         self.show_selection(&window, engine.selection());
-        show_inspection(&window, engine.library(), engine.inspection());
+        show_inspection(&window, engine.library(), engine.inspection(), |cover| {
+            self.cover_image(cover)
+        });
         show_saving(&window, &engine);
         self.show_departure(&window, &engine);
     }
@@ -625,6 +682,18 @@ impl Bridge {
         window.set_shown_kind(kind);
         window.set_shown_index(index);
         window.set_shown_label(label.into());
+    }
+
+    fn cover_image(&self, cover: &tags::Cover) -> Image {
+        if let Some((data, image)) = &*self.drawn_cover.borrow()
+            && Arc::ptr_eq(data, &cover.data)
+        {
+            return image.clone();
+        }
+        let image = decode_cover(&cover.data, COVER_PIXELS).unwrap_or_default();
+        self.drawn_cover
+            .replace(Some((Arc::clone(&cover.data), image.clone())));
+        image
     }
 
     fn read_genres(&self, engine: &Engine) {
@@ -790,7 +859,12 @@ impl From<&TrackRow> for SelectionMarks {
     }
 }
 
-fn show_inspection(window: &AppWindow, library: &Library, inspection: Inspection<'_>) {
+fn show_inspection(
+    window: &AppWindow,
+    library: &Library,
+    inspection: Inspection<'_>,
+    cover_image: impl Fn(&tags::Cover) -> Image,
+) {
     let state = match inspection {
         _ if library.roots.is_empty() => InspectorState::Empty,
         Inspection::Nothing => InspectorState::NothingSelected,
@@ -803,7 +877,14 @@ fn show_inspection(window: &AppWindow, library: &Library, inspection: Inspection
             InspectorState::Unreadable
         }
         Inspection::Tracks(summary) => {
-            window.set_inspected_tracks(inspected_tracks(&summary));
+            let cover = match &summary.cover {
+                Shared::Same(cover) => cover_image(cover),
+                Shared::Empty | Shared::Mixed => Image::default(),
+            };
+            window.set_inspected_tracks(InspectedTracks {
+                cover,
+                ..inspected_tracks(&summary)
+            });
             InspectorState::Tracks
         }
     };
@@ -836,6 +917,13 @@ fn inspected_tracks(summary: &Summary) -> InspectedTracks {
     // Tenths of kilohertz, rounded: 44100 Hz reads 44.1 kHz, 22050 Hz 22.1 kHz.
     let tenths = (sample_rate + 50) / 100;
     InspectedTracks {
+        cover_state: match summary.cover {
+            Shared::Empty => CoverState::None,
+            Shared::Same(_) => CoverState::Shared,
+            Shared::Mixed => CoverState::Mixed,
+        },
+        cover_modified: modified(Field::Cover),
+        cover: Image::default(),
         count: count(summary.count),
         unreadable: count(summary.unreadable),
         heading: summary.heading.clone().unwrap_or_default().into(),
@@ -934,6 +1022,46 @@ fn field<T>(value: &Shared<T>, modified: bool, text: impl Fn(&T) -> String) -> I
         text,
         mixed,
         modified,
+    }
+}
+
+/// The size covers are decoded at: the inspector draws them at 64 points, twice that on a sharp
+/// screen.
+const COVER_PIXELS: u32 = 128;
+
+/// A cover made smaller, to draw; `None` when its bytes are no image Colophon reads.
+fn decode_cover(data: &[u8], size: u32) -> Option<Image> {
+    let decoded = image::load_from_memory(data)
+        .ok()?
+        .thumbnail(size, size)
+        .to_rgba8();
+    let buffer = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+        decoded.as_raw(),
+        decoded.width(),
+        decoded.height(),
+    );
+    Some(Image::from_rgba8(buffer))
+}
+
+/// A cover from an image file, if it is a JPEG or a PNG.
+fn cover_from(path: &Path) -> Option<tags::Cover> {
+    let data = std::fs::read(path).ok()?;
+    let mime = match image::guess_format(&data).ok()? {
+        image::ImageFormat::Jpeg => "image/jpeg",
+        image::ImageFormat::Png => "image/png",
+        _ => return None,
+    };
+    Some(tags::Cover {
+        mime: Some(mime.to_owned()),
+        data: Arc::from(data),
+    })
+}
+
+/// The extension of a file that holds `cover`.
+fn cover_extension(cover: &tags::Cover) -> &'static str {
+    match image::guess_format(&cover.data) {
+        Ok(image::ImageFormat::Png) => "png",
+        _ => "jpg",
     }
 }
 

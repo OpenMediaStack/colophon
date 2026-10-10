@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 colophon-engine.workspace = true
+image.workspace = true
 slint.workspace = true
 
 [build-dependencies]
@@ -16,7 +17,6 @@ slint-build.workspace = true
 
 [dev-dependencies]
 i-slint-backend-testing.workspace = true
-image.workspace = true
 tempfile.workspace = true
 
 [lints]

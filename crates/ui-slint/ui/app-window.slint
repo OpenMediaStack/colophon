@@ -12,10 +12,10 @@ import { SortColumn, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, Tra
 import { UnsavedChanges, UnsavedChoice } from "unsaved-changes.slint";
 import { ConfirmTagRemoval, RemovedTag, TagRemoval } from "tag-removal.slint";
 import { Sidebar, SidebarItem, SourceKind } from "sidebar.slint";
-import { BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
+import { BitrateMode, ByteSize, CoverState, Id3v1Losses, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
 
-export { Theme, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, CoverState, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
@@ -98,6 +98,10 @@ export component AppWindow inherits Window {
     // A choice of the inspector's Tag format section, by its place: none, then each version.
     callback choose-id3v2(int);
     callback choose-id3v1(int);
+    // The cover of the selected tracks.
+    callback replace-cover;
+    callback extract-cover;
+    callback remove-cover;
     callback resize-columns(TrackColumnWidths);
     // The column the table is sorted by, if it is, and which way.
     in property <bool> sorted;
@@ -433,6 +437,15 @@ export component AppWindow inherits Window {
                 }
                 choose-id3v1(index) => {
                     root.choose-id3v1(index);
+                }
+                replace-cover => {
+                    root.replace-cover();
+                }
+                extract-cover => {
+                    root.extract-cover();
+                }
+                remove-cover => {
+                    root.remove-cover();
                 }
                 revert => {
                     root.run(Command.revert);
