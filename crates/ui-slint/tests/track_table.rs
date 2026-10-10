@@ -22,7 +22,6 @@ fn window_with(rows: Vec<TrackRow>, width: f32, height: f32) -> Result<AppWindow
     window.set_track_count(i32::try_from(rows.len())?);
     window.set_tracks(ModelRc::from(Rc::new(VecModel::from(rows))));
     window.set_folder_open(true);
-    window.set_folder("~/Music".into());
     window.set_scan_state(ScanState::Completed);
     Ok(window)
 }

@@ -112,6 +112,7 @@ fn command_ids_are_unique() {
         Command::ToggleInspector,
         Command::ToggleDeveloperMode,
         Command::OpenFolder(PathBuf::new()),
+        Command::OpenFiles(Vec::new()),
         Command::StopScan,
         Command::ToggleColumn(Column::Tags),
         Command::ResizeColumns(ColumnWidths::default()),

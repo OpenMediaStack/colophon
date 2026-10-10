@@ -108,7 +108,7 @@ fn a_file_whose_tags_cannot_be_read_is_marked() -> TestResult {
 }
 
 #[test]
-fn opening_another_folder_replaces_the_tracks() -> TestResult {
+fn opening_another_folder_adds_its_tracks() -> TestResult {
     let first = folder_with_files(&["first.mp3"])?;
     let second = folder_with_files(&["second.mp3"])?;
     let window = open_main_window_choosing(vec![
@@ -121,8 +121,8 @@ fn opening_another_folder_replaces_the_tracks() -> TestResult {
     find(&window, "Open folder")?.invoke_accessible_default_action();
     wait_until_shown(&window, "second")?;
 
-    assert!(!shows(&window, "first"));
-    assert!(shows(&window, "1 track"));
+    assert!(shows(&window, "first"));
+    assert!(shows(&window, "2 tracks"));
     Ok(())
 }
 
@@ -193,5 +193,35 @@ fn an_unreadable_folder_is_reported() -> TestResult {
 
     wait_until_shown(&window, "1 file could not be read")?;
     assert!(shows(&window, "0 tracks"));
+    Ok(())
+}
+
+/// Dialogs that pick these files, and no folder.
+struct PickFiles(Vec<PathBuf>);
+
+impl colophon_ui::Dialogs for PickFiles {
+    fn pick_folder(&self) -> Option<PathBuf> {
+        None
+    }
+
+    fn pick_files(&self) -> Vec<PathBuf> {
+        self.0.clone()
+    }
+}
+
+#[test]
+fn files_open_without_their_folder() -> TestResult {
+    let folder = folder_with_mp3s(3)?;
+    common::use_testing_backend()?;
+    let files = vec![folder.path().join("00.mp3"), folder.path().join("02.mp3")];
+    let window = colophon_ui::main_window(Engine::new(), PickFiles(files))?;
+    common::prepare(&window, 1440.0, 900.0)?;
+    window.show()?;
+
+    window.invoke_run(colophon_ui::WindowCommand::OpenFiles);
+    wait_until_shown(&window, "2 tracks")?;
+
+    assert!(shows(&window, "00"));
+    assert!(!shows(&window, "01"));
     Ok(())
 }
