@@ -755,6 +755,7 @@ dependencies = [
 name = "colophon-tags"
 version = "0.1.0"
 dependencies = [
+ "id3",
  "lofty",
  "tempfile",
  "thiserror 2.0.21",
@@ -2217,6 +2218,17 @@ name = "icu_segmenter_data"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
+
+[[package]]
+name = "id3"
+version = "1.17.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef8be496a46468ba3d43690775aa3a79102ce4daf7d99e8072589aae1a3cd955"
+dependencies = [
+ "bitflags 2.13.2",
+ "byteorder",
+ "flate2",
+]
 
 [[package]]
 name = "idna"

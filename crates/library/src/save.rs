@@ -6,15 +6,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
-use colophon_tags::{Metadata, Tags, WriteError};
+use colophon_tags::{Metadata, TagVersions, Tags, WriteError};
 
-/// A file to write, and the tags to write into it.
+/// A file to write, and the tags to write into it, in which versions.
 #[derive(Debug, Clone)]
 pub struct SaveJob {
     /// The track's place in the library, handed back with the outcome.
     pub track: usize,
     pub path: PathBuf,
     pub tags: Tags,
+    pub versions: TagVersions,
 }
 
 /// What a save reports: each file written or not, in order, then its end.
@@ -67,10 +68,11 @@ pub fn spawn_save(jobs: Vec<SaveJob>) -> io::Result<SaveHandle> {
                 if thread_stop.load(Ordering::Relaxed) {
                     return;
                 }
-                let result = colophon_tags::write(&job.path, &job.tags).map(|metadata| {
-                    let size = fs::metadata(&job.path).map_or(0, |file| file.len());
-                    Box::new(Written { metadata, size })
-                });
+                let result =
+                    colophon_tags::write(&job.path, &job.tags, job.versions).map(|metadata| {
+                        let size = fs::metadata(&job.path).map_or(0, |file| file.len());
+                        Box::new(Written { metadata, size })
+                    });
                 let event = SaveEvent::Written {
                     track: job.track,
                     result,

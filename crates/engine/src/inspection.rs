@@ -2,7 +2,8 @@ use std::collections::BTreeSet;
 
 use colophon_library::Track;
 use colophon_library::tags::{
-    BitrateMode, Id3v1Loss, ReadError, TagFormat, Tags, formats_after_write, id3v1_losses,
+    BitrateMode, Id3v1Loss, ReadError, TagFormat, TagVersions, Tags, formats_after_write,
+    id3v1_losses,
 };
 
 use crate::{Edits, Field, Selection};
@@ -161,20 +162,17 @@ fn summarise(tracks: &[Track], selected: &[(usize, &Track)], edits: &Edits) -> S
         ),
         size: selected.iter().map(|(_, track)| track.size).sum(),
         modified: edits.modified_fields(tracks, selected.iter().map(|(index, _)| *index)),
-        saved_as: Shared::of(
-            pending
-                .iter()
-                .map(|(tags, metadata)| Some(formats_after_write(&metadata.formats, tags))),
-        ),
+        saved_as: Shared::of(pending.iter().map(|(tags, metadata)| {
+            let versions = TagVersions::default_for(&metadata.formats);
+            Some(formats_after_write(&metadata.formats, tags, versions))
+        })),
         id3v1_losses: pending
             .iter()
-            .filter(|(_, metadata)| {
-                metadata
-                    .formats
-                    .iter()
-                    .any(|format| matches!(format, TagFormat::Id3v1(_)))
+            .filter_map(|(tags, metadata)| {
+                let version = TagVersions::default_for(&metadata.formats).id3v1?;
+                Some(id3v1_losses(tags, version))
             })
-            .flat_map(|(tags, _)| id3v1_losses(tags))
+            .flatten()
             .collect(),
     }
 }
