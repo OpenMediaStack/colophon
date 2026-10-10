@@ -138,7 +138,6 @@ fn a_wide_window_shows_the_default_columns_without_scrolling() -> TestResult {
         "2019",
         "Folk",
         "3:41",
-        "320",
     ] {
         assert!(shows(&window, value), "{value} is missing");
     }
@@ -147,10 +146,11 @@ fn a_wide_window_shows_the_default_columns_without_scrolling() -> TestResult {
 }
 
 #[test]
-fn the_tags_file_and_folder_columns_are_hidden_by_default() -> TestResult {
+fn the_bitrate_tags_file_and_folder_columns_are_hidden_by_default() -> TestResult {
     let window = window_with_tracks(10, 1440.0, 900.0)?;
     window.show()?;
 
+    assert!(!shows(&window, "Bitrate"));
     assert!(!shows(&window, "ID3v2.3, ID3v1.1"));
     assert!(!shows(&window, "Track 00001.mp3"));
     assert!(!shows(&window, "Disc 1"));
@@ -161,6 +161,7 @@ fn the_tags_file_and_folder_columns_are_hidden_by_default() -> TestResult {
 fn hidden_columns_show_once_chosen() -> TestResult {
     let window = window_with_tracks(10, 1440.0, 900.0)?;
     window.set_columns(TrackColumns {
+        bitrate: true,
         tags: true,
         file: true,
         folder: true,
@@ -168,6 +169,7 @@ fn hidden_columns_show_once_chosen() -> TestResult {
     });
     window.show()?;
 
+    assert!(shows(&window, "320"));
     assert!(shows(&window, "ID3v2.3, ID3v1.1"));
     assert!(shows(&window, "Track 00001.mp3"));
     assert!(shows(&window, "Disc 1"));
@@ -399,7 +401,7 @@ fn the_headers_are_named_in_french_when_selected() -> TestResult {
     common::select_language("fr")?;
     window.show()?;
 
-    for header in ["Titre", "Artiste", "Année", "Durée", "Débit"] {
+    for header in ["Titre", "Artiste", "Année", "Durée"] {
         assert!(shows(&window, header), "{header} is missing");
     }
     Ok(())
