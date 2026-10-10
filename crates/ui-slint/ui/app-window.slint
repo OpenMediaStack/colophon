@@ -16,8 +16,9 @@ import { Sidebar, SidebarItem, SourceKind } from "sidebar.slint";
 import { BitrateMode, ByteSize, CoverState, Id3v1Losses, Kilohertz, TrackSpectrum, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
 import { Id3v1Policy, Settings } from "settings.slint";
+import { CommandPalette, PaletteAction, PaletteEntry, PaletteMatch } from "palette.slint";
 
-export { Theme, Id3v1Policy, CoverState, Kilohertz, TrackSpectrum, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, Id3v1Policy, PaletteAction, PaletteEntry, PaletteMatch, CoverState, Kilohertz, TrackSpectrum, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // The user actions the window can ask the engine to run.
 export enum Command {
@@ -99,7 +100,7 @@ export component AppWindow inherits Window {
     in property <TagRemoval> removal;
     callback removal-answered(bool);
     // A dialog is up: the menu items that act on the library wait for it.
-    property <bool> modal: root.asking-to-save || root.confirming-removal || root.settings-open;
+    property <bool> modal: root.asking-to-save || root.confirming-removal || root.settings-open || root.palette-open;
     // The settings: the ID3v2 version written by default is 2.3 rather than 2.4, and the files
     // that get an ID3v1 tag.
     in-out property <bool> settings-open;
@@ -108,6 +109,57 @@ export component AppWindow inherits Window {
     callback choose-id3v2-3(bool);
     callback choose-id3v1-policy(Id3v1Policy);
     property <bool> linux: Platform.os == OperatingSystemType.linux;
+    // The command palette, and what the bridge does with it: keep the entries that hold what is
+    // typed, and run the one chosen.
+    in-out property <bool> palette-open;
+    pure callback filter-palette([PaletteEntry], string) -> [PaletteMatch];
+    callback palette-chosen(PaletteAction);
+    // Every command, by name, with whether it can run now.
+    property <[PaletteEntry]> palette-entries: [
+        { label: @tr("Open Folder…"), category: @tr("File"), enabled: true, action: PaletteAction.open-folder },
+        { label: @tr("Open Files…"), category: @tr("File"), enabled: true, action: PaletteAction.open-files },
+        { label: @tr("Save"), category: @tr("File"), enabled: root.modified-count > 0 && !root.saving, action: PaletteAction.save },
+        { label: root.linux ? @tr("Preferences…") : root.windows-buttons ? @tr("Options…") : @tr("Settings…"), category: @tr("File"), enabled: true, action: PaletteAction.settings },
+        { label: @tr("Undo"), category: @tr("Edit"), enabled: root.can-undo, action: PaletteAction.undo },
+        { label: @tr("Redo"), category: @tr("Edit"), enabled: root.can-redo, action: PaletteAction.redo },
+        { label: @tr("Find"), category: @tr("Edit"), enabled: root.folder-open, action: PaletteAction.find },
+        { label: @tr("Select All"), category: @tr("Edit"), enabled: root.folder-open, action: PaletteAction.select-all },
+        { label: @tr("Select Album"), category: @tr("Edit"), enabled: root.selected-count > 0, action: PaletteAction.select-album },
+        { label: @tr("Number Tracks"), category: @tr("Edit"), enabled: root.selected-count > 0, action: PaletteAction.number-tracks },
+        { label: @tr("Revert"), category: @tr("Edit"), enabled: root.inspected-tracks.has-changes, action: PaletteAction.revert },
+        { label: root.player-playing ? @tr("Pause") : @tr("Play"), category: @tr("Controls"), enabled: root.player-available && root.folder-open, action: PaletteAction.play-pause },
+        { label: @tr("Next Track"), category: @tr("Controls"), enabled: root.player-has-track, action: PaletteAction.next-track },
+        { label: @tr("Previous Track"), category: @tr("Controls"), enabled: root.player-has-track, action: PaletteAction.previous-track },
+        { label: @tr("Write ID3v2.4 to the selected files"), category: @tr("Tags"), enabled: root.developer-mode && root.selected-count > 0, action: PaletteAction.write-id3v2-4 },
+        { label: @tr("Write ID3v2.3 to the selected files"), category: @tr("Tags"), enabled: root.developer-mode && root.selected-count > 0, action: PaletteAction.write-id3v2-3 },
+        { label: @tr("Write ID3v2.2 to the selected files"), category: @tr("Tags"), enabled: root.developer-mode && root.selected-count > 0, action: PaletteAction.write-id3v2-2 },
+        { label: @tr("Remove ID3v2 from the selected files…"), category: @tr("Tags"), enabled: root.developer-mode && root.selected-count > 0, action: PaletteAction.remove-id3v2 },
+        { label: @tr("Write ID3v1.1 to the selected files"), category: @tr("Tags"), enabled: root.developer-mode && root.selected-count > 0, action: PaletteAction.write-id3v1-1 },
+        { label: @tr("Write ID3v1.0 to the selected files"), category: @tr("Tags"), enabled: root.developer-mode && root.selected-count > 0, action: PaletteAction.write-id3v1-0 },
+        { label: @tr("Remove ID3v1 from the selected files…"), category: @tr("Tags"), enabled: root.developer-mode && root.selected-count > 0, action: PaletteAction.remove-id3v1 },
+        { label: root.sidebar-visible ? @tr("Hide Sidebar") : @tr("Show Sidebar"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-sidebar },
+        { label: root.inspector-visible ? @tr("Hide Inspector") : @tr("Show Inspector"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-inspector },
+        { label: root.columns.artist ? @tr("Hide the Artist column") : @tr("Show the Artist column"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-artist },
+        { label: root.columns.album ? @tr("Hide the Album column") : @tr("Show the Album column"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-album },
+        { label: root.columns.year ? @tr("Hide the Year column") : @tr("Show the Year column"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-year },
+        { label: root.columns.genre ? @tr("Hide the Genre column") : @tr("Show the Genre column"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-genre },
+        { label: root.columns.time ? @tr("Hide the Time column") : @tr("Show the Time column"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-time },
+        { label: root.columns.bitrate ? @tr("Hide the Bitrate column") : @tr("Show the Bitrate column"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-bitrate },
+        { label: root.columns.tags ? @tr("Hide the Tags column (ID3 versions)") : @tr("Show the Tags column (ID3 versions)"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-tags },
+        { label: root.columns.file ? @tr("Hide the File column") : @tr("Show the File column"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-file },
+        { label: root.columns.folder ? @tr("Hide the Folder column") : @tr("Show the Folder column"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-folder },
+        { label: @tr("Reset to default columns"), category: @tr("View"), enabled: true, action: PaletteAction.reset-columns },
+        { label: @tr("Write ID3v2.4 by default"), category: @tr("Settings"), enabled: root.id3v2-3, action: PaletteAction.default-id3v2-4 },
+        { label: @tr("Write ID3v2.3 by default"), category: @tr("Settings"), enabled: !root.id3v2-3, action: PaletteAction.default-id3v2-3 },
+        { label: @tr("ID3v1 policy: keep where it exists"), category: @tr("Settings"), enabled: root.id3v1-policy != Id3v1Policy.keep, action: PaletteAction.id3v1-keep },
+        { label: @tr("ID3v1 policy: always write"), category: @tr("Settings"), enabled: root.id3v1-policy != Id3v1Policy.always, action: PaletteAction.id3v1-always },
+        { label: @tr("ID3v1 policy: never write"), category: @tr("Settings"), enabled: root.id3v1-policy != Id3v1Policy.never, action: PaletteAction.id3v1-never },
+        { label: root.developer-mode ? @tr("Turn developer mode off") : @tr("Turn developer mode on"), category: @tr("Settings"), enabled: true, action: PaletteAction.toggle-developer-mode },
+    ];
+
+    public function focus-filter() {
+        filter.focus-field();
+    }
     // Dialog buttons in the order of Windows. Tests set it so that their captures do not depend
     // on the machine.
     in property <bool> windows-buttons: Platform.os == OperatingSystemType.windows;
@@ -333,6 +385,17 @@ export component AppWindow inherits Window {
             title: @tr("View");
 
             MenuItem {
+                title: @tr("Command Palette…");
+                shortcut: @keys(Control + K);
+                enabled: !root.modal;
+                activated => {
+                    root.palette-open = true;
+                }
+            }
+
+            MenuSeparator { }
+
+            MenuItem {
                 title: root.sidebar-visible ? @tr("Hide Sidebar") : @tr("Show Sidebar");
                 shortcut: @keys(Control + Alt + S);
                 activated => {
@@ -424,6 +487,37 @@ export component AppWindow inherits Window {
 
                 Rectangle {
                     horizontal-stretch: 1;
+                }
+
+                Rectangle {
+                    width: palette-key.preferred-width + 16px;
+                    height: 28px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: 4px;
+                    border-width: 1px;
+                    border-color: Theme.border-strong;
+                    background: palette-touch.has-hover && !root.modal ? Theme.surface-3 : transparent;
+                    animate background { duration: 100ms; }
+                    accessible-role: button;
+                    accessible-label: @tr("Command palette");
+                    accessible-enabled: !root.modal;
+                    accessible-action-default => {
+                        root.palette-open = true;
+                    }
+
+                    palette-key := Text {
+                        text: root.mac-shortcuts ? "⌘K" : "Ctrl+K";
+                        font-size: 11px;
+                        color: Theme.text-secondary;
+                        accessible-role: none;
+                    }
+
+                    palette-touch := TouchArea {
+                        enabled: !root.modal;
+                        clicked => {
+                            root.palette-open = true;
+                        }
+                    }
                 }
 
                 ToolbarButton {
@@ -607,6 +701,22 @@ export component AppWindow inherits Window {
             stop-scan => {
                 root.run(Command.stop-scan);
             }
+        }
+    }
+
+    if root.palette-open: CommandPalette {
+        width: root.width;
+        height: root.height;
+        entries: root.palette-entries;
+        filter(entries, query) => {
+            return root.filter-palette(entries, query);
+        }
+        chosen(action) => {
+            root.palette-open = false;
+            root.palette-chosen(action);
+        }
+        close => {
+            root.palette-open = false;
         }
     }
 
