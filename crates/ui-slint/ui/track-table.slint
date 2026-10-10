@@ -181,9 +181,11 @@ component HeaderCell inherits Cell {
     }
 }
 
-// Measures a text in the font of the cells, without showing it to anyone.
+// Measures a text in the font of the cells, without showing it to anyone. Its preferred width is
+// the text's; eliding keeps a long text from widening the table.
 component Probe inherits Text {
     visible: false;
+    overflow: elide;
     accessible-role: none;
     accessible-label: "";
     font-family: "Inter";
