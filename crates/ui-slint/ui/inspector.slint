@@ -71,6 +71,8 @@ export struct InspectedTracks {
     year: InspectorField,
     track: InspectorField,
     track-total: InspectorField,
+    disc: InspectorField,
+    disc-total: InspectorField,
     genre: InspectorField,
     comment: InspectorField,
     // Whether the tracks share their audio properties, and these.
@@ -653,6 +655,42 @@ export component Inspector inherits Rectangle {
                                     field: root.tracks.track-total;
                                     tag: TagField.track-total;
                                     label: @tr("Track total");
+                                    mono: true;
+                                    mixed-text: "…";
+                                }
+                            }
+                        }
+
+                        Row {
+                            FieldLabel {
+                                text: @tr("Disc");
+                                modified: root.tracks.disc.modified || root.tracks.disc-total.modified;
+                            }
+
+                            HorizontalLayout {
+                                spacing: 6px;
+                                alignment: start;
+
+                                EditField {
+                                    width: 72px;
+                                    field: root.tracks.disc;
+                                    tag: TagField.disc;
+                                    label: @tr("Disc");
+                                    mono: true;
+                                    mixed-text: @tr("Multiple");
+                                }
+
+                                Text {
+                                    vertical-alignment: center;
+                                    text: @tr("of");
+                                    color: Theme.text-tertiary;
+                                }
+
+                                EditField {
+                                    width: 52px;
+                                    field: root.tracks.disc-total;
+                                    tag: TagField.disc-total;
+                                    label: @tr("Disc total");
                                     mono: true;
                                     mixed-text: "…";
                                 }

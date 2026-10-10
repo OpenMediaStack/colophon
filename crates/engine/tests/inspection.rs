@@ -41,6 +41,8 @@ fn one_track_shows_its_tags_and_its_file() -> TestResult {
     assert_eq!(summary.year, Shared::Same(2019));
     assert_eq!(summary.track, Shared::Same(3));
     assert_eq!(summary.track_total, Shared::Same(12));
+    assert_eq!(summary.disc, Shared::Same(1));
+    assert_eq!(summary.disc_total, Shared::Same(2));
     assert_eq!(summary.comment, same("Recorded in one take."));
     assert_eq!(
         summary.audio,

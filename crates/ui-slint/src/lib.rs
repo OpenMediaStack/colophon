@@ -1295,6 +1295,12 @@ fn inspected_tracks(summary: &Summary) -> InspectedTracks {
             modified(Field::TrackTotal),
             ToString::to_string,
         ),
+        disc: field(&summary.disc, modified(Field::Disc), ToString::to_string),
+        disc_total: field(
+            &summary.disc_total,
+            modified(Field::DiscTotal),
+            ToString::to_string,
+        ),
         genre: field(&summary.genre, modified(Field::Genre), String::clone),
         comment: field(&summary.comment, modified(Field::Comment), String::clone),
         audio_shared: audio.is_some(),
@@ -1541,7 +1547,7 @@ fn suggested_genres(genres: &[String], text: &str) -> Vec<SharedString> {
 }
 
 /// What a field's text sets, or `None` when the field cannot hold it: a year runs from 1 to
-/// 9999, a track number and a total from 1. Empty text empties the field.
+/// 9999, a track or disc number and a total from 1. Empty text empties the field.
 fn parse_edit(field: TagField, text: &str) -> Option<Edit> {
     let text_value = || Some(text.to_string()).filter(|text| !text.is_empty());
     let number = || -> Option<Option<u32>> {
@@ -1559,6 +1565,8 @@ fn parse_edit(field: TagField, text: &str) -> Option<Edit> {
         TagField::Comment => Edit::Comment(text_value()),
         TagField::Track => Edit::Track(number()?),
         TagField::TrackTotal => Edit::TrackTotal(number()?),
+        TagField::Disc => Edit::Disc(number()?),
+        TagField::DiscTotal => Edit::DiscTotal(number()?),
         TagField::Year => Edit::Year(match text.trim() {
             "" => None,
             digits => Some(
