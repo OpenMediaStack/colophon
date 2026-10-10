@@ -341,3 +341,28 @@ fn a_new_cover_is_written_then_removed() -> TestResult {
     assert_eq!(pictures, 0);
     Ok(())
 }
+
+#[test]
+fn a_total_without_its_number_is_not_written() -> TestResult {
+    let (_folder, path) = copy_of("v23_full.mp3")?;
+    let tags = Tags {
+        track: None,
+        track_total: Some(12),
+        disc: None,
+        disc_total: Some(2),
+        ..read(&path)?.tags
+    };
+
+    let written = write(&path, &tags)?.tags;
+
+    assert_eq!(
+        (
+            written.track,
+            written.track_total,
+            written.disc,
+            written.disc_total
+        ),
+        (None, None, None, None)
+    );
+    Ok(())
+}
