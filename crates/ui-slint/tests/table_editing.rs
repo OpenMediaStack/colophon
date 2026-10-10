@@ -89,6 +89,47 @@ fn a_double_click_edits_a_cell() -> TestResult {
 }
 
 #[test]
+fn a_double_click_in_a_selection_edits_every_selected_track() -> TestResult {
+    let (window, _folder) = window_with(3)?;
+    press(&window, &[Key::Control], "a");
+
+    double_click_cell(&window, "Marlowe Kite")?;
+    type_text(&window, "Cassette Bloom");
+    press(&window, &[], Key::Return);
+
+    assert_eq!(window.get_selected_count(), 3);
+    assert_eq!(window.get_modified_count(), 3);
+    assert!(!shows(&window, "Marlowe Kite"));
+    Ok(())
+}
+
+#[test]
+fn a_click_in_a_selection_keeps_it_while_a_double_click_may_follow() -> TestResult {
+    let (window, _folder) = window_with(3)?;
+    press(&window, &[Key::Control], "a");
+
+    find(&window, "Marlowe Kite")?.mock_single_click(PointerEventButton::Left);
+    assert_eq!(window.get_selected_count(), 3);
+
+    i_slint_backend_testing::mock_elapsed_time(Duration::from_millis(600));
+    assert_eq!(window.get_selected_count(), 1);
+    Ok(())
+}
+
+#[test]
+fn another_click_cancels_the_pending_shrink() -> TestResult {
+    let (window, _folder) = window_with(3)?;
+    press(&window, &[Key::Control], "a");
+
+    find(&window, "Marlowe Kite")?.mock_single_click(PointerEventButton::Left);
+    common::click_holding(&window, &[Key::Control], "Marlowe Kite")?;
+    i_slint_backend_testing::mock_elapsed_time(Duration::from_millis(600));
+
+    assert_eq!(window.get_selected_count(), 2);
+    Ok(())
+}
+
+#[test]
 fn return_edits_the_title_of_the_selected_track() -> TestResult {
     let (window, _folder) = window_with(1)?;
 

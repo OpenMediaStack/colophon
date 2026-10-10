@@ -248,8 +248,9 @@ component TableRow inherits Rectangle {
     // One of the row's cells is being edited, and which.
     in property <bool> editing;
     in property <TagField> editing-field;
-    // A press of the left button, with Command (Ctrl elsewhere) or Shift held.
+    // A press of the left button, with Command (Ctrl elsewhere) or Shift held, and its release.
     callback pressed(bool, bool);
+    callback released;
     // A double click on a cell that can be edited.
     callback edit(TagField);
     callback finished-editing(bool);
@@ -404,8 +405,12 @@ component TableRow inherits Rectangle {
     // Slint reports the Command key of macOS as control, so one test covers every platform.
     touch := TouchArea {
         pointer-event(event) => {
-            if event.kind == PointerEventKind.down && event.button == PointerEventButton.left {
-                root.pressed(event.modifiers.control, event.modifiers.shift);
+            if event.button == PointerEventButton.left {
+                if event.kind == PointerEventKind.down {
+                    root.pressed(event.modifiers.control, event.modifiers.shift);
+                } else if event.kind == PointerEventKind.up {
+                    root.released();
+                }
             }
         }
         double-clicked => {
@@ -556,6 +561,9 @@ export component TrackTable inherits Rectangle {
     // The row whose cell is being edited, -1 for none, and the cell.
     property <int> editing-row: -1;
     property <TagField> editing-field;
+    // A plain click on a track of a larger selection, -1 for none: the selection shrinks to it once
+    // a double click can no longer follow, since a double click edits the whole selection.
+    property <int> shrink-to-row: -1;
 
     function start-editing(row: int, field: TagField) {
         root.reveal(row);
@@ -655,6 +663,17 @@ export component TrackTable inherits Rectangle {
     }
 
     background: Theme.surface-1;
+
+    // Slint's default double click interval.
+    shrink-timer := Timer {
+        interval: 500ms;
+        running: false;
+        triggered => {
+            self.running = false;
+            root.track-pressed(root.shrink-to-row, false, false);
+            root.shrink-to-row = -1;
+        }
+    }
 
     keys := FocusScope {
         width: 0;
@@ -1028,9 +1047,22 @@ export component TrackTable inherits Rectangle {
             editing-field: root.editing-field;
             pressed(toggle, extend) => {
                 keys.focus();
-                root.track-pressed(index, toggle, extend);
+                shrink-timer.running = false;
+                if !toggle && !extend && row.selected && root.selected-count > 1 {
+                    root.shrink-to-row = index;
+                } else {
+                    root.shrink-to-row = -1;
+                    root.track-pressed(index, toggle, extend);
+                }
+            }
+            released => {
+                if root.shrink-to-row == index {
+                    shrink-timer.running = true;
+                }
             }
             edit(field) => {
+                shrink-timer.running = false;
+                root.shrink-to-row = -1;
                 root.start-editing(index, field);
             }
             finished-editing(take-keyboard) => {
