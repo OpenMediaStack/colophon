@@ -214,17 +214,18 @@ fn set_id3v2(tag: &mut Id3v2Tag, tags: &Tags) {
     // The number and the total share one frame, so both go before either comes back.
     tag.remove_track();
     tag.remove_disk();
+    // A total without its number would read back as number 0.
     if let Some(track) = tags.track {
         tag.set_track(track);
-    }
-    if let Some(total) = tags.track_total {
-        tag.set_track_total(total);
+        if let Some(total) = tags.track_total {
+            tag.set_track_total(total);
+        }
     }
     if let Some(disc) = tags.disc {
         tag.set_disk(disc);
-    }
-    if let Some(total) = tags.disc_total {
-        tag.set_disk_total(total);
+        if let Some(total) = tags.disc_total {
+            tag.set_disk_total(total);
+        }
     }
     set_cover(tag, tags.cover.as_ref());
 }

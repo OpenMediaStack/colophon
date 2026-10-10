@@ -109,6 +109,9 @@ impl Edit {
             Edit::Comment(value) => tags.comment = text(value),
             Edit::Cover(value) => tags.cover.clone_from(value),
         }
+        // A file holds a total only with its number, both in one frame.
+        tags.track_total = tags.track_total.filter(|_| tags.track.is_some());
+        tags.disc_total = tags.disc_total.filter(|_| tags.disc.is_some());
     }
 }
 
@@ -522,6 +525,19 @@ mod tests {
         assert_eq!(title(&edits, &tracks, 1).as_deref(), Some("b"));
         assert_eq!(title(&edits, &tracks, 2).as_deref(), Some("New"));
         assert_eq!(edits.modified_count(), 2);
+    }
+
+    #[test]
+    fn a_total_goes_with_its_number() {
+        let tracks = [track("a")];
+        let mut edits = Edits::default();
+        edits.edit(&tracks, [0], &Edit::Track(Some(3)), false);
+        edits.edit(&tracks, [0], &Edit::TrackTotal(Some(12)), false);
+
+        edits.edit(&tracks, [0], &Edit::Track(None), false);
+
+        let tags = edits.pending(0).cloned().unwrap_or_default();
+        assert_eq!((tags.track, tags.track_total), (None, None));
     }
 
     #[test]
