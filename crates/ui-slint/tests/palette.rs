@@ -18,7 +18,7 @@ fn window_with_tracks() -> Result<(AppWindow, TempDir), Box<dyn Error>> {
     let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata");
     for (fixture, name) in [
         ("v23_full.mp3", "02 Glass Avenue.mp3"),
-        ("v24_unicode.mp3", "03 Midnight Lithography.mp3"),
+        ("v24_full.mp3", "03 Midnight Lithography.mp3"),
         ("v23_v1_long_title.mp3", "04 Paper Satellites.mp3"),
     ] {
         fs::copy(fixtures.join(fixture), folder.path().join(name))?;
