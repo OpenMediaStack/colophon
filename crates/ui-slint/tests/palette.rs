@@ -109,6 +109,8 @@ fn commands_that_cannot_run_are_not_offered() -> TestResult {
 fn the_palette_matches_its_references() -> TestResult {
     for (dark, theme) in [(true, "dark"), (false, "light")] {
         let (window, _folder) = window_with_tracks()?;
+        // The sidebar names the temporary folder, which differs from one machine to another.
+        window.invoke_run(WindowCommand::ToggleSidebar);
         window.invoke_run(WindowCommand::ToggleDeveloperMode);
         window.global::<Theme>().set_dark(dark);
         open_palette(&window)?;
