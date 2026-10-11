@@ -13,13 +13,13 @@ import { SortColumn, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, Tra
 import { UnsavedChanges, UnsavedChoice } from "unsaved-changes.slint";
 import { ConfirmTagRemoval, RemovedTag, TagRemoval } from "tag-removal.slint";
 import { Sidebar, SidebarItem, SourceKind } from "sidebar.slint";
-import { FrameKind, TagFrame, TagLayout, BitrateMode, ByteSize, CoverState, Id3v1Losses, Kilohertz, TrackSpectrum, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
+import { FrameKind, TagFrame, TagLayout, BitrateMode, ByteSize, CoverState, Id3v1Losses, InspectedTracks, Inspector, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile } from "inspector.slint";
 import { TagEditing, TagField } from "tag-editing.slint";
 import { Id3v1Policy, Settings } from "settings.slint";
 import { CommandPalette, PaletteAction, PaletteEntry, PaletteMatch } from "palette.slint";
 import { Toast, ToastMessage, ToastView } from "toast.slint";
 
-export { Theme, FrameKind, TagFrame, TagLayout, Toast, ToastMessage, Id3v1Policy, PaletteAction, PaletteEntry, PaletteMatch, CoverState, Kilohertz, TrackSpectrum, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, FrameKind, TagFrame, TagLayout, Toast, ToastMessage, Id3v1Policy, PaletteAction, PaletteEntry, PaletteMatch, CoverState, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
 
 // What files dragged from the system over the window would do: open folders and audio files,
 // or replace the cover of the selected tracks with an image.
@@ -93,8 +93,6 @@ export component AppWindow inherits Window {
     in property <int> save-failures;
     in property <InspectorState> inspector-state;
     in property <InspectedTracks> inspected-tracks;
-    in property <bool> has-spectrum;
-    in property <TrackSpectrum> spectrum;
     in property <UnreadableFile> unreadable-file;
     // Set while the window asks what to do with the pending changes before quitting.
     in property <bool> asking-to-save;
@@ -181,7 +179,6 @@ export component AppWindow inherits Window {
     // The inspector's sections that show their content, kept while the inspector is hidden.
     in-out property <bool> tags-open: true;
     in-out property <bool> file-open: true;
-    in-out property <bool> spectrum-open: true;
     in-out property <bool> tag-format-open: true;
     in-out property <bool> frames-open: true;
     // How ID3v2 tags are encoded when saved in developer mode.
@@ -695,8 +692,6 @@ export component AppWindow inherits Window {
                 modified-count: root.modified-count;
                 saving: root.saving;
                 developer-mode: root.developer-mode;
-                has-spectrum: root.has-spectrum;
-                spectrum: root.spectrum;
                 choose-id3v2(index) => {
                     root.choose-id3v2(index);
                 }
@@ -717,7 +712,6 @@ export component AppWindow inherits Window {
                 layout: root.tag-layout;
                 tags-open <=> root.tags-open;
                 file-open <=> root.file-open;
-                spectrum-open <=> root.spectrum-open;
                 tag-format-open <=> root.tag-format-open;
                 frames-open <=> root.frames-open;
                 encoding-choice: root.encoding-choice;
