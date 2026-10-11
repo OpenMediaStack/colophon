@@ -9,6 +9,9 @@ use std::time::{Duration, Instant};
 use colophon_engine::{Engine, ScanStatus};
 use tempfile::TempDir;
 
+/// How long a test waits for a thread or a timer, in real time: long enough for a busy machine,
+/// and a test that passes waits no longer than it must.
+const PATIENCE: Duration = Duration::from_secs(20);
 pub type TestResult = Result<(), Box<dyn Error>>;
 
 pub fn folder_with(files: &[&str]) -> Result<TempDir, Box<dyn Error>> {
@@ -25,7 +28,7 @@ pub fn folder_with(files: &[&str]) -> Result<TempDir, Box<dyn Error>> {
 
 /// Polls the engine as the UI does, until the scan ends or a few seconds pass.
 pub fn poll_until_done(engine: &mut Engine) -> Result<(), String> {
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let deadline = Instant::now() + PATIENCE;
     while engine.library().status == ScanStatus::Scanning {
         if Instant::now() > deadline {
             return Err("the scan did not finish in time".to_string());
@@ -58,7 +61,7 @@ pub fn engine_reading(folder: &TempDir) -> Result<Engine, Box<dyn Error>> {
 
 /// Polls the engine as the UI does, until its save ends or a few seconds pass.
 pub fn poll_until_saved(engine: &mut Engine) -> Result<(), String> {
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + PATIENCE;
     while engine.saving().is_some() {
         if Instant::now() > deadline {
             return Err("the save did not finish in time".to_string());
