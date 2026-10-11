@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Colophon, a desktop MP3 tag editor</title>
+    <meta
+      name="description"
+      content="Colophon edits the tags of your MP3 files: titles, artists, albums, track numbers, genres and covers. Free and open source, for macOS, Windows and Linux."
+    />
+    <meta name="theme-color" content="#121214" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Colophon, a desktop MP3 tag editor" />
+    <meta
+      property="og:description"
+      content="Edit the tags of your MP3 files, a whole album at once. Free and open source, for macOS, Windows and Linux."
+    />
+    <meta
+      property="og:image"
+      content="https://raw.githubusercontent.com/OpenMediaStack/colophon/main/docs/assets/screenshot-dark.png"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="../assets/icon/colophon.svg" />
+    <link rel="apple-touch-icon" href="../assets/icon/png/colophon-256.png" />
+    <script type="module" src="./src/main.js"></script>
+  </head>
+  <body>
+    <div class="mx-auto max-w-7xl border-x border-line-soft bg-surface">
+      <header
+        class="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-4 border-b border-line bg-surface/95 px-4 py-3.5 backdrop-blur sm:px-8"
+      >
+        <a href="#top" class="flex items-center gap-2.5 text-[17px] font-semibold tracking-tight text-ink">
+          <img src="../assets/icon/colophon.svg" alt="" width="30" height="30" />
+          Colophon
+        </a>
+        <nav aria-label="Main" class="label flex flex-wrap items-center gap-1">
+          <a href="#features" class="hidden px-3 py-3 text-muted hover:text-ink sm:block">Features</a>
+          <a href="#yours" class="hidden px-3 py-3 text-muted hover:text-ink sm:block">Your files</a>
+          <a href="#download" class="hidden px-3 py-3 text-muted hover:text-ink sm:block">Download</a>
+          <a href="https://github.com/OpenMediaStack/colophon" class="px-3 py-3 text-muted hover:text-ink">GitHub</a>
+          <a
+            href="#download"
+            class="ml-2 rounded-md bg-accent px-4 py-3 font-medium text-on-accent hover:bg-accent-hover"
+            >Download</a
+          >
+        </nav>
+      </header>
+
+      <main>
+        <section id="top" class="flex flex-col items-center gap-7 px-4 pt-22 pb-14 text-center sm:px-8">
+          <p class="label tracking-[0.12em] text-subtle">MP3 tag editor · macOS · Windows · Linux</p>
+          <h1 class="max-w-245 text-[clamp(2.75rem,6.6vw,5.75rem)] leading-none font-semibold tracking-[-0.04em]">
+            The <em class="font-serif font-normal tracking-[-0.02em] text-accent">fine print</em> of your music, set
+            right.
+          </h1>
+          <p class="max-w-160 text-[19px] leading-relaxed text-muted">
+            Colophon edits the tags of your MP3 files: titles, artists, albums, track numbers, genres and covers. Open a
+            folder, fix a whole album at once, and save when you are ready.
+          </p>
+          <div class="flex flex-wrap justify-center gap-3 pt-1">
+            <a
+              href="#download"
+              data-download-hero
+              class="inline-flex min-h-12 items-center gap-2.5 rounded-lg bg-accent px-5.5 text-[15px] font-semibold text-on-accent hover:bg-accent-hover"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v12" />
+                <path d="m7 10 5 5 5-5" />
+                <path d="M5 21h14" />
+              </svg>
+              <span data-download-label>Download for free</span>
+            </a>
+            <a
+              href="https://github.com/OpenMediaStack/colophon"
+              class="inline-flex min-h-12 items-center rounded-lg border border-line-strong px-5.5 text-[15px] font-medium text-ink hover:border-subtle"
+              >View the source</a
+            >
+          </div>
+          <p class="font-mono text-xs text-subtle">
+            <span data-version>Latest version</span> · free and open source · MIT
+          </p>
+        </section>
+
+        <div class="px-4 pb-16 sm:px-8">
+          <div
+            class="overflow-hidden rounded-xl border border-line shadow-[0_40px_120px_rgba(0,0,0,0.55),0_0_0_1px_rgba(234,179,8,0.06)]"
+          >
+            <img
+              src="../docs/assets/screenshot-dark.png"
+              width="2880"
+              height="1800"
+              alt="Colophon's window: the sidebar of albums, the table of tracks with one edited, the inspector with the cover and tags, and the player with its waveform"
+              class="block h-auto w-full"
+            />
+          </div>
+        </div>
+
+        <div aria-hidden="true" class="overflow-hidden border-y border-line bg-[#0f0f11] py-4">
+          <div
+            data-ticker
+            class="flex w-max gap-7 font-mono text-[13px] tracking-[0.1em] whitespace-nowrap text-subtle uppercase motion-reduce:animate-none"
+          >
+            <span class="inline-flex items-center gap-7">ID3v2.4<span class="text-[9px] text-accent">■</span></span>
+            <span class="inline-flex items-center gap-7">ID3v2.3<span class="text-[9px] text-accent">■</span></span>
+            <span class="inline-flex items-center gap-7">ID3v1.1<span class="text-[9px] text-accent">■</span></span>
+            <span class="inline-flex items-center gap-7">Cover art<span class="text-[9px] text-accent">■</span></span>
+            <span class="inline-flex items-center gap-7">Whole albums at once<span class="text-[9px] text-accent">■</span></span>
+            <span class="inline-flex items-center gap-7">Track numbering<span class="text-[9px] text-accent">■</span></span>
+            <span class="inline-flex items-center gap-7">Undo and redo<span class="text-[9px] text-accent">■</span></span>
+            <span class="inline-flex items-center gap-7">Command palette<span class="text-[9px] text-accent">■</span></span>
+            <span class="inline-flex items-center gap-7">Waveform player<span class="text-[9px] text-accent">■</span></span>
+            <span class="inline-flex items-center gap-7">Light and dark<span class="text-[9px] text-accent">■</span></span>
+            <span class="inline-flex items-center gap-7">macOS<span class="text-[9px] text-accent">■</span></span>
+            <span class="inline-flex items-center gap-7">Windows<span class="text-[9px] text-accent">■</span></span>
+            <span class="inline-flex items-center gap-7">Linux<span class="text-[9px] text-accent">■</span></span>
+          </div>
+        </div>
+
+        <section id="features">
+          <div class="label flex flex-wrap justify-between gap-2 border-b border-line px-4 py-3.5 text-subtle sm:px-8">
+            <span>01 / Features</span><span>Six things it does well</span>
+          </div>
+          <h2
+            class="max-w-225 px-4 pt-18 pb-14 text-[clamp(2.25rem,4.6vw,4rem)] leading-[1.05] font-semibold tracking-[-0.035em] sm:px-8"
+          >
+            Edit a hundred tracks <em class="font-serif font-normal text-accent">as easily</em> as one.
+          </h2>
+
+          <div class="grid border-t border-line md:grid-cols-2">
+            <article class="border-b border-line md:border-r">
+              <div class="label flex justify-between border-b border-line px-6 py-3 text-[11px] text-subtle">
+                <span>Library</span><span>01</span>
+              </div>
+              <div class="h-75 overflow-hidden bg-surface">
+                <img
+                  src="../docs/assets/screenshot-dark.png"
+                  loading="lazy"
+                  alt="The sidebar with folders, albums and their covers, beside the table of tracks"
+                  class="block w-[150%] max-w-none -mt-[8.4%]"
+                />
+              </div>
+              <div class="flex flex-col gap-2 px-6 pt-6 pb-8">
+                <h3 class="text-[22px] font-semibold tracking-[-0.015em]">Your library, by album and artist</h3>
+                <p class="text-muted">
+                  Open a folder or a few files, or drop them on the window. The sidebar sorts them into folders, albums
+                  and artists, every cover in view.
+                </p>
+              </div>
+            </article>
+
+            <article class="border-b border-line">
+              <div class="label flex justify-between border-b border-line px-6 py-3 text-[11px] text-subtle">
+                <span>Editing</span><span>02</span>
+              </div>
+              <div class="h-75 overflow-hidden bg-surface">
+                <img
+                  src="../docs/assets/screenshot-dark.png"
+                  loading="lazy"
+                  alt="The inspector: the cover, then the title being edited, the artist, the album artist and the album"
+                  class="block w-[320%] max-w-none -ml-[220%] -mt-[18.9%]"
+                />
+              </div>
+              <div class="flex flex-col gap-2 px-6 pt-6 pb-8">
+                <h3 class="text-[22px] font-semibold tracking-[-0.015em]">One track, or the whole album</h3>
+                <p class="text-muted">
+                  Select tracks and edit them together in the inspector, or right in the table. Values they do not
+                  share say so, and track numbers fill in at once.
+                </p>
+              </div>
+            </article>
+
+            <article class="border-b border-line md:border-r">
+              <div class="label flex justify-between border-b border-line px-6 py-3 text-[11px] text-subtle">
+                <span>Saving</span><span>03</span>
+              </div>
+              <div class="h-75 overflow-hidden bg-surface">
+                <img
+                  src="../docs/assets/screenshot-dark.png"
+                  loading="lazy"
+                  alt="The toolbar's Save 1 file button, and the edited track marked in the table"
+                  class="block w-[240%] max-w-none -mt-[6.7%]"
+                />
+              </div>
+              <div class="flex flex-col gap-2 px-6 pt-6 pb-8">
+                <h3 class="text-[22px] font-semibold tracking-[-0.015em]">Nothing changes until you save</h3>
+                <p class="text-muted">
+                  Every edit waits, marked track by track, with undo and redo. Colophon points out a missing track
+                  number, an odd album artist, or a value ID3v1 would cut.
+                </p>
+              </div>
+            </article>
+
+            <article class="border-b border-line">
+              <div class="label flex justify-between border-b border-line px-6 py-3 text-[11px] text-subtle">
+                <span>Player</span><span>04</span>
+              </div>
+              <div class="flex h-75 items-center justify-center bg-surface p-8">
+                <div class="flex w-full max-w-130 flex-col gap-4.5 rounded-[10px] border border-line bg-raised p-5.5">
+                  <div class="flex items-center gap-3.5">
+                    <span class="inline-flex size-11 items-center justify-center rounded-full bg-accent">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="#1A1405" aria-hidden="true">
+                        <rect x="6" y="5" width="4" height="14" rx="1" />
+                        <rect x="14" y="5" width="4" height="14" rx="1" />
+                      </svg>
+                    </span>
+                    <span class="flex min-w-0 flex-col">
+                      <span class="text-[15px] font-semibold">Neon Weather</span>
+                      <span class="text-[13px] text-muted">Cassette Bloom</span>
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="font-mono text-xs text-muted">1:22</span>
+                    <div data-waveform aria-hidden="true" class="flex h-12 min-w-0 flex-1 items-center gap-0.5 overflow-hidden"></div>
+                    <span class="font-mono text-xs text-muted">3:36</span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 px-6 pt-6 pb-8">
+                <h3 class="text-[22px] font-semibold tracking-[-0.015em]">Hear it before you tag it</h3>
+                <p class="text-muted">
+                  Play a track from the table and skip through its waveform, to be sure of the take before you name it.
+                </p>
+              </div>
+            </article>
+
+            <article class="border-b border-line md:border-r">
+              <div class="label flex justify-between border-b border-line px-6 py-3 text-[11px] text-subtle">
+                <span>Tag versions</span><span>05</span>
+              </div>
+              <div class="flex h-75 items-center justify-center bg-surface p-8">
+                <table class="w-full max-w-130 overflow-hidden rounded-[10px] border border-line font-mono text-[13px]">
+                  <thead class="bg-raised text-left text-[11px] tracking-[0.1em] text-subtle uppercase">
+                    <tr>
+                      <th class="px-4 py-2.5 font-normal">Tag</th>
+                      <th class="px-4 py-2.5 font-normal">Read</th>
+                      <th class="px-4 py-2.5 font-normal">Write</th>
+                    </tr>
+                  </thead>
+                  <tbody class="[&_td]:border-t [&_td]:border-line-soft [&_td]:px-4 [&_td]:py-2">
+                    <tr><td>ID3v2.4</td><td class="text-accent">yes</td><td class="text-accent">yes</td></tr>
+                    <tr><td>ID3v2.3</td><td class="text-accent">yes</td><td class="text-accent">yes</td></tr>
+                    <tr><td>ID3v2.2</td><td class="text-accent">yes</td><td class="text-accent">yes</td></tr>
+                    <tr><td>ID3v1.1</td><td class="text-accent">yes</td><td class="text-accent">yes</td></tr>
+                    <tr><td>ID3v1.0</td><td class="text-accent">yes</td><td class="text-accent">yes</td></tr>
+                    <tr><td>APE</td><td class="text-accent">yes</td><td class="text-subtle">kept as is</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="flex flex-col gap-2 px-6 pt-6 pb-8">
+                <h3 class="text-[22px] font-semibold tracking-[-0.015em]">Every version of ID3</h3>
+                <p class="text-muted">
+                  ID3v2.4 or ID3v2.3 by default, ID3v1 kept, added or removed as you choose, APE tags left alone.
+                  Developer mode picks the version file by file and shows every frame.
+                </p>
+              </div>
+            </article>
+
+            <article class="border-b border-line">
+              <div class="label flex justify-between border-b border-line px-6 py-3 text-[11px] text-subtle">
+                <span>Keyboard</span><span>06</span>
+              </div>
+              <div class="flex h-75 items-center justify-center bg-surface p-8">
+                <div
+                  aria-hidden="true"
+                  class="w-full max-w-130 overflow-hidden rounded-[10px] border border-line bg-overlay shadow-[0_24px_60px_rgba(0,0,0,0.45)]"
+                >
+                  <div class="flex items-center gap-2.5 border-b border-line px-4 py-3.5 text-[15px]">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A8A93" stroke-width="2" stroke-linecap="round">
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-3.5-3.5" />
+                    </svg>
+                    <span>numb<span class="ml-px inline-block h-4.25 w-px bg-accent align-[-3px]"></span></span>
+                    <span class="ml-auto rounded border border-line-strong px-2 py-0.5 font-mono text-[11px] text-subtle">Ctrl K</span>
+                  </div>
+                  <div class="p-1.5">
+                    <div class="flex justify-between rounded bg-highlight px-2.5 py-2">
+                      <span><span class="font-semibold text-accent">Numb</span>er Tracks</span>
+                      <span class="text-xs text-subtle">Edit</span>
+                    </div>
+                    <div class="flex justify-between px-2.5 py-2">
+                      <span>Select Album</span><span class="text-xs text-subtle">Edit</span>
+                    </div>
+                    <div class="flex justify-between px-2.5 py-2">
+                      <span>Next Track</span><span class="text-xs text-subtle">Controls</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 px-6 pt-6 pb-8">
+                <h3 class="text-[22px] font-semibold tracking-[-0.015em]">Every command, from the keyboard</h3>
+                <p class="text-muted">
+                  The command palette finds any action by name, and each platform keeps the shortcuts it is used to.
+                  Light and dark themes follow your system, in English or French.
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="yours">
+          <div class="label flex flex-wrap justify-between gap-2 border-b border-line px-4 py-3.5 text-subtle sm:px-8">
+            <span>02 / Your files</span><span>Free and open source</span>
+          </div>
+          <h2
+            class="max-w-225 px-4 pt-18 pb-14 text-[clamp(2.25rem,4.6vw,4rem)] leading-[1.05] font-semibold tracking-[-0.035em] sm:px-8"
+          >
+            Your music <em class="font-serif font-normal text-accent">stays yours.</em>
+          </h2>
+          <div class="grid border-t border-line md:grid-cols-3">
+            <div class="flex flex-col gap-2.5 border-b border-line p-8 md:border-r">
+              <span class="font-mono text-xs text-accent">A</span>
+              <h3 class="text-xl font-semibold">No account, no cloud</h3>
+              <p class="text-muted">Colophon runs on your computer and talks to no server: no sign-in, no upload, no tracking.</p>
+            </div>
+            <div class="flex flex-col gap-2.5 border-b border-line p-8 md:border-r">
+              <span class="font-mono text-xs text-accent">B</span>
+              <h3 class="text-xl font-semibold">Written when you say so</h3>
+              <p class="text-muted">Edits stay in Colophon until you save them, and quitting asks what to do with the ones left.</p>
+            </div>
+            <div class="flex flex-col gap-2.5 border-b border-line p-8">
+              <span class="font-mono text-xs text-accent">C</span>
+              <h3 class="text-xl font-semibold">Open source, MIT</h3>
+              <p class="text-muted">
+                Read the code, build it yourself, or help make it better
+                <a href="https://github.com/OpenMediaStack/colophon" class="text-accent hover:text-accent-hover">on GitHub</a>.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="download">
+          <div class="label flex flex-wrap justify-between gap-2 border-b border-line px-4 py-3.5 text-subtle sm:px-8">
+            <span>03 / Download</span><span data-version>Latest version</span>
+          </div>
+          <div class="flex flex-col items-center gap-5 px-4 pt-22 pb-16 text-center sm:px-8">
+            <h2 class="text-[clamp(2.75rem,6vw,5.25rem)] leading-none font-semibold tracking-[-0.04em]">
+              Start <em class="font-serif font-normal text-accent">tagging.</em>
+            </h2>
+            <p class="max-w-140 text-lg text-muted">Free for macOS, Windows and Linux, with nothing to sign up for.</p>
+          </div>
+          <div class="grid border-t border-line md:grid-cols-3">
+            <div class="flex flex-col gap-3.5 border-b border-line p-8 md:border-r">
+              <span class="label text-subtle">macOS 11 or later</span>
+              <h3 class="text-[26px] font-semibold tracking-[-0.02em]">Mac</h3>
+              <p class="text-muted">
+                One disk image for Apple silicon and Intel. Not signed by Apple yet: the first time, open it from
+                Privacy &amp; Security.
+              </p>
+              <a
+                href="https://github.com/OpenMediaStack/colophon/releases/latest"
+                data-download="mac"
+                class="mt-auto inline-flex min-h-12 items-center justify-center rounded-lg bg-accent font-semibold text-on-accent hover:bg-accent-hover"
+                >Download .dmg</a
+              >
+            </div>
+            <div class="flex flex-col gap-3.5 border-b border-line p-8 md:border-r">
+              <span class="label text-subtle">Windows 10 and 11, x64</span>
+              <h3 class="text-[26px] font-semibold tracking-[-0.02em]">Windows</h3>
+              <p class="text-muted">An installer for you alone, without administrator rights, or for everyone on the computer.</p>
+              <a
+                href="https://github.com/OpenMediaStack/colophon/releases/latest"
+                data-download="windows"
+                class="mt-auto inline-flex min-h-12 items-center justify-center rounded-lg border border-line-strong font-semibold text-ink hover:border-subtle"
+                >Download .exe</a
+              >
+            </div>
+            <div class="flex flex-col gap-3.5 border-b border-line p-8">
+              <span class="label text-subtle">x86_64</span>
+              <h3 class="text-[26px] font-semibold tracking-[-0.02em]">Linux</h3>
+              <p class="text-muted">An AppImage that runs on most distributions: make it executable, then open it.</p>
+              <a
+                href="https://github.com/OpenMediaStack/colophon/releases/latest"
+                data-download="linux"
+                class="mt-auto inline-flex min-h-12 items-center justify-center rounded-lg border border-line-strong font-semibold text-ink hover:border-subtle"
+                >Download .AppImage</a
+              >
+            </div>
+          </div>
+          <p class="overflow-x-auto border-b border-line px-4 py-5 font-mono text-[13px] whitespace-nowrap text-subtle sm:px-8">
+            Or build it from source: <span class="text-ink">cargo build --release -p colophon</span>
+          </p>
+        </section>
+      </main>
+
+      <footer class="flex flex-wrap justify-between gap-10 px-4 pt-14 pb-10 sm:px-8">
+        <div class="flex max-w-90 flex-[1_1_280px] flex-col gap-3">
+          <div class="flex items-center gap-2.5 text-[17px] font-semibold">
+            <img src="../assets/icon/colophon.svg" alt="" width="30" height="30" />
+            Colophon
+          </div>
+          <p class="text-sm text-subtle">A desktop MP3 tag editor, part of Open Media Stack.</p>
+        </div>
+        <div class="flex flex-wrap gap-14 text-sm">
+          <div class="flex flex-col gap-2.5">
+            <span class="label text-[11px] text-subtle">Product</span>
+            <a href="#features" class="text-muted hover:text-ink">Features</a>
+            <a href="#download" class="text-muted hover:text-ink">Download</a>
+            <a href="https://github.com/OpenMediaStack/colophon/releases" class="text-muted hover:text-ink">Releases</a>
+          </div>
+          <div class="flex flex-col gap-2.5">
+            <span class="label text-[11px] text-subtle">Project</span>
+            <a href="https://github.com/OpenMediaStack/colophon" class="text-muted hover:text-ink">Source code</a>
+            <a href="https://github.com/OpenMediaStack/colophon/issues" class="text-muted hover:text-ink">Report a problem</a>
+            <a href="https://github.com/OpenMediaStack/colophon/blob/main/LICENSE" class="text-muted hover:text-ink">MIT License</a>
+          </div>
+        </div>
+        <div class="flex flex-[1_1_100%] flex-wrap justify-between gap-3 border-t border-line pt-6 font-mono text-xs text-subtle">
+          <span>© 2026 Florent Sorel</span>
+          <a href="https://slint.dev" class="hover:text-ink">Made with Slint</a>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>
