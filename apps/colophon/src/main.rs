@@ -142,7 +142,7 @@ fn main() -> Result<(), PlatformError> {
     take_dropped_files(&window);
     #[cfg(target_os = "macos")]
     {
-        macos::show_icon();
+        slint::Timer::single_shot(std::time::Duration::ZERO, macos::show_icon);
         macos::ask_window_before_terminating(&window);
         macos::show_about_from_app_menu(&window);
     }
