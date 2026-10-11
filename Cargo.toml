@@ -41,9 +41,18 @@ unsafe_code = "deny"
 unwrap_used = "warn"
 expect_used = "warn"
 
-# Unoptimised, decoding a track for its waveform takes ten seconds rather than a fifth of one:
-# the dependencies and the player build optimised even in debug builds.
-[profile.dev.package."*"]
+# Unoptimised, decoding a track for its waveform takes ten seconds rather than a fifth of one: the
+# decoder and the player build optimised even in debug builds, the rest as usual.
+[profile.dev.package.symphonia]
+opt-level = 3
+
+[profile.dev.package.symphonia-bundle-mp3]
+opt-level = 3
+
+[profile.dev.package.symphonia-core]
+opt-level = 3
+
+[profile.dev.package.rodio]
 opt-level = 3
 
 [profile.dev.package.colophon-player]

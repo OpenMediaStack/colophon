@@ -87,7 +87,7 @@ export component PlayerBar inherits Rectangle {
     property <bool> with-volume: true;
 
     function update-volume-fit() {
-        root.with-volume = root.width >= 700px;
+        root.with-volume = root.width >= 800px;
     }
 
     init => {
@@ -164,7 +164,7 @@ export component PlayerBar inherits Rectangle {
         }
 
         VerticalLayout {
-            width: 180px;
+            width: 140px;
             alignment: center;
 
             Text {
@@ -192,11 +192,14 @@ export component PlayerBar inherits Rectangle {
 
         // The part played in the accent colour, the rest in grey; a click or a drag moves there.
         waveform-area := Rectangle {
-            // A bar of 3 points every 5 points, as in the mockup.
-            property <length> stride: 5px;
+            // A bar of 2 points every 3 points: a bar for every second or two of a song.
+            property <length> stride: 3px;
+            property <length> bar-width: 2px;
+            // Where the bars end, and where the played part does, to the point.
+            property <length> bars-end: root.bars.length * self.stride - (self.stride - self.bar-width);
 
             function want-bars() {
-                root.bars-wanted(max(1, floor((self.width + 2px) / self.stride)));
+                root.bars-wanted(max(1, floor((self.width + self.stride - self.bar-width) / self.stride)));
             }
 
             horizontal-stretch: 1;
@@ -219,11 +222,27 @@ export component PlayerBar inherits Rectangle {
 
             for loudness[index] in root.bars: Rectangle {
                 x: index * waveform-area.stride;
-                width: 3px;
-                height: max(3px, loudness * waveform-area.height);
+                width: waveform-area.bar-width;
+                height: max(2px, loudness * waveform-area.height);
                 y: (waveform-area.height - self.height) / 2;
-                border-radius: 1.5px;
-                background: (index + 0.5) / root.bars.length <= root.progress ? Theme.accent : Theme.border-strong;
+                border-radius: 1px;
+                background: Theme.border-strong;
+            }
+
+            // The same bars in the accent colour, cut where the track has got to.
+            Rectangle {
+                x: 0;
+                width: waveform-area.bars-end * root.progress;
+                clip: true;
+
+                for loudness[index] in root.bars: Rectangle {
+                    x: index * waveform-area.stride;
+                    width: waveform-area.bar-width;
+                    height: max(2px, loudness * waveform-area.height);
+                    y: (waveform-area.height - self.height) / 2;
+                    border-radius: 1px;
+                    background: Theme.accent;
+                }
             }
 
             TouchArea {

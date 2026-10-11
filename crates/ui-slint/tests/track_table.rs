@@ -435,8 +435,8 @@ fn the_table_matches_its_references() -> TestResult {
             window.set_player_position("1:24".into());
             window.set_player_duration("3:41".into());
             window.set_player_progress(0.38);
-            let bars: Vec<f32> = (0..70)
-                .map(|bar| 0.55 + 0.45 * (bar as f32 / 4.0).sin() * (bar as f32 / 23.0).cos())
+            let bars: Vec<f32> = (0..160)
+                .map(|bar| 0.55 + 0.45 * (bar as f32 / 7.0).sin() * (bar as f32 / 41.0).cos())
                 .collect();
             window.set_player_bars(ModelRc::new(VecModel::from(bars)));
             window.set_player_has_waveform(true);

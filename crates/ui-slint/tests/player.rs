@@ -183,7 +183,7 @@ fn the_waveform_shows_once_read() -> TestResult {
     common::wait_until(&window, "the waveform", |window| {
         window.get_player_has_waveform()
     })?;
-    // As many bars as the waveform's width holds, a bar every 5 points.
+    // As many bars as the waveform's width holds, a bar every 3 points.
     assert!(window.get_player_bars().row_count() > 10);
     Ok(())
 }
