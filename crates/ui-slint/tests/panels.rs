@@ -5,16 +5,22 @@ use std::error::Error;
 use colophon_engine::Engine;
 use colophon_ui::{AppWindow, ComponentHandle};
 use slint::platform::{Key, PointerEventButton, WindowEvent};
+use tempfile::TempDir;
 
 use common::{TestResult, find, shows};
 
-/// The main window, driven by a fresh engine, shown in English at 1440 by 900.
-fn open_main_window() -> Result<AppWindow, Box<dyn Error>> {
+/// The main window, driven by a fresh engine, shown in English at 1440 by 900, with an empty
+/// folder open: the sidebar waits for something open.
+fn open_main_window() -> Result<(AppWindow, TempDir), Box<dyn Error>> {
     common::use_testing_backend()?;
-    let window = colophon_ui::main_window(Engine::new(), || None)?;
+    let folder = tempfile::tempdir()?;
+    let path = folder.path().to_path_buf();
+    let window = colophon_ui::main_window(Engine::new(), move || Some(path.clone()))?;
     common::prepare(&window, 1440.0, 900.0)?;
     window.show()?;
-    Ok(window)
+    find(&window, "Open folder")?.invoke_accessible_default_action();
+    common::wait_until(&window, "the folder", |window| window.get_folder_open())?;
+    Ok((window, folder))
 }
 
 /// Presses the keys in order, then releases them in reverse, as a person types a shortcut.
@@ -33,7 +39,7 @@ fn press_shortcut(window: &AppWindow, keys: &[slint::SharedString]) {
 
 #[test]
 fn the_toolbar_button_hides_and_shows_the_sidebar() -> TestResult {
-    let window = open_main_window()?;
+    let (window, _folder) = open_main_window()?;
     let toggle = find(&window, "Toggle sidebar")?;
     assert_eq!(toggle.accessible_checked(), Some(true));
 
@@ -48,7 +54,7 @@ fn the_toolbar_button_hides_and_shows_the_sidebar() -> TestResult {
 
 #[test]
 fn the_toolbar_button_hides_the_inspector() -> TestResult {
-    let window = open_main_window()?;
+    let (window, _folder) = open_main_window()?;
 
     find(&window, "Toggle inspector")?.invoke_accessible_default_action();
 
@@ -59,7 +65,7 @@ fn the_toolbar_button_hides_the_inspector() -> TestResult {
 
 #[test]
 fn the_view_menu_hides_the_sidebar_and_then_offers_to_show_it() -> TestResult {
-    let window = open_main_window()?;
+    let (window, _folder) = open_main_window()?;
 
     find(&window, "View")?.mock_single_click(PointerEventButton::Left);
     find(&window, "Hide Sidebar")?.mock_single_click(PointerEventButton::Left);
@@ -72,7 +78,7 @@ fn the_view_menu_hides_the_sidebar_and_then_offers_to_show_it() -> TestResult {
 
 #[test]
 fn the_inspector_shortcut_toggles_the_inspector() -> TestResult {
-    let window = open_main_window()?;
+    let (window, _folder) = open_main_window()?;
 
     press_shortcut(&window, &[Key::Control.into(), Key::Alt.into(), "i".into()]);
     assert!(!shows(&window, "Inspector"));
@@ -84,7 +90,7 @@ fn the_inspector_shortcut_toggles_the_inspector() -> TestResult {
 
 #[test]
 fn the_sidebar_shortcut_toggles_the_sidebar() -> TestResult {
-    let window = open_main_window()?;
+    let (window, _folder) = open_main_window()?;
 
     press_shortcut(&window, &[Key::Control.into(), Key::Alt.into(), "s".into()]);
 
