@@ -127,6 +127,23 @@ fn the_inspector_says_how_the_file_will_be_saved() -> TestResult {
 }
 
 #[test]
+fn a_comment_too_long_for_a_new_id3v1_tag_is_told() -> TestResult {
+    let (window, _folder, _path) = window_with_a_selected("v23_full.mp3")?;
+    window.invoke_run(colophon_ui::WindowCommand::ToggleDeveloperMode);
+    find(&window, "1.1")?.invoke_accessible_default_action();
+
+    retype(
+        &window,
+        "Comment",
+        "A long comment for testing purposes, on more than one line",
+    )?;
+    press(&window, &[], Key::Tab);
+
+    assert!(shows(&window, "ID3v1 will keep only part of: Comment"));
+    Ok(())
+}
+
+#[test]
 fn a_file_that_cannot_be_saved_is_reported() -> TestResult {
     let (window, _folder, path) = window_with_a_selected("v23_full.mp3")?;
     let mut permissions = fs::metadata(&path)?.permissions();
