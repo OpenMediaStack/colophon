@@ -1,3 +1,6 @@
+// A release build on Windows opens no console beside its window.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 #[cfg(target_os = "macos")]
 mod macos;
 

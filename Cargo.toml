@@ -57,3 +57,7 @@ opt-level = 3
 
 [profile.dev.package.colophon-player]
 opt-level = 3
+
+# What ships carries no symbols: a sixth of the size.
+[profile.release]
+strip = true

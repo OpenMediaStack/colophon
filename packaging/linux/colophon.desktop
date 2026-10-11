@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Colophon
+Comment=Edit the tags of MP3 files
+Comment[fr]=Modifier les tags des fichiers MP3
+Exec=Colophon
+Icon=colophon
+Categories=AudioVideo;Audio;
+Terminal=false
