@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/florentsorel/colophon/actions/workflows/rust.yml"><img src="https://github.com/florentsorel/colophon/actions/workflows/rust.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/OpenMediaStack/colophon/actions/workflows/rust.yml"><img src="https://github.com/OpenMediaStack/colophon/actions/workflows/rust.yml/badge.svg" alt="CI" /></a>
   <img src="https://img.shields.io/badge/rust-1.99-CE422B?logo=rust" alt="Rust 1.99" />
   <img src="https://img.shields.io/badge/slint-1.18-2379F4" alt="Slint 1.18" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
@@ -62,7 +62,7 @@ leaves as they are.
 ## Install
 
 Download the latest version from the
-[releases page](https://github.com/florentsorel/colophon/releases/latest):
+[releases page](https://github.com/OpenMediaStack/colophon/releases/latest):
 
 | Platform | File |
 |---|---|
