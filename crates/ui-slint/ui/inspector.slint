@@ -231,6 +231,11 @@ component EditField inherits Rectangle {
     property <bool> list-open;
     // What the suggestions match: the text typed, or nothing for every genre.
     property <string> filter;
+    // How far a multiline field has scrolled its text up, zero or negative as in a Flickable, and
+    // the most it can.
+    property <length> scroll;
+    property <length> lowest-scroll: min(0px, viewport.height - input.height);
+    property <length> line-height: input.font-size * 1.4;
 
     function restore() {
         input.text = root.value;
@@ -291,75 +296,122 @@ component EditField inherits Rectangle {
         color: Theme.text-tertiary;
     }
 
-    input := TextInput {
+    // The text, cut to the field; a multiline field scrolls it with the wheel and to follow the
+    // cursor.
+    viewport := Rectangle {
         x: 8px;
         y: root.multiline ? 6px : 0px;
-        width: parent.width - (root.suggests ? 30px : 16px);
+        // A multiline field keeps room for its scroll bar, which its text would otherwise reflow
+        // around.
+        width: parent.width - (root.suggests ? 30px : root.multiline ? 22px : 16px);
         height: root.multiline ? parent.height - 12px : parent.height;
-        text: root.value;
-        single-line: !root.multiline;
-        wrap: root.multiline ? word-wrap : no-wrap;
-        vertical-alignment: root.multiline ? top : center;
-        font-family: root.mono ? "JetBrains Mono" : "Inter";
-        font-size: root.mono ? 12px : 13px;
-        color: Theme.text-primary;
-        selection-background-color: Theme.accent-selection;
-        selection-foreground-color: Theme.text-primary;
-        accessible-label: root.label;
+        clip: true;
 
-        edited => {
-            root.keep-text();
-            if root.suggests {
-                root.open-list(self.text);
+        // Under the text, it takes only the wheel the text leaves: back to the inspector once
+        // the field cannot scroll further.
+        TouchArea {
+            scroll-event(event) => {
+                if !root.multiline {
+                    return reject;
+                }
+                let scrolled = max(root.lowest-scroll, min(0px, root.scroll + event.delta-y));
+                if scrolled == root.scroll {
+                    return reject;
+                }
+                root.scroll = scrolled;
+                return accept;
             }
         }
-        accepted => {
-            if !root.invalid {
-                self.clear-focus();
+
+        input := TextInput {
+            y: root.multiline ? max(root.scroll, root.lowest-scroll) : 0px;
+            width: parent.width;
+            height: root.multiline ? max(parent.height, self.preferred-height) : parent.height;
+            text: root.value;
+            single-line: !root.multiline;
+            wrap: root.multiline ? word-wrap : no-wrap;
+            vertical-alignment: root.multiline ? top : center;
+            font-family: root.mono ? "JetBrains Mono" : "Inter";
+            font-size: root.mono ? 12px : 13px;
+            color: Theme.text-primary;
+            selection-background-color: Theme.accent-selection;
+            selection-foreground-color: Theme.text-primary;
+            accessible-label: root.label;
+
+            edited => {
+                root.keep-text();
+                if root.suggests {
+                    root.open-list(self.text);
+                }
             }
-        }
-        key-pressed(event) => {
-            if root.suggesting {
-                if event.text == Key.DownArrow {
-                    root.highlighted = min(root.highlighted + 1, root.suggestions.length - 1);
-                    return accept;
+            accepted => {
+                if !root.invalid {
+                    self.clear-focus();
                 }
-                if event.text == Key.UpArrow {
-                    root.highlighted = max(root.highlighted - 1, -1);
-                    return accept;
+            }
+            cursor-position-changed(position) => {
+                if root.multiline {
+                    if position.y + root.scroll < 0 {
+                        root.scroll = -position.y;
+                    } else if position.y + root.line-height + root.scroll > viewport.height {
+                        root.scroll = viewport.height - position.y - root.line-height;
+                    }
                 }
-                if event.text == Key.Return && root.highlighted >= 0 {
-                    root.pick(root.suggestions[root.highlighted]);
+            }
+            key-pressed(event) => {
+                if root.suggesting {
+                    if event.text == Key.DownArrow {
+                        root.highlighted = min(root.highlighted + 1, root.suggestions.length - 1);
+                        return accept;
+                    }
+                    if event.text == Key.UpArrow {
+                        root.highlighted = max(root.highlighted - 1, -1);
+                        return accept;
+                    }
+                    if event.text == Key.Return && root.highlighted >= 0 {
+                        root.pick(root.suggestions[root.highlighted]);
+                        return accept;
+                    }
+                    if event.text == Key.Escape {
+                        root.list-open = false;
+                        return accept;
+                    }
+                } else if root.suggests && event.text == Key.DownArrow {
+                    root.open-list("");
                     return accept;
                 }
                 if event.text == Key.Escape {
-                    root.list-open = false;
-                    return accept;
-                }
-            } else if root.suggests && event.text == Key.DownArrow {
-                root.open-list("");
-                return accept;
-            }
-            if event.text == Key.Escape {
-                root.cancel();
-                self.text = root.started-with;
-                self.clear-focus();
-                return accept;
-            }
-            return reject;
-        }
-        changed has-focus => {
-            if self.has-focus {
-                root.started-with = root.value;
-            } else {
-                root.list-open = false;
-                if root.invalid {
                     root.cancel();
                     self.text = root.started-with;
+                    self.clear-focus();
+                    return accept;
                 }
-                root.typing = false;
+                return reject;
+            }
+            changed has-focus => {
+                if self.has-focus {
+                    root.started-with = root.value;
+                } else {
+                    root.list-open = false;
+                    if root.invalid {
+                        root.cancel();
+                        self.text = root.started-with;
+                    }
+                    root.typing = false;
+                }
             }
         }
+    }
+
+    if root.multiline: ScrollBar {
+        x: parent.width - 10px;
+        y: 4px;
+        width: 8px;
+        height: parent.height - 8px;
+        content-size: input.height;
+        visible-size: viewport.height;
+        position <=> root.scroll;
+        accessible-label: root.label;
     }
 
     if root.suggests: Rectangle {
@@ -880,7 +932,8 @@ export component Inspector inherits Rectangle {
                                     }
 
                                     EditField {
-                                        height: 46px;
+                                        // Three lines, and the rest scrolls.
+                                        height: 64px;
                                         field: root.tracks.comment;
                                         tag: TagField.comment;
                                         label: @tr("Comment");
