@@ -754,7 +754,7 @@ dependencies = [
 
 [[package]]
 name = "colophon"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "arboard",
  "colophon-engine",
@@ -769,7 +769,7 @@ dependencies = [
 
 [[package]]
 name = "colophon-engine"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "colophon-library",
  "serde",
@@ -780,7 +780,7 @@ dependencies = [
 
 [[package]]
 name = "colophon-library"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "colophon-tags",
  "tempfile",
@@ -789,7 +789,7 @@ dependencies = [
 
 [[package]]
 name = "colophon-player"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "colophon-engine",
  "rodio",
@@ -797,7 +797,7 @@ dependencies = [
 
 [[package]]
 name = "colophon-tags"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "id3",
  "lofty",
@@ -807,7 +807,7 @@ dependencies = [
 
 [[package]]
 name = "colophon-ui"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "colophon-engine",
  "colophon-player",
