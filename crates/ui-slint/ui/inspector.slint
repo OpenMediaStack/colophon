@@ -761,6 +761,12 @@ export component Inspector inherits Rectangle {
                         tags-content := VerticalLayout {
                             spacing: 8px;
 
+                            // Where the fields are edited rather than with the file's details, so
+                            // that it shows while typing.
+                            if root.lost-names(root.tracks.id3v1-losses) != "": Warning {
+                                text: @tr("ID3v1 will keep only part of: {}", root.lost-names(root.tracks.id3v1-losses));
+                            }
+
                             if root.tracks.missing-number: Warning {
                                 text: root.tracks.count == 1 ? @tr("This track has no number, unlike the rest of its album.") : @tr("Some of these tracks have no number, unlike the rest of their albums.");
                             }
@@ -1002,15 +1008,6 @@ export component Inspector inherits Rectangle {
 
                                 FileValue {
                                     text: root.tracks.saved-as.mixed ? @tr("Multiple values") : root.tracks.saved-as.text;
-                                }
-                            }
-
-                            if root.lost-names(root.tracks.id3v1-losses) != "": Row {
-                                Rectangle { }
-
-                                FileValue {
-                                    text: @tr("ID3v1 will keep only part of: {}", root.lost-names(root.tracks.id3v1-losses));
-                                    color: Theme.warning;
                                 }
                             }
                         }
