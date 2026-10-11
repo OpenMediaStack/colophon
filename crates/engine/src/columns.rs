@@ -41,6 +41,70 @@ impl Column {
     }
 }
 
+/// A column of the track table that the user may move: every one but status and number.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TableColumn {
+    Title,
+    /// One the user may hide as well.
+    Other(Column),
+}
+
+impl TableColumn {
+    pub const ALL: [TableColumn; 10] = [
+        TableColumn::Title,
+        TableColumn::Other(Column::Artist),
+        TableColumn::Other(Column::Album),
+        TableColumn::Other(Column::Year),
+        TableColumn::Other(Column::Genre),
+        TableColumn::Other(Column::Time),
+        TableColumn::Other(Column::Bitrate),
+        TableColumn::Other(Column::Tags),
+        TableColumn::Other(Column::File),
+        TableColumn::Other(Column::Folder),
+    ];
+}
+
+/// The order of the table's columns, each of them once.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ColumnOrder([TableColumn; 10]);
+
+impl Default for ColumnOrder {
+    fn default() -> Self {
+        Self(TableColumn::ALL)
+    }
+}
+
+impl ColumnOrder {
+    /// An order that starts with these columns, each once; those they leave out follow in their
+    /// default order.
+    pub fn starting_with(columns: impl IntoIterator<Item = TableColumn>) -> Self {
+        let mut order: Vec<TableColumn> = Vec::with_capacity(TableColumn::ALL.len());
+        for column in columns.into_iter().chain(TableColumn::ALL) {
+            if !order.contains(&column) {
+                order.push(column);
+            }
+        }
+        Self(order.try_into().unwrap_or(TableColumn::ALL))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = TableColumn> + '_ {
+        self.0.iter().copied()
+    }
+
+    /// Puts `column` just before `before`, or last without one.
+    pub(crate) fn move_column(&mut self, column: TableColumn, before: Option<TableColumn>) {
+        if before == Some(column) {
+            return;
+        }
+        let mut columns: Vec<TableColumn> = self.iter().filter(|other| *other != column).collect();
+        let place = before
+            .and_then(|before| columns.iter().position(|other| *other == before))
+            .unwrap_or(columns.len());
+        columns.insert(place, column);
+        *self = Self::starting_with(columns);
+    }
+}
+
 /// The columns the table shows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Columns(u16);
@@ -89,4 +153,57 @@ pub struct ColumnWidths {
     pub tags: u32,
     pub file: u32,
     pub folder: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn names(order: ColumnOrder) -> Vec<TableColumn> {
+        order.iter().collect()
+    }
+
+    #[test]
+    fn a_column_moves_before_another_or_last() {
+        let mut order = ColumnOrder::default();
+
+        order.move_column(TableColumn::Other(Column::Year), Some(TableColumn::Title));
+        assert_eq!(
+            names(order)[..3],
+            [
+                TableColumn::Other(Column::Year),
+                TableColumn::Title,
+                TableColumn::Other(Column::Artist),
+            ]
+        );
+
+        order.move_column(TableColumn::Title, None);
+        assert_eq!(names(order).last(), Some(&TableColumn::Title));
+        assert_eq!(names(order).len(), 10);
+    }
+
+    #[test]
+    fn moving_a_column_before_itself_changes_nothing() {
+        let mut order = ColumnOrder::default();
+
+        order.move_column(TableColumn::Title, Some(TableColumn::Title));
+
+        assert_eq!(order, ColumnOrder::default());
+    }
+
+    #[test]
+    fn an_order_holds_every_column_once() {
+        let order = ColumnOrder::starting_with([
+            TableColumn::Other(Column::Genre),
+            TableColumn::Other(Column::Genre),
+        ]);
+
+        assert_eq!(names(order)[0], TableColumn::Other(Column::Genre));
+        assert_eq!(names(order).len(), 10);
+        assert!(
+            TableColumn::ALL
+                .iter()
+                .all(|column| names(order).contains(column))
+        );
+    }
 }

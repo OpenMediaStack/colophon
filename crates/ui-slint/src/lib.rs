@@ -11,9 +11,9 @@ use std::time::Duration;
 
 use colophon_engine::tags::{self, Id3v1Loss, Id3v1Version, Id3v2Version, ReadError, WritePolicy};
 use colophon_engine::{
-    AlbumKey, AudioLine, Column, ColumnWidths, Command, Edit, Engine, Field, Inspection, Library,
-    Preferences, ScanStatus, Selection, Shared, Sort, SortColumn, Source, Step, Summary, Track,
-    VersionChoice, ViewState, Warnings, WindowSize,
+    AlbumKey, AudioLine, Column, ColumnOrder, ColumnWidths, Command, Edit, Engine, Field,
+    Inspection, Library, Preferences, ScanStatus, Selection, Shared, Sort, SortColumn, Source,
+    Step, Summary, TableColumn, Track, VersionChoice, ViewState, Warnings, WindowSize,
 };
 use slint::{
     CloseRequestResponse, Image, LogicalSize, Model, ModelRc, Rgba8Pixel, SharedPixelBuffer,
@@ -165,11 +165,23 @@ pub fn main_window_keeping(
         dropped: RefCell::default(),
         drop_timer: Timer::default(),
         layout_of: Cell::default(),
+        shown_order: Cell::default(),
     });
     bridge.show();
     window.on_run({
         let bridge = Rc::clone(&bridge);
         move |command| run(&bridge, command)
+    });
+    window.on_move_column({
+        let bridge = Rc::clone(&bridge);
+        move |column, place| {
+            let order: Vec<TableColumn> =
+                bridge.engine.borrow().view().column_order.iter().collect();
+            let before = usize::try_from(place)
+                .ok()
+                .and_then(|place| order.get(place).copied());
+            execute(&bridge, Command::MoveColumn(table_column(column), before));
+        }
     });
     window.on_toggle_column({
         let bridge = Rc::clone(&bridge);
@@ -547,6 +559,9 @@ struct Bridge {
     drop_timer: Timer,
     /// The track whose tag layout shows, read again after each save.
     layout_of: Cell<Option<usize>>,
+    /// The order of the columns the table shows, set again only when it changes, since the
+    /// table then makes every cell of its rows again.
+    shown_order: Cell<Option<ColumnOrder>>,
 }
 
 /// How long a toast stays: a success briefly, an error long enough to act on it.
@@ -1030,6 +1045,16 @@ impl Bridge {
         self.read_genres(&engine);
         self.show_sources(&window, &engine);
         show_view(&window, engine.view());
+        if self.shown_order.get() != Some(engine.view().column_order) {
+            self.shown_order.set(Some(engine.view().column_order));
+            let order: Vec<TrackColumn> = engine
+                .view()
+                .column_order
+                .iter()
+                .map(slint_track_column)
+                .collect();
+            window.set_column_order(ModelRc::new(VecModel::from(order)));
+        }
         show_writing(&window, engine.preferences().writing);
         show_details(&window, engine.write_details());
         show_sort(&window, engine.sort());
@@ -2155,6 +2180,25 @@ fn engine_column(column: TrackColumn) -> Option<Column> {
         TrackColumn::Tags => Some(Column::Tags),
         TrackColumn::File => Some(Column::File),
         TrackColumn::Folder => Some(Column::Folder),
+    }
+}
+
+fn table_column(column: TrackColumn) -> TableColumn {
+    engine_column(column).map_or(TableColumn::Title, TableColumn::Other)
+}
+
+fn slint_track_column(column: TableColumn) -> TrackColumn {
+    match column {
+        TableColumn::Title => TrackColumn::Title,
+        TableColumn::Other(Column::Artist) => TrackColumn::Artist,
+        TableColumn::Other(Column::Album) => TrackColumn::Album,
+        TableColumn::Other(Column::Year) => TrackColumn::Year,
+        TableColumn::Other(Column::Genre) => TrackColumn::Genre,
+        TableColumn::Other(Column::Time) => TrackColumn::Time,
+        TableColumn::Other(Column::Bitrate) => TrackColumn::Bitrate,
+        TableColumn::Other(Column::Tags) => TrackColumn::Tags,
+        TableColumn::Other(Column::File) => TrackColumn::File,
+        TableColumn::Other(Column::Folder) => TrackColumn::Folder,
     }
 }
 

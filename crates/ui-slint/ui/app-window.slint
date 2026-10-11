@@ -168,6 +168,21 @@ export component AppWindow inherits Window {
     // on the machine.
     in property <bool> windows-buttons: Platform.os == OperatingSystemType.windows;
     callback toggle-column(TrackColumn);
+    // Every column of the table but status and number, from left to right, and a column moved
+    // before the column of a place in it, or last.
+    in property <[TrackColumn]> column-order: [
+        TrackColumn.title,
+        TrackColumn.artist,
+        TrackColumn.album,
+        TrackColumn.year,
+        TrackColumn.genre,
+        TrackColumn.time,
+        TrackColumn.bitrate,
+        TrackColumn.tags,
+        TrackColumn.file,
+        TrackColumn.folder,
+    ];
+    callback move-column(TrackColumn, int);
     // A choice of the inspector's Tag format section, by its place: none, then each version.
     callback choose-id3v2(int);
     callback choose-id3v1(int);
@@ -604,6 +619,10 @@ export component AppWindow inherits Window {
                 if root.folder-open: TrackTable {
                     rows: root.tracks;
                     columns: root.columns;
+                    order: root.column-order;
+                    move-column(column, place) => {
+                        root.move-column(column, place);
+                    }
                     sized: root.columns-sized;
                     sized-widths: root.column-widths;
                     longest: root.longest;

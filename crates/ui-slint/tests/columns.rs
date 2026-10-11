@@ -3,8 +3,9 @@ mod common;
 use std::error::Error;
 
 use colophon_engine::Engine;
-use colophon_ui::{AppWindow, ComponentHandle};
+use colophon_ui::{AppWindow, ComponentHandle, TrackColumn};
 use slint::platform::PointerEventButton;
+use slint::{LogicalPosition, Model};
 use tempfile::TempDir;
 
 use common::{TestResult, find, menu_item, resize_handle, shows};
@@ -146,5 +147,78 @@ fn resetting_the_columns_brings_back_the_shared_widths() -> TestResult {
 
     assert_eq!(header_x(&window, "Album")?, album);
     assert!(!shows(&window, "Horizontal scroll bar"));
+    Ok(())
+}
+
+/// Where a column's name sits, by the left edge and the middle of its header cell.
+fn header(window: &AppWindow, name: &str) -> Result<(f32, f32, f32), String> {
+    let cell = find(window, &format!("Sort by {name}"))?;
+    let (position, size) = (cell.absolute_position(), cell.size());
+    Ok((
+        position.x,
+        position.x + size.width / 2.0,
+        position.y + size.height / 2.0,
+    ))
+}
+
+#[test]
+fn dragging_a_column_by_its_name_moves_it() -> TestResult {
+    let (window, _folder) = window_with_a_track()?;
+    let (_, year, y) = header(&window, "Year")?;
+    let (title_left, _, _) = header(&window, "Title")?;
+
+    common::drag(
+        &window,
+        LogicalPosition::new(year, y),
+        LogicalPosition::new(title_left + 4.0, y),
+    );
+
+    assert_eq!(
+        window.get_column_order().row_data(0),
+        Some(TrackColumn::Year)
+    );
+    assert!(!window.get_sorted());
+    let (year_left, _, _) = header(&window, "Year")?;
+    let (title_left, _, _) = header(&window, "Title")?;
+    assert!(year_left < title_left);
+    Ok(())
+}
+
+#[test]
+fn reset_puts_the_columns_back_in_order() -> TestResult {
+    let (window, _folder) = window_with_a_track()?;
+    let (_, year, y) = header(&window, "Year")?;
+    let (title_left, _, _) = header(&window, "Title")?;
+    common::drag(
+        &window,
+        LogicalPosition::new(year, y),
+        LogicalPosition::new(title_left + 4.0, y),
+    );
+
+    choose(&window, "Reset to default columns")?;
+
+    assert_eq!(
+        window.get_column_order().row_data(0),
+        Some(TrackColumn::Title)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_column_dropped_where_it_was_neither_moves_nor_sorts() -> TestResult {
+    let (window, _folder) = window_with_a_track()?;
+    let (_, year, y) = header(&window, "Year")?;
+
+    common::drag(
+        &window,
+        LogicalPosition::new(year, y),
+        LogicalPosition::new(year + 8.0, y),
+    );
+
+    assert_eq!(
+        window.get_column_order().row_data(3),
+        Some(TrackColumn::Year)
+    );
+    assert!(!window.get_sorted());
     Ok(())
 }

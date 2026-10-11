@@ -1,7 +1,7 @@
 use colophon_library::tags::{Id3v1Policy, Id3v2Version, WritePolicy};
 use serde::{Deserialize, Serialize};
 
-use crate::columns::{Column, ColumnWidths};
+use crate::columns::{Column, ColumnOrder, ColumnWidths, TableColumn};
 use crate::{ViewState, WindowSize};
 
 /// What Colophon remembers between launches.
@@ -36,6 +36,11 @@ impl Preferences {
                 names.iter().filter_map(|name| column(name)).collect()
             }),
             column_widths: file.column_widths,
+            column_order: file
+                .column_order
+                .map_or_else(ColumnOrder::default, |names| {
+                    ColumnOrder::starting_with(names.iter().filter_map(|name| table_column(name)))
+                }),
             developer_mode: file.developer_mode.unwrap_or_default(),
             window_size: file.window,
         };
@@ -90,6 +95,12 @@ impl Preferences {
             developer_mode: Some(view.developer_mode),
             window: view.window_size,
             column_widths: view.column_widths,
+            column_order: Some(
+                view.column_order
+                    .iter()
+                    .map(|column| table_column_name(column).to_owned())
+                    .collect(),
+            ),
         };
         toml::to_string(&file).unwrap_or_default()
     }
@@ -111,6 +122,8 @@ struct File {
     developer_mode: Option<bool>,
     window: Option<WindowSize>,
     column_widths: Option<ColumnWidths>,
+    /// Every column but status and number, title included, from left to right.
+    column_order: Option<Vec<String>>,
 }
 
 /// A column's name in the file.
@@ -134,6 +147,19 @@ fn column(name: &str) -> Option<Column> {
         .find(|column| self::name(*column) == name)
 }
 
+fn table_column_name(column: TableColumn) -> &'static str {
+    match column {
+        TableColumn::Title => "title",
+        TableColumn::Other(column) => name(column),
+    }
+}
+
+fn table_column(name: &str) -> Option<TableColumn> {
+    TableColumn::ALL
+        .into_iter()
+        .find(|column| table_column_name(*column) == name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -149,6 +175,10 @@ mod tests {
                     artist: 120,
                     ..ColumnWidths::default()
                 }),
+                column_order: ColumnOrder::starting_with([
+                    TableColumn::Other(Column::Album),
+                    TableColumn::Title,
+                ]),
                 developer_mode: true,
                 window_size: Some(WindowSize {
                     width: 1440,
@@ -203,12 +233,18 @@ mod tests {
 
     #[test]
     fn unknown_columns_are_left_out_and_the_volume_kept_in_range() {
-        let preferences = Preferences::from_toml("columns = [\"album\", \"mood\"]\nvolume = 250\n");
+        let preferences = Preferences::from_toml(
+            "columns = [\"album\", \"mood\"]\ncolumn_order = [\"mood\", \"year\"]\nvolume = 250\n",
+        );
 
         assert_eq!(
             preferences.view.columns,
             [Column::Album].into_iter().collect()
         );
         assert_eq!(preferences.volume, 100);
+        assert_eq!(
+            preferences.view.column_order.iter().next(),
+            Some(TableColumn::Other(Column::Year))
+        );
     }
 }

@@ -22,7 +22,7 @@ use colophon_library::{
 use serde::{Deserialize, Serialize};
 
 pub use colophon_library::{AUDIO_EXTENSIONS, Track, tags};
-pub use columns::{Column, ColumnWidths, Columns};
+pub use columns::{Column, ColumnOrder, ColumnWidths, Columns, TableColumn};
 pub use edits::{Edit, Edits, Field, VersionChoice};
 pub use inspection::{AudioLine, Inspection, Shared, Summary};
 pub use listing::{Album, AlbumKey, Groups, Sort, SortColumn, Source};
@@ -45,7 +45,10 @@ pub enum Command {
     StopScan,
     ToggleColumn(Column),
     ResizeColumns(ColumnWidths),
+    /// Shows every column of the mockup and no other, at the widths and in the order it has them.
     ResetColumns,
+    /// Puts a column just before another, or last without one.
+    MoveColumn(TableColumn, Option<TableColumn>),
     /// A click on a track, by its place in the library: it alone becomes the selection.
     Select(usize),
     /// A Command click: the track joins the selection or leaves it.
@@ -117,6 +120,7 @@ impl Command {
             Command::ToggleColumn(_) => "view.toggle_column",
             Command::ResizeColumns(_) => "view.resize_columns",
             Command::ResetColumns => "view.reset_columns",
+            Command::MoveColumn(..) => "view.move_column",
             Command::Select(_) => "selection.select",
             Command::ToggleSelected(_) => "selection.toggle",
             Command::SelectRange(_) => "selection.select_range",
@@ -159,6 +163,7 @@ pub struct ViewState {
     pub columns: Columns,
     /// `None` until the user resizes a column: the table then shares its width between them.
     pub column_widths: Option<ColumnWidths>,
+    pub column_order: ColumnOrder,
     /// The inspector chooses the tag versions to write, ID3v2.2 included.
     pub developer_mode: bool,
     /// The window's size when it last closed, if it did.
@@ -179,6 +184,7 @@ impl Default for ViewState {
             inspector_visible: true,
             columns: Columns::default(),
             column_widths: None,
+            column_order: ColumnOrder::default(),
             developer_mode: false,
             window_size: None,
         }
@@ -448,6 +454,10 @@ impl Engine {
             Command::ResetColumns => {
                 self.view.columns = Columns::default();
                 self.view.column_widths = None;
+                self.view.column_order = ColumnOrder::default();
+            }
+            Command::MoveColumn(column, before) => {
+                self.view.column_order.move_column(column, before);
             }
             Command::Select(track) if self.has_track(track) => self.selection.select(track),
             Command::ToggleSelected(track) if self.has_track(track) => {
