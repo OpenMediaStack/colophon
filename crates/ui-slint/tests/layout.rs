@@ -7,14 +7,9 @@ use slint::LogicalSize;
 
 use common::{TestResult, assert_matches_reference, select_language, shows};
 
-/// What a fresh window shows: the first launch screen and the inspector, without the sidebar
+/// What a fresh window shows: the first launch screen, without the sidebar and the inspector
 /// until something is open, nor the player until a track plays.
-const REGIONS: [&str; 4] = [
-    "Filter",
-    "Open your music folder",
-    "Inspector",
-    "No folder open",
-];
+const REGIONS: [&str; 3] = ["Filter", "Open your music folder", "No folder open"];
 
 /// A window of the given size, in English, not shown yet so that a test can set it up first.
 fn new_window(width: f32, height: f32) -> Result<AppWindow, Box<dyn Error>> {
@@ -43,14 +38,16 @@ fn window_with_a_folder(width: f32, height: f32) -> Result<AppWindow, Box<dyn Er
 }
 
 #[test]
-fn the_sidebar_waits_for_something_open() -> TestResult {
+fn the_panels_wait_for_something_open() -> TestResult {
     let window = new_window(1440.0, 900.0)?;
     window.show()?;
     assert!(!shows(&window, "Sidebar"));
+    assert!(!shows(&window, "Inspector"));
 
     window.set_folder_open(true);
 
     assert!(shows(&window, "Sidebar"));
+    assert!(shows(&window, "Inspector"));
     Ok(())
 }
 
@@ -107,7 +104,7 @@ fn the_regions_are_named_in_french_when_selected() -> TestResult {
     window.show()?;
 
     assert!(shows(&window, "Ouvrez votre dossier de musique"));
-    assert!(shows(&window, "Inspecteur"));
+    assert!(shows(&window, "Aucun dossier ouvert"));
     Ok(())
 }
 
