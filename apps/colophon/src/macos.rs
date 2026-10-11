@@ -1,15 +1,21 @@
+//! What macOS needs beyond Slint and winit.
+//!
 //! Cmd+Q and Quit in the app menu end a macOS app through `terminate:`, which never asks its
 //! window to close. Winit's application delegate leaves `applicationShouldTerminate:` out, so
 //! Colophon adds it: the window is asked instead, and may first ask what to do with unsaved
 //! changes.
+//!
+//! Outside an app bundle, as under `cargo run`, the Dock shows no icon for the app: Colophon
+//! shows its own.
 
 #![allow(unsafe_code)]
 
 use std::cell::RefCell;
+use std::ffi::c_void;
 
 use colophon_ui::{AppWindow, ComponentHandle};
 use objc2::runtime::{AnyClass, AnyObject, Imp, Sel};
-use objc2::{ffi, sel};
+use objc2::{ffi, msg_send, sel};
 
 /// `NSApplicationTerminateReply`.
 const TERMINATE_CANCEL: usize = 0;
@@ -19,6 +25,33 @@ type ShouldTerminate = extern "C-unwind" fn(&AnyObject, Sel, *mut AnyObject) -> 
 
 thread_local! {
     static CLOSE_WINDOW: RefCell<Option<Box<dyn Fn() -> bool>>> = RefCell::default();
+}
+
+/// The icon of the Dock and the app switcher, large enough for the largest Retina Dock.
+const ICON: &[u8] = include_bytes!("../../../assets/icon/png/colophon-1024.png");
+
+/// Shows Colophon's icon in the Dock and the app switcher. Must run once the event loop exists,
+/// which creating the window ensures: winit makes the shared application its own.
+pub fn show_icon() {
+    let (Some(data), Some(image), Some(application)) = (
+        AnyClass::get(c"NSData"),
+        AnyClass::get(c"NSImage"),
+        AnyClass::get(c"NSApplication"),
+    ) else {
+        return;
+    };
+    // SAFETY: each message is one these Foundation and AppKit classes answer, with arguments of
+    // the types they take, on the main thread where winit runs: `dataWithBytes:length:` gives
+    // autoreleased data, which `initWithData:` reads, and `setApplicationIconImage:` takes the
+    // image or nil. The image made with `alloc` is never released: it lasts as long as the app.
+    unsafe {
+        let bytes: *mut AnyObject =
+            msg_send![data, dataWithBytes: ICON.as_ptr().cast::<c_void>(), length: ICON.len()];
+        let allocated: *mut AnyObject = msg_send![image, alloc];
+        let icon: *mut AnyObject = msg_send![allocated, initWithData: bytes];
+        let app: *mut AnyObject = msg_send![application, sharedApplication];
+        let _: () = msg_send![app, setApplicationIconImage: icon];
+    }
 }
 
 /// Must run once the event loop exists, which creating the window ensures.

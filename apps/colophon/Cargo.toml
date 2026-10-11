@@ -7,6 +7,11 @@ license.workspace = true
 repository.workspace = true
 publish = false
 
+# Outside an app bundle, as under `cargo run`, macOS names the app after its executable.
+[[bin]]
+name = "Colophon"
+path = "src/main.rs"
+
 [dependencies]
 arboard.workspace = true
 colophon-engine.workspace = true

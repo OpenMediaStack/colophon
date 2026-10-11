@@ -141,6 +141,9 @@ fn main() -> Result<(), PlatformError> {
     })?;
     take_dropped_files(&window);
     #[cfg(target_os = "macos")]
-    macos::ask_window_before_terminating(&window);
+    {
+        macos::show_icon();
+        macos::ask_window_before_terminating(&window);
+    }
     window.run()
 }
