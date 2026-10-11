@@ -39,14 +39,17 @@ fn window_with(copies: &[(&str, &str)]) -> Result<(AppWindow, TempDir), Box<dyn 
 }
 
 #[test]
-fn the_inspector_is_empty_until_a_folder_opens() -> TestResult {
+fn the_inspector_waits_for_a_folder() -> TestResult {
     common::use_testing_backend()?;
     let window = colophon_ui::main_window(Engine::new(), || None)?;
     common::prepare(&window, 1440.0, 900.0)?;
     window.show()?;
 
-    assert!(shows(&window, "Inspector"));
-    assert!(!shows(&window, "Select tracks to see their tags"));
+    assert!(!shows(&window, "Inspector"));
+    assert_eq!(
+        find(&window, "Toggle inspector")?.accessible_enabled(),
+        Some(false)
+    );
     Ok(())
 }
 

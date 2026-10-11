@@ -142,7 +142,7 @@ export component AppWindow inherits Window {
         { label: @tr("Write ID3v1.0 to the selected files"), category: @tr("Tags"), enabled: root.developer-mode && root.selected-count > 0, action: PaletteAction.write-id3v1-0 },
         { label: @tr("Remove ID3v1 from the selected files…"), category: @tr("Tags"), enabled: root.developer-mode && root.selected-count > 0, action: PaletteAction.remove-id3v1 },
         { label: root.sidebar-visible ? @tr("Hide Sidebar") : @tr("Show Sidebar"), category: @tr("View"), enabled: root.folder-open, action: PaletteAction.toggle-sidebar },
-        { label: root.inspector-visible ? @tr("Hide Inspector") : @tr("Show Inspector"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-inspector },
+        { label: root.inspector-visible ? @tr("Hide Inspector") : @tr("Show Inspector"), category: @tr("View"), enabled: root.folder-open, action: PaletteAction.toggle-inspector },
         { label: root.columns.artist ? @tr("Hide the Artist column") : @tr("Show the Artist column"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-artist },
         { label: root.columns.album ? @tr("Hide the Album column") : @tr("Show the Album column"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-album },
         { label: root.columns.year ? @tr("Hide the Year column") : @tr("Show the Year column"), category: @tr("View"), enabled: true, action: PaletteAction.toggle-year },
@@ -259,13 +259,15 @@ export component AppWindow inherits Window {
     property <length> inspector-width: 320px;
     property <length> centre-min-width: 560px;
     property <bool> sidebar-fits: true;
-    // With nothing open, the sidebar has nothing to list, and the first launch screen takes its room.
+    // With nothing open, the panels have nothing to show, and the first launch screen takes their
+    // room.
     property <bool> sidebar-shown: root.sidebar-visible && root.sidebar-fits && root.folder-open;
+    property <bool> inspector-shown: root.inspector-visible && root.folder-open;
 
     // The sidebar gives way when the centre column would get too narrow. This is a changed
     // handler rather than a binding because the window's width itself depends on the sidebar.
     function update-sidebar-fit() {
-        root.sidebar-fits = root.width - root.sidebar-width - (root.inspector-visible ? root.inspector-width : 0px) >= root.centre-min-width;
+        root.sidebar-fits = root.width - root.sidebar-width - (root.inspector-shown ? root.inspector-width : 0px) >= root.centre-min-width;
     }
 
     init => {
@@ -274,7 +276,7 @@ export component AppWindow inherits Window {
     changed width => {
         root.update-sidebar-fit();
     }
-    changed inspector-visible => {
+    changed inspector-shown => {
         root.update-sidebar-fit();
     }
 
@@ -452,6 +454,7 @@ export component AppWindow inherits Window {
             MenuItem {
                 title: root.inspector-visible ? @tr("Hide Inspector") : @tr("Show Inspector");
                 shortcut: @keys(Control + Alt + I);
+                enabled: root.folder-open;
                 activated => {
                     root.run(Command.toggle-inspector);
                 }
@@ -581,7 +584,8 @@ export component AppWindow inherits Window {
                     icon: @image-url("images/panel-right.svg");
                     label: @tr("Toggle inspector");
                     checkable: true;
-                    checked: root.inspector-visible;
+                    checked: root.inspector-visible && root.folder-open;
+                    enabled: root.folder-open;
                     clicked => {
                         root.run(Command.toggle-inspector);
                     }
@@ -705,7 +709,7 @@ export component AppWindow inherits Window {
                 }
             }
 
-            if root.inspector-visible: Inspector {
+            if root.inspector-shown: Inspector {
                 width: root.inspector-width;
                 state: root.inspector-state;
                 tracks: root.inspected-tracks;
