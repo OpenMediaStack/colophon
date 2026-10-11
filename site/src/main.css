@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* Colophon's colours, from the app's dark theme, and its fonts. */
+@theme {
+  --font-sans: "Inter Variable", -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --font-serif: "Newsreader Variable", Georgia, serif;
+
+  --color-ground: #0c0c0e;
+  --color-surface: #121214;
+  --color-raised: #18181b;
+  --color-overlay: #202024;
+  --color-line-soft: #222226;
+  --color-line: #2c2c31;
+  --color-line-strong: #3a3a40;
+  --color-ink: #ececee;
+  --color-muted: #a1a1aa;
+  --color-subtle: #8a8a93;
+  --color-accent: #eab308;
+  --color-accent-hover: #facc15;
+  --color-on-accent: #1a1405;
+  --color-highlight: #3a3118;
+
+  --animate-ticker: ticker 70s linear infinite;
+
+  @keyframes ticker {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 4.5rem;
+  }
+
+  body {
+    @apply bg-ground font-sans text-ink antialiased;
+  }
+}
+
+/* The small uppercase labels of the sections, the cards and the navigation. */
+@utility label {
+  @apply font-mono text-xs tracking-[0.1em] uppercase;
+}

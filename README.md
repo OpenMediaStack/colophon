@@ -6,6 +6,8 @@
 
 <p align="center">
   A desktop MP3 tag editor for macOS, Windows and Linux.
+  <br />
+  <a href="https://openmediastack.github.io/colophon/">openmediastack.github.io/colophon</a>
 </p>
 
 <p align="center">
