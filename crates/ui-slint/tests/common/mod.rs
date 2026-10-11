@@ -13,6 +13,9 @@ use slint::platform::{Key, PointerEventButton, SetPlatformError, WindowEvent};
 use slint::{LogicalPosition, LogicalSize, SharedString};
 use tempfile::TempDir;
 
+/// How long a test waits for a thread or a timer, in real time: long enough for a busy machine,
+/// and a test that passes waits no longer than it must.
+const PATIENCE: Duration = Duration::from_secs(20);
 pub type TestResult = Result<(), Box<dyn Error>>;
 
 /// Runs Slint on its testing backend: no window on screen, mocked time, and the software renderer for captures.
@@ -129,7 +132,7 @@ pub fn folder_with_fixture(fixture: &str, name: &str) -> Result<TempDir, Box<dyn
 
 /// Lets the scan thread work and the window's timers fire, until `label` shows or a few seconds pass.
 pub fn wait_until_shown(window: &AppWindow, label: &str) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let deadline = Instant::now() + PATIENCE;
     while !shows(window, label) {
         if Instant::now() > deadline {
             return Err(format!("{label:?} never showed").into());
@@ -266,7 +269,7 @@ pub fn retype(window: &AppWindow, label: &str, text: &str) -> TestResult {
 /// Lets the engine's threads work and the window's timers fire, until `done` holds or a few
 /// seconds pass.
 pub fn wait_until(window: &AppWindow, what: &str, done: impl Fn(&AppWindow) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(5);
+    let deadline = Instant::now() + PATIENCE;
     while !done(window) {
         if Instant::now() > deadline {
             return Err(format!("{what} never happened").into());
