@@ -7,6 +7,9 @@
 //!
 //! Outside an app bundle, as under `cargo run`, the Dock shows no icon for the app: Colophon
 //! shows its own.
+//!
+//! The About item of the app menu, which Slint makes, opens AppKit's standard panel: Colophon
+//! opens its own dialog instead, with the licenses of what it ships.
 
 #![allow(unsafe_code)]
 
@@ -22,9 +25,12 @@ const TERMINATE_CANCEL: usize = 0;
 const TERMINATE_NOW: usize = 1;
 
 type ShouldTerminate = extern "C-unwind" fn(&AnyObject, Sel, *mut AnyObject) -> usize;
+/// `orderFrontStandardAboutPanel:`.
+type AboutPanel = extern "C-unwind" fn(&AnyObject, Sel, *mut AnyObject);
 
 thread_local! {
     static CLOSE_WINDOW: RefCell<Option<Box<dyn Fn() -> bool>>> = RefCell::default();
+    static SHOW_ABOUT: RefCell<Option<Box<dyn Fn()>>> = RefCell::default();
 }
 
 /// The icon of the Dock and the app switcher, large enough for the largest Retina Dock.
@@ -87,4 +93,34 @@ extern "C-unwind" fn should_terminate(_: &AnyObject, _: Sel, _: *mut AnyObject) 
     } else {
         TERMINATE_CANCEL
     }
+}
+
+/// Must run once the event loop exists, which creating the window ensures.
+pub fn show_about_from_app_menu(window: &AppWindow) {
+    let Some(method) = AnyClass::get(c"NSApplication")
+        .and_then(|application| application.instance_method(sel!(orderFrontStandardAboutPanel:)))
+    else {
+        return;
+    };
+    let window = window.as_weak();
+    SHOW_ABOUT.set(Some(Box::new(move || {
+        if let Some(window) = window.upgrade() {
+            window.invoke_show_about();
+        }
+    })));
+    let show_about: AboutPanel = show_about;
+    // SAFETY: `show_about` has the type of `orderFrontStandardAboutPanel:`: nothing returned,
+    // then the receiver, the selector and the sender. AppKit only sends it on the main thread,
+    // where `SHOW_ABOUT` lives.
+    unsafe {
+        method.set_implementation(std::mem::transmute::<AboutPanel, Imp>(show_about));
+    }
+}
+
+extern "C-unwind" fn show_about(_: &AnyObject, _: Sel, _: *mut AnyObject) {
+    SHOW_ABOUT.with_borrow(|show| {
+        if let Some(show) = show {
+            show();
+        }
+    });
 }
