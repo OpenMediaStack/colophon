@@ -1,6 +1,5 @@
-//! How loud a track is over its length: the lowest and highest sample of each slice, and how loud
-//! its bass and its treble are, at several resolutions, so that a waveform of any width draws at
-//! once.
+//! How loud a track is over its length: the lowest and highest sample of each slice, and how
+//! loud it sounds, at several resolutions, so that a waveform of any width draws at once.
 
 use std::path::Path;
 use std::time::Duration;
@@ -12,48 +11,42 @@ use crate::decoder;
 
 /// The frames of a slice of the finest resolution.
 const FRAMES_PER_PEAK: usize = 256;
-/// Where the bass ends and the treble starts, in hertz.
-const BASS_BELOW: f32 = 250.0;
-const TREBLE_ABOVE: f32 = 4000.0;
 
-/// The lowest and the highest sample of a slice, from -1 to 1, and the loudest sample of its bass
-/// and of its treble, from 0 to 1.
+/// The lowest and the highest sample of a slice, from -1 to 1, and what tells how loud it sounds.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Peak {
     pub low: f32,
     pub high: f32,
-    pub bass: f32,
-    pub treble: f32,
+    /// The sum of the squares of its samples, and how many there are.
+    squares: f64,
+    frames: u32,
 }
 
 impl Peak {
+    fn of(sample: f32) -> Peak {
+        Peak {
+            low: sample,
+            high: sample,
+            squares: f64::from(sample) * f64::from(sample),
+            frames: 1,
+        }
+    }
+
     fn merge(self, other: Peak) -> Peak {
         Peak {
             low: self.low.min(other.low),
             high: self.high.max(other.high),
-            bass: self.bass.max(other.bass),
-            treble: self.treble.max(other.treble),
-        }
-    }
-}
-
-/// A one-pole low-pass filter: what of a signal lies below its frequency.
-struct LowPass {
-    weight: f32,
-    value: f32,
-}
-
-impl LowPass {
-    fn new(frequency: f32, rate: u32) -> Self {
-        Self {
-            weight: 1.0 - (-std::f32::consts::TAU * frequency / rate.max(1) as f32).exp(),
-            value: 0.0,
+            squares: self.squares + other.squares,
+            frames: self.frames.saturating_add(other.frames),
         }
     }
 
-    fn pass(&mut self, sample: f32) -> f32 {
-        self.value += self.weight * (sample - self.value);
-        self.value
+    /// How loud the slice sounds: the root mean square of its samples, from 0 to 1.
+    pub fn loudness(self) -> f32 {
+        if self.frames == 0 {
+            return 0.0;
+        }
+        (self.squares / f64::from(self.frames)).sqrt() as f32
     }
 }
 
@@ -82,8 +75,6 @@ impl Waveform {
         rate: u32,
     ) -> Self {
         let channels = channels.max(1);
-        let mut bass = LowPass::new(BASS_BELOW, rate);
-        let mut below_treble = LowPass::new(TREBLE_ABOVE, rate);
         let mut finest = Vec::new();
         let mut current: Option<Peak> = None;
         let mut frames = 0;
@@ -100,12 +91,7 @@ impl Waveform {
             sum = 0.0;
             in_frame = 0;
             total_frames += 1;
-            let peak = Peak {
-                low: value,
-                high: value,
-                bass: bass.pass(value).abs(),
-                treble: (value - below_treble.pass(value)).abs(),
-            };
+            let peak = Peak::of(value);
             current = Some(current.map_or(peak, |current| current.merge(peak)));
             frames += 1;
             if frames == FRAMES_PER_PEAK {
@@ -135,7 +121,8 @@ impl Waveform {
     }
 
     /// `count` peaks across the whole track, each from the frames of its share of the track, read
-    /// from the coarsest level whose peaks are no longer than a share. Empty for an empty file.
+    /// from the coarsest level whose peaks are no longer than an eighth of a share, so that a
+    /// share takes in little of its neighbours. Empty for an empty file.
     pub fn peaks(&self, count: usize) -> Vec<Peak> {
         if count == 0 || self.frames == 0 {
             return Vec::new();
@@ -146,7 +133,7 @@ impl Waveform {
             .iter()
             .enumerate()
             .rev()
-            .find(|(level, _)| (FRAMES_PER_PEAK as u64) << level <= share.max(1))
+            .find(|(level, _)| (FRAMES_PER_PEAK as u64) << level <= (share / 8).max(1))
             .or_else(|| self.levels.iter().enumerate().next());
         let Some((level, peaks)) = level else {
             return Vec::new();
@@ -229,19 +216,18 @@ mod tests {
     }
 
     #[test]
-    fn a_low_tone_is_bass_and_a_high_one_treble() {
-        let tone = |frequency: f32| {
-            let samples = (0..44_100).map(move |at| {
-                0.5 * (std::f32::consts::TAU * frequency * at as f32 / 44_100.0).sin()
-            });
-            Waveform::from_samples(samples, 1, 44_100).peaks(1)[0]
-        };
+    fn loudness_is_the_root_mean_square() {
+        let sine = (0..44_100)
+            .map(|at| 0.5 * (std::f32::consts::TAU * 440.0 * at as f32 / 44_100.0).sin());
+        let silence = std::iter::repeat_n(0.0, 44_100);
+        let waveform = Waveform::from_samples(sine.chain(silence), 1, 44_100);
 
-        let low = tone(60.0);
-        let high = tone(10_000.0);
+        let halves = waveform.peaks(2);
 
-        assert!(low.bass > 0.3 && low.treble < 0.05, "{low:?}");
-        assert!(high.treble > 0.3 && high.bass < 0.05, "{high:?}");
+        // A sine's root mean square is its amplitude over the square root of two.
+        assert!((halves[0].loudness() - 0.5 / 2_f32.sqrt()).abs() < 0.01);
+        // The slice that straddles the middle lends the silence a little of the sine.
+        assert!(halves[1].loudness() < 0.1);
     }
 
     #[test]

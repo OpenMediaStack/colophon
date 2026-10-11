@@ -57,40 +57,6 @@ component Scrub inherits Rectangle {
     }
 }
 
-// A waveform in three layers of white bars to tint: the whole sound, its bass, its treble.
-component WaveformLayers inherits Rectangle {
-    in property <image> sound;
-    in property <image> bass;
-    in property <image> treble;
-    in property <color> sound-color;
-    in property <color> bass-color;
-    in property <color> treble-color;
-
-    Image {
-        width: 100%;
-        height: 100%;
-        source: root.sound;
-        image-fit: fill;
-        colorize: root.sound-color;
-    }
-
-    Image {
-        width: 100%;
-        height: 100%;
-        source: root.bass;
-        image-fit: fill;
-        colorize: root.bass-color;
-    }
-
-    Image {
-        width: 100%;
-        height: 100%;
-        source: root.treble;
-        image-fit: fill;
-        colorize: root.treble-color;
-    }
-}
-
 // The bar under the table: what plays, its controls, where it is and how loud.
 export component PlayerBar inherits Rectangle {
     // A sound device exists.
@@ -105,12 +71,11 @@ export component PlayerBar inherits Rectangle {
     in property <string> duration;
     // From 0 to 1.
     in property <float> volume;
-    // The playing track's waveform, white bars to tint, once read: the whole sound, then its bass
-    // and its treble.
-    in property <image> waveform;
-    in property <image> bass;
-    in property <image> treble;
+    // The playing track's waveform: how loud each bar sounds, from 0 to 1, once read; flat until
+    // then. The bar asks for as many bars as its width holds.
+    in property <[float]> bars;
     in property <bool> has-waveform;
+    callback bars-wanted(int);
     callback play-pause;
     callback previous;
     callback next;
@@ -122,7 +87,7 @@ export component PlayerBar inherits Rectangle {
     property <bool> with-volume: true;
 
     function update-volume-fit() {
-        root.with-volume = root.width >= 700px;
+        root.with-volume = root.width >= 800px;
     }
 
     init => {
@@ -199,7 +164,7 @@ export component PlayerBar inherits Rectangle {
         }
 
         VerticalLayout {
-            width: 180px;
+            width: 140px;
             alignment: center;
 
             Text {
@@ -225,59 +190,67 @@ export component PlayerBar inherits Rectangle {
             color: Theme.text-secondary;
         }
 
-        if !root.has-waveform: Scrub {
-            y: (parent.height - self.height) / 2;
-            horizontal-stretch: 1;
-            label: @tr("Position");
-            value: root.progress;
-            enabled: root.has-track;
-            moved-to(value) => {
-                root.seek(value);
-            }
-        }
-
         // The part played in the accent colour, the rest in grey; a click or a drag moves there.
-        if root.has-waveform: waveform-area := Rectangle {
+        waveform-area := Rectangle {
+            // A bar of 2 points every 3 points: a bar for every second or two of a song.
+            property <length> stride: 3px;
+            property <length> bar-width: 2px;
+            // Where the bars end, and where the played part does, to the point.
+            property <length> bars-end: root.bars.length * self.stride - (self.stride - self.bar-width);
+
+            function want-bars() {
+                root.bars-wanted(max(1, floor((self.width + self.stride - self.bar-width) / self.stride)));
+            }
+
             horizontal-stretch: 1;
             height: 36px;
             y: (parent.height - self.height) / 2;
+            // Bars asked for a wider area wait out of sight until the new ones come.
+            clip: true;
             accessible-role: slider;
             accessible-label: @tr("Position");
             accessible-value: round(root.progress * 100);
             accessible-value-minimum: 0;
             accessible-value-maximum: 100;
-
-            WaveformLayers {
-                sound: root.waveform;
-                bass: root.bass;
-                treble: root.treble;
-                sound-color: Theme.border-strong;
-                bass-color: Theme.text-tertiary.transparentize(50%);
-                treble-color: Theme.text-tertiary.transparentize(70%);
+            accessible-enabled: root.has-track;
+            init => {
+                self.want-bars();
+            }
+            changed width => {
+                self.want-bars();
             }
 
+            for loudness[index] in root.bars: Rectangle {
+                x: index * waveform-area.stride;
+                width: waveform-area.bar-width;
+                height: max(2px, loudness * waveform-area.height);
+                y: (waveform-area.height - self.height) / 2;
+                border-radius: 1px;
+                background: Theme.border-strong;
+            }
+
+            // The same bars in the accent colour, cut where the track has got to.
             Rectangle {
                 x: 0;
-                width: parent.width * root.progress;
+                width: waveform-area.bars-end * root.progress;
                 clip: true;
 
-                WaveformLayers {
-                    x: 0;
-                    width: waveform-area.width;
-                    sound: root.waveform;
-                    bass: root.bass;
-                    treble: root.treble;
-                    sound-color: Theme.accent.transparentize(60%);
-                    bass-color: Theme.accent;
-                    treble-color: Theme.text-primary.transparentize(45%);
+                for loudness[index] in root.bars: Rectangle {
+                    x: index * waveform-area.stride;
+                    width: waveform-area.bar-width;
+                    height: max(2px, loudness * waveform-area.height);
+                    y: (waveform-area.height - self.height) / 2;
+                    border-radius: 1px;
+                    background: Theme.accent;
                 }
             }
 
-            waveform-touch := TouchArea {
+            TouchArea {
                 function at(x: length) -> float {
                     return max(0, min(1, x / self.width));
                 }
 
+                enabled: root.has-track;
                 pointer-event(event) => {
                     if event.kind == PointerEventKind.down && event.button == PointerEventButton.left {
                         root.seek(self.at(self.mouse-x));

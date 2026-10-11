@@ -356,6 +356,16 @@ pub fn main_window_keeping(
             });
         }
     });
+    window.on_player_bars_wanted({
+        let bridge = Rc::clone(&bridge);
+        move |count| {
+            let mut drawing = bridge.waveform.borrow_mut();
+            drawing.bars = usize::try_from(count).unwrap_or(0);
+            if let Some(window) = bridge.window.upgrade() {
+                show_bars(&window, &drawing);
+            }
+        }
+    });
     window.on_filter_palette(|entries, query| {
         ModelRc::new(VecModel::from(palette::matches(entries.iter(), &query)))
     });
@@ -564,18 +574,13 @@ struct DrawnSpectrum {
     highest: Option<u32>,
 }
 
-/// The track whose waveform shows or is being read.
+/// The track whose waveform shows or is being read, and how many bars the player draws.
 #[derive(Default)]
 struct WaveformDrawing {
     track: Option<usize>,
-    reading: Option<Receiver<Option<WaveformBars>>>,
-}
-
-/// A waveform's bars: the whole sound, its bass and its treble.
-struct WaveformBars {
-    sound: SharedPixelBuffer<Rgba8Pixel>,
-    bass: SharedPixelBuffer<Rgba8Pixel>,
-    treble: SharedPixelBuffer<Rgba8Pixel>,
+    reading: Option<Receiver<Option<colophon_player::Waveform>>>,
+    waveform: Option<colophon_player::Waveform>,
+    bars: usize,
 }
 
 /// Album covers drawn small, by the address of their shared bytes, and those being drawn.
@@ -1324,7 +1329,8 @@ impl Bridge {
         }
         drawing.track = playing;
         drawing.reading = None;
-        window.set_player_has_waveform(false);
+        drawing.waveform = None;
+        show_bars(window, &drawing);
         let Some(path) = playing
             .and_then(|track| engine.library().tracks.get(track))
             .map(|track| track.path.clone())
@@ -1335,15 +1341,7 @@ impl Bridge {
         let spawned = std::thread::Builder::new()
             .name("waveform".to_string())
             .spawn(move || {
-                let bars = colophon_player::Waveform::read(&path).ok().map(|waveform| {
-                    let peaks = waveform.peaks(WAVEFORM_BARS);
-                    WaveformBars {
-                        sound: waveform_bars(&peaks, |peak| (peak.low, peak.high)),
-                        bass: waveform_bars(&peaks, |peak| (-peak.bass, peak.bass)),
-                        treble: waveform_bars(&peaks, |peak| (-peak.treble, peak.treble)),
-                    }
-                });
-                let _ = sender.send(bars);
+                let _ = sender.send(colophon_player::Waveform::read(&path).ok());
             });
         if spawned.is_ok() {
             drawing.reading = Some(reading);
@@ -1454,17 +1452,15 @@ impl Bridge {
         let Some(reading) = &drawing.reading else {
             return;
         };
-        let bars = match reading.try_recv() {
-            Ok(bars) => bars,
+        let waveform = match reading.try_recv() {
+            Ok(waveform) => waveform,
             Err(TryRecvError::Empty) => return,
             Err(TryRecvError::Disconnected) => None,
         };
         drawing.reading = None;
-        if let (Some(window), Some(bars)) = (self.window.upgrade(), bars) {
-            window.set_player_waveform(Image::from_rgba8(bars.sound));
-            window.set_player_bass(Image::from_rgba8(bars.bass));
-            window.set_player_treble(Image::from_rgba8(bars.treble));
-            window.set_player_has_waveform(true);
+        drawing.waveform = waveform;
+        if let Some(window) = self.window.upgrade() {
+            show_bars(&window, &drawing);
         }
     }
 
@@ -1954,40 +1950,30 @@ fn field<T>(value: &Shared<T>, modified: bool, text: impl Fn(&T) -> String) -> I
 /// screen.
 const COVER_PIXELS: u32 = 128;
 
-/// The bars of the player's waveform, and their size in pixels: a bar and a gap.
-const WAVEFORM_BARS: usize = 240;
-const BAR_WIDTH: u32 = 2;
-const BAR_STRIDE: u32 = 3;
-const WAVEFORM_HEIGHT: u32 = 72;
+/// Draws the player's bars: as loud as each share of the track sounds, the loudest at full
+/// height, once the waveform is read; flat until then.
+fn show_bars(window: &AppWindow, drawing: &WaveformDrawing) {
+    let heights = match &drawing.waveform {
+        Some(waveform) => bar_heights(&waveform.peaks(drawing.bars)),
+        None => vec![0.0; drawing.bars],
+    };
+    window.set_player_bars(ModelRc::new(VecModel::from(heights)));
+    window.set_player_has_waveform(drawing.waveform.is_some());
+}
 
-/// White bars on transparency, one per peak from the lowest to the highest value `extent` gives
-/// it, that the window tints.
-fn waveform_bars(
-    peaks: &[colophon_player::Peak],
-    extent: impl Fn(&colophon_player::Peak) -> (f32, f32),
-) -> SharedPixelBuffer<Rgba8Pixel> {
-    let width = u32::try_from(peaks.len()).unwrap_or(0) * BAR_STRIDE;
-    let mut buffer = SharedPixelBuffer::<Rgba8Pixel>::new(width.max(1), WAVEFORM_HEIGHT);
-    let middle = WAVEFORM_HEIGHT as f32 / 2.0;
-    let row_length = buffer.width() as usize;
-    let pixels = buffer.make_mut_slice();
-    for (bar, peak) in peaks.iter().enumerate() {
-        let (low, high) = extent(peak);
-        // At least a line, so that silence still shows where the track is.
-        let top = (middle - high.clamp(0.0, 1.0) * middle).min(middle - 1.0) as usize;
-        let bottom = (middle - low.clamp(-1.0, 0.0) * middle).max(middle + 1.0) as usize;
-        let left = bar * BAR_STRIDE as usize;
-        for row in top..bottom.min(WAVEFORM_HEIGHT as usize) {
-            let start = row * row_length + left;
-            pixels[start..start + BAR_WIDTH as usize].fill(Rgba8Pixel {
-                r: 255,
-                g: 255,
-                b: 255,
-                a: 255,
-            });
-        }
-    }
-    buffer
+/// How loud each peak sounds beside the loudest, from 0 to 1.
+fn bar_heights(peaks: &[colophon_player::Peak]) -> Vec<f32> {
+    let loudest = peaks.iter().map(|peak| peak.loudness()).fold(0.0, f32::max);
+    peaks
+        .iter()
+        .map(|peak| {
+            if loudest > 0.0 {
+                peak.loudness() / loudest
+            } else {
+                0.0
+            }
+        })
+        .collect()
 }
 
 /// The inspector's spectrum, in pixels: twice the 288 by 96 points it is drawn at.
@@ -2791,33 +2777,16 @@ mod tests {
     }
 
     #[test]
-    fn each_band_of_a_waveform_draws_bars_as_high_as_it_is_loud() {
-        let peaks = [colophon_player::Peak {
-            low: -1.0,
-            high: 1.0,
-            bass: 0.5,
-            treble: 0.0,
-        }];
-        let rows = |bars: SharedPixelBuffer<Rgba8Pixel>| {
-            bars.as_slice()
-                .chunks(bars.width() as usize)
-                .filter(|row| row[0].a == 255)
-                .count()
-        };
+    fn the_loudest_bar_stands_full_height() {
+        let loud = std::iter::repeat_n(0.5, 8192);
+        let quiet = std::iter::repeat_n(-0.25, 8192);
+        let waveform = colophon_player::Waveform::from_samples(loud.chain(quiet), 1, 8192);
 
-        assert_eq!(
-            rows(waveform_bars(&peaks, |peak| (peak.low, peak.high))),
-            72
-        );
-        assert_eq!(
-            rows(waveform_bars(&peaks, |peak| (-peak.bass, peak.bass))),
-            36
-        );
-        // Silence still draws a line.
-        assert_eq!(
-            rows(waveform_bars(&peaks, |peak| (-peak.treble, peak.treble))),
-            2
-        );
+        let heights = bar_heights(&waveform.peaks(2));
+
+        assert!((heights[0] - 1.0).abs() < 1e-3, "{heights:?}");
+        assert!((heights[1] - 0.5).abs() < 1e-3, "{heights:?}");
+        assert!(bar_heights(&[]).is_empty());
     }
 
     #[test]
