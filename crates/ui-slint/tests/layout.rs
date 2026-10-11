@@ -7,11 +7,10 @@ use slint::LogicalSize;
 
 use common::{TestResult, assert_matches_reference, select_language, shows};
 
-/// What a fresh window shows: the first launch screen and the panels around it, without the
-/// player until a track plays.
-const REGIONS: [&str; 5] = [
+/// What a fresh window shows: the first launch screen and the inspector, without the sidebar
+/// until something is open, nor the player until a track plays.
+const REGIONS: [&str; 4] = [
     "Filter",
-    "Sidebar",
     "Open your music folder",
     "Inspector",
     "No folder open",
@@ -36,20 +35,38 @@ fn a_large_window_shows_every_region() -> TestResult {
     Ok(())
 }
 
+/// A window of the given size with a folder open, so that the sidebar has something to show.
+fn window_with_a_folder(width: f32, height: f32) -> Result<AppWindow, Box<dyn Error>> {
+    let window = new_window(width, height)?;
+    window.set_folder_open(true);
+    Ok(window)
+}
+
+#[test]
+fn the_sidebar_waits_for_something_open() -> TestResult {
+    let window = new_window(1440.0, 900.0)?;
+    window.show()?;
+    assert!(!shows(&window, "Sidebar"));
+
+    window.set_folder_open(true);
+
+    assert!(shows(&window, "Sidebar"));
+    Ok(())
+}
+
 #[test]
 fn the_sidebar_gives_way_in_a_small_window() -> TestResult {
-    let window = new_window(960.0, 600.0)?;
+    let window = window_with_a_folder(960.0, 600.0)?;
     window.show()?;
 
     assert!(!shows(&window, "Sidebar"));
-    assert!(shows(&window, "Open your music folder"));
     assert!(shows(&window, "Inspector"));
     Ok(())
 }
 
 #[test]
 fn the_sidebar_comes_back_when_the_window_grows() -> TestResult {
-    let window = new_window(960.0, 600.0)?;
+    let window = window_with_a_folder(960.0, 600.0)?;
     window.show()?;
     assert!(!shows(&window, "Sidebar"));
 
@@ -62,7 +79,7 @@ fn the_sidebar_comes_back_when_the_window_grows() -> TestResult {
 
 #[test]
 fn hiding_the_inspector_makes_room_for_the_sidebar() -> TestResult {
-    let window = new_window(960.0, 600.0)?;
+    let window = window_with_a_folder(960.0, 600.0)?;
     window.set_inspector_visible(false);
     window.show()?;
 
@@ -73,14 +90,13 @@ fn hiding_the_inspector_makes_room_for_the_sidebar() -> TestResult {
 
 #[test]
 fn hidden_panels_are_not_shown() -> TestResult {
-    let window = new_window(1440.0, 900.0)?;
+    let window = window_with_a_folder(1440.0, 900.0)?;
     window.set_sidebar_visible(false);
     window.set_inspector_visible(false);
     window.show()?;
 
     assert!(!shows(&window, "Sidebar"));
     assert!(!shows(&window, "Inspector"));
-    assert!(shows(&window, "Open your music folder"));
     Ok(())
 }
 
@@ -91,7 +107,7 @@ fn the_regions_are_named_in_french_when_selected() -> TestResult {
     window.show()?;
 
     assert!(shows(&window, "Ouvrez votre dossier de musique"));
-    assert!(shows(&window, "Barre latérale"));
+    assert!(shows(&window, "Inspecteur"));
     Ok(())
 }
 
