@@ -18,8 +18,11 @@ import { TagEditing, TagField } from "tag-editing.slint";
 import { Id3v1Policy, Settings } from "settings.slint";
 import { CommandPalette, PaletteAction, PaletteEntry, PaletteMatch } from "palette.slint";
 import { Toast, ToastMessage, ToastView } from "toast.slint";
+import { About, Notice } from "about.slint";
+// Tests set its colour scheme, which Slint's credit in the About dialog follows.
+import { Palette } from "std-widgets.slint";
 
-export { Theme, FrameKind, TagFrame, TagLayout, Toast, ToastMessage, Id3v1Policy, PaletteAction, PaletteEntry, PaletteMatch, CoverState, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile }
+export { Theme, FrameKind, TagFrame, TagLayout, Toast, ToastMessage, Id3v1Policy, PaletteAction, PaletteEntry, PaletteMatch, CoverState, SidebarItem, SourceKind, SortColumn, UnsavedChoice, RemovedTag, TagRemoval, ScanState, TrackColumnWidths, TrackColumn, TrackColumns, TrackRow, TrackStatus, BitrateMode, ByteSize, Id3v1Losses, InspectedTracks, TagEditing, TagField, InspectorField, InspectorState, ReadProblem, SizeUnit, UnreadableFile, Notice, Palette }
 
 // What files dragged from the system over the window would do: open folders and audio files,
 // or replace the cover of the selected tracks with an image.
@@ -72,8 +75,9 @@ export component AppWindow inherits Window {
         file: false,
         folder: false,
     };
-    // How shortcuts are written: Command O on macOS, Ctrl+O elsewhere. Tests set it so that their
-    // reference captures do not depend on the machine.
+    // How shortcuts are written: Command O on macOS, Ctrl+O elsewhere, and where About is: in the
+    // application menu on macOS, in a Help menu elsewhere. Tests set it so that their reference
+    // captures do not depend on the machine.
     in property <bool> mac-shortcuts: Platform.os == OperatingSystemType.macos;
     callback run(Command);
     // Set once the user has resized a column.
@@ -104,7 +108,7 @@ export component AppWindow inherits Window {
     in property <TagRemoval> removal;
     callback removal-answered(bool);
     // A dialog is up: the menu items that act on the library wait for it.
-    property <bool> modal: root.asking-to-save || root.confirming-removal || root.settings-open || root.palette-open;
+    property <bool> modal: root.asking-to-save || root.confirming-removal || root.settings-open || root.palette-open || root.about-open;
     // The settings: the ID3v2 version written by default is 2.3 rather than 2.4, and the files
     // that get an ID3v1 tag.
     in-out property <bool> settings-open;
@@ -113,6 +117,12 @@ export component AppWindow inherits Window {
     callback choose-id3v2-3(bool);
     callback choose-id3v1-policy(Id3v1Policy);
     property <bool> linux: Platform.os == OperatingSystemType.linux;
+    // The About dialog, with Colophon's version and what it ships, which the bridge gives when
+    // the dialog asks for it.
+    in-out property <bool> about-open;
+    in property <string> version;
+    in property <[Notice]> notices;
+    callback notices-wanted;
     // The command palette, and what the bridge does with it: keep the entries that hold what is
     // typed, and run the one chosen.
     in-out property <bool> palette-open;
@@ -124,6 +134,7 @@ export component AppWindow inherits Window {
         { label: @tr("Open Files…"), category: @tr("File"), enabled: true, action: PaletteAction.open-files },
         { label: @tr("Save"), category: @tr("File"), enabled: root.modified-count > 0 && !root.saving, action: PaletteAction.save },
         { label: root.linux ? @tr("Preferences…") : root.windows-buttons ? @tr("Options…") : @tr("Settings…"), category: @tr("File"), enabled: true, action: PaletteAction.settings },
+        { label: @tr("About Colophon"), category: @tr("Help"), enabled: true, action: PaletteAction.about },
         { label: @tr("Undo"), category: @tr("Edit"), enabled: root.can-undo, action: PaletteAction.undo },
         { label: @tr("Redo"), category: @tr("Edit"), enabled: root.can-redo, action: PaletteAction.redo },
         { label: @tr("Find"), category: @tr("Edit"), enabled: root.folder-open, action: PaletteAction.find },
@@ -163,6 +174,13 @@ export component AppWindow inherits Window {
 
     public function focus-filter() {
         filter.focus-field();
+    }
+
+    // Opens the About dialog, unless another dialog is up.
+    public function show-about() {
+        if !root.modal {
+            root.about-open = true;
+        }
     }
     // Dialog buttons in the order of Windows. Tests set it so that their captures do not depend
     // on the machine.
@@ -462,6 +480,19 @@ export component AppWindow inherits Window {
                 }
             }
 
+        }
+
+        // macOS has About in the application menu, which Slint makes.
+        if !root.mac-shortcuts: Menu {
+            title: @tr("Help");
+
+            MenuItem {
+                title: @tr("About Colophon");
+                enabled: !root.modal;
+                activated => {
+                    root.about-open = true;
+                }
+            }
         }
     }
 
@@ -868,6 +899,20 @@ export component AppWindow inherits Window {
         }
         close => {
             root.settings-open = false;
+        }
+    }
+
+    if root.about-open: About {
+        width: root.width;
+        height: root.height;
+        windows-order: root.windows-buttons;
+        version: root.version;
+        notices: root.notices;
+        notices-wanted => {
+            root.notices-wanted();
+        }
+        close => {
+            root.about-open = false;
         }
     }
 

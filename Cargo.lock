@@ -812,6 +812,8 @@ dependencies = [
  "colophon-player",
  "i-slint-backend-testing",
  "image",
+ "serde",
+ "serde_json",
  "slint",
  "slint-build",
  "tempfile",

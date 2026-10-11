@@ -37,6 +37,27 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all --check
 
+  licenses:
+    name: Third-party Licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about@0.9.2
+      # The About dialog lists the crates of this file, which must follow Cargo.lock.
+      - name: Check the licenses listed in the About dialog
+        run: |
+          cargo fetch --locked
+          cargo about generate -m apps/colophon/Cargo.toml --frozen about.hbs \
+            -o crates/ui-slint/licenses/third-party.json
+          if ! git diff --exit-code --stat crates/ui-slint/licenses/third-party.json; then
+            echo "::error::third-party.json is out of date: generate it as about.toml says."
+            exit 1
+          fi
+
   clippy:
     name: Rust Lint
     runs-on: ubuntu-latest

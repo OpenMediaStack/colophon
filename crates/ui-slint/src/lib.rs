@@ -20,6 +20,7 @@ use slint::{
     SharedString, Timer, TimerMode, VecModel,
 };
 
+mod about;
 mod palette;
 
 mod generated {
@@ -32,10 +33,10 @@ mod generated {
 pub use generated::Command as WindowCommand;
 pub use generated::{
     AppWindow, BitrateMode, ByteSize, CoverState, DropTarget, FrameKind, Id3v1Losses, Id3v1Policy,
-    InspectedTracks, InspectorField, InspectorState, PaletteAction, PaletteEntry, PaletteMatch,
-    ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit, SourceKind, TagEditing, TagField,
-    TagFrame, TagLayout, TagRemoval, Theme, Toast, ToastMessage, TrackColumn, TrackColumnWidths,
-    TrackColumns, TrackRow, TrackStatus, UnreadableFile, UnsavedChoice,
+    InspectedTracks, InspectorField, InspectorState, Notice, Palette, PaletteAction, PaletteEntry,
+    PaletteMatch, ReadProblem, RemovedTag, ScanState, SidebarItem, SizeUnit, SourceKind,
+    TagEditing, TagField, TagFrame, TagLayout, TagRemoval, Theme, Toast, ToastMessage, TrackColumn,
+    TrackColumnWidths, TrackColumns, TrackRow, TrackStatus, UnreadableFile, UnsavedChoice,
 };
 pub use slint::{ComponentHandle, PlatformError};
 
@@ -168,6 +169,17 @@ pub fn main_window_keeping(
         shown_order: Cell::default(),
     });
     bridge.show();
+    window.set_version(env!("CARGO_PKG_VERSION").into());
+    window.on_notices_wanted({
+        let window = window.as_weak();
+        move || {
+            if let Some(window) = window.upgrade()
+                && window.get_notices().row_count() == 0
+            {
+                window.set_notices(ModelRc::new(VecModel::from(about::notices())));
+            }
+        }
+    });
     window.on_run({
         let bridge = Rc::clone(&bridge);
         move |command| run(&bridge, command)
@@ -765,6 +777,7 @@ fn run_palette(bridge: &Rc<Bridge>, action: PaletteAction) {
         PaletteAction::OpenFiles => run(bridge, Window::OpenFiles),
         PaletteAction::Save => run(bridge, Window::Save),
         PaletteAction::Settings => window.set_settings_open(true),
+        PaletteAction::About => window.set_about_open(true),
         PaletteAction::Undo => run(bridge, Window::Undo),
         PaletteAction::Redo => run(bridge, Window::Redo),
         PaletteAction::Find => window.invoke_focus_filter(),

@@ -144,6 +144,7 @@ fn main() -> Result<(), PlatformError> {
     {
         macos::show_icon();
         macos::ask_window_before_terminating(&window);
+        macos::show_about_from_app_menu(&window);
     }
     window.run()
 }
