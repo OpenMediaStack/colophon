@@ -57,8 +57,9 @@ jobs:
         run: packaging/macos/build-dmg.sh
       - uses: actions/upload-artifact@v7
         with:
-          name: macos
           path: target/dmg/Colophon-${{ needs.version.outputs.version }}.dmg
+          # The file itself rather than a zip of it, named after the file.
+          archive: false
           if-no-files-found: error
 
   windows:
@@ -78,8 +79,9 @@ jobs:
             packaging\windows\colophon.iss
       - uses: actions/upload-artifact@v7
         with:
-          name: windows
           path: target/installer/Colophon-${{ needs.version.outputs.version }}-setup.exe
+          # The file itself rather than a zip of it, named after the file.
+          archive: false
           if-no-files-found: error
 
   linux:
@@ -101,8 +103,9 @@ jobs:
         run: packaging/linux/build-appimage.sh
       - uses: actions/upload-artifact@v7
         with:
-          name: linux
           path: target/appimage/Colophon-${{ needs.version.outputs.version }}-x86_64.AppImage
+          # The file itself rather than a zip of it, named after the file.
+          archive: false
           if-no-files-found: error
 
   release:
@@ -121,5 +124,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
+          find dist -type f -print0 | xargs -0 gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
             --title "Colophon ${{ needs.version.outputs.version }}" --generate-notes
