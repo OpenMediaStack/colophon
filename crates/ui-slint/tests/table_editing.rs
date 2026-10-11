@@ -229,3 +229,20 @@ fn clicking_another_track_ends_the_edit() -> TestResult {
     assert!(shows(&window, "Neon Overpass"));
     Ok(())
 }
+
+#[test]
+fn a_moved_column_edits_where_it_shows() -> TestResult {
+    let (window, _folder) = window_with(1)?;
+    let year = center(&find(&window, "Sort by Year")?);
+    let title = find(&window, "Sort by Title")?.absolute_position();
+    common::drag(&window, year, LogicalPosition::new(title.x + 4.0, year.y));
+    i_slint_backend_testing::mock_elapsed_time(Duration::from_secs(1));
+
+    double_click_cell(&window, "2019")?;
+
+    assert_eq!(editor_value(&window)?, "2019");
+    let editor = cell_editor(&window).ok_or("no cell is being edited")?;
+    let cell = find(&window, "2019")?;
+    assert!((editor.absolute_position().x - cell.absolute_position().x).abs() < 12.0);
+    Ok(())
+}

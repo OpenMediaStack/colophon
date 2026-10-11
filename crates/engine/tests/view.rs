@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use colophon_engine::{
-    Column, ColumnWidths, Command, Edit, Engine, Step, VersionChoice, ViewState, WindowSize,
+    Column, ColumnOrder, ColumnWidths, Command, Edit, Engine, Step, TableColumn, VersionChoice,
+    ViewState, WindowSize,
 };
 
 #[test]
@@ -171,4 +172,21 @@ fn the_next_launch_starts_from_the_preferences() {
     assert!(!next.view().sidebar_visible);
     assert!(next.view().columns.contains(Column::Tags));
     assert!((next.playback().volume - 0.35).abs() < f32::EPSILON);
+}
+
+#[test]
+fn columns_move_and_reset_back_in_place() {
+    let mut engine = Engine::new();
+
+    engine.execute(Command::MoveColumn(
+        TableColumn::Other(Column::Genre),
+        Some(TableColumn::Title),
+    ));
+    assert_eq!(
+        engine.view().column_order.iter().next(),
+        Some(TableColumn::Other(Column::Genre))
+    );
+
+    engine.execute(Command::ResetColumns);
+    assert_eq!(engine.view().column_order, ColumnOrder::default());
 }

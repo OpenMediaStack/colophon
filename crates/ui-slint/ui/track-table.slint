@@ -125,9 +125,14 @@ component HeaderCell inherits Cell {
     callback sort;
     // A right click, or a Control click on macOS, where the window's coordinates say.
     callback open-menu(length, length);
+    // The column dragged by its name, where the pointer is in the window's coordinates, and
+    // where it is let go.
+    callback dragged(length);
+    callback dropped(length);
 
     size: 12px;
     weight: 500;
+    background: name-touch.dragging ? Theme.surface-3 : transparent;
     separator: root.resizable ? Theme.border-subtle : transparent;
     text-color: root.sorted ? Theme.text-primary : Theme.text-secondary;
     marker: !root.sorted ? @image-url("") : root.descending ? @image-url("images/chevron-down.svg") : @image-url("images/chevron-up.svg");
@@ -138,19 +143,37 @@ component HeaderCell inherits Cell {
     }
 
     // The column chooser's area lies under the cells, and a right click would not reach it.
-    TouchArea {
+    name-touch := TouchArea {
         property <bool> for-menu;
+        // The press moves the column; once let go, the click that follows sorts nothing.
+        out property <bool> dragging;
+        property <bool> dropped;
+
+        mouse-cursor: self.dragging ? MouseCursor.grabbing : MouseCursor.default;
 
         pointer-event(event) => {
             if event.kind == PointerEventKind.down {
+                self.dragging = false;
+                self.dropped = false;
                 self.for-menu = event.button == PointerEventButton.right || event.modifiers.meta;
                 if self.for-menu {
                     root.open-menu(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
                 }
+            } else if event.kind == PointerEventKind.up && self.dragging {
+                self.dragging = false;
+                self.dropped = true;
+                root.dropped(self.absolute-position.x + self.mouse-x);
             }
         }
+        moved => {
+            if self.pressed && !self.for-menu && (self.dragging || abs(self.mouse-x - self.pressed-x) > 4px) {
+                self.dragging = true;
+                root.dragged(self.absolute-position.x + self.mouse-x);
+            }
+        }
+        // Slint may tell the click before the release or after it: a drag shows in either flag.
         clicked => {
-            if !self.for-menu {
+            if !self.for-menu && !self.dragging && !self.dropped {
                 root.sort();
             }
         }
@@ -358,14 +381,44 @@ component TableRow inherits Rectangle {
     callback edit(TagField);
     // A right click, or a Control click on macOS: the row's menu, at this point of the window.
     callback open-menu(length, length);
+    // Every column from left to right, a hidden one without width, and where each starts.
+    in property <[TrackColumn]> order;
+    in property <TrackColumnWidths> starts;
 
-    // Where the editable cells start, a hidden column taking no room.
-    property <length> title-x: root.status-width + root.number-width;
-    property <length> artist-x: root.title-x + root.widths.title;
-    property <length> album-x: root.artist-x + root.widths.artist;
-    property <length> year-x: root.album-x + root.widths.album;
-    property <length> genre-x: root.year-x + root.widths.year;
-    property <length> genre-end: root.genre-x + root.widths.genre;
+    pure function width-of(column: TrackColumn) -> length {
+        return column == TrackColumn.title ? root.widths.title
+            : column == TrackColumn.artist ? root.widths.artist
+            : column == TrackColumn.album ? root.widths.album
+            : column == TrackColumn.year ? root.widths.year
+            : column == TrackColumn.genre ? root.widths.genre
+            : column == TrackColumn.time ? root.widths.time
+            : column == TrackColumn.bitrate ? root.widths.bitrate
+            : column == TrackColumn.tags ? root.widths.tags
+            : column == TrackColumn.file ? root.widths.file
+            : root.widths.folder;
+    }
+
+    pure function text-of(column: TrackColumn) -> string {
+        return column == TrackColumn.title ? root.track.title
+            : column == TrackColumn.artist ? root.track.artist
+            : column == TrackColumn.album ? root.track.album
+            : column == TrackColumn.year ? root.track.year
+            : column == TrackColumn.genre ? root.track.genre
+            : column == TrackColumn.time ? root.track.time
+            : column == TrackColumn.bitrate ? root.track.bitrate
+            : column == TrackColumn.tags ? root.track.tags
+            : column == TrackColumn.file ? root.track.file
+            : root.track.folder;
+    }
+
+    // Numbers line up in JetBrains Mono, aligned right.
+    pure function numeric(column: TrackColumn) -> bool {
+        return column == TrackColumn.year || column == TrackColumn.time || column == TrackColumn.bitrate;
+    }
+
+    pure function within(x: length, start: length, width: length) -> bool {
+        return x >= start && x < start + width;
+    }
 
     height: 26px;
     background: root.track.selected ? Theme.accent-selection : touch.has-hover ? Theme.surface-3 : transparent;
@@ -420,48 +473,13 @@ component TableRow inherits Rectangle {
             separator: transparent;
         }
 
-        Cell {
-            width: root.widths.title;
-            text: root.track.title;
-            text-color: root.track.status == TrackStatus.unreadable ? Theme.error : root.track.playing ? Theme.accent-text : root.track.untitled ? Theme.text-tertiary : Theme.text-primary;
-        }
-
-        if root.widths.artist > 0: Cell {
-            width: root.widths.artist;
-            text: root.track.artist;
-        }
-        if root.widths.album > 0: Cell {
-            width: root.widths.album;
-            text: root.track.album;
-        }
-        if root.widths.year > 0: NumberCell {
-            width: root.widths.year;
-            text: root.track.year;
-        }
-        if root.widths.genre > 0: Cell {
-            width: root.widths.genre;
-            text: root.track.genre;
-        }
-        if root.widths.time > 0: NumberCell {
-            width: root.widths.time;
-            text: root.track.time;
-        }
-        if root.widths.bitrate > 0: NumberCell {
-            width: root.widths.bitrate;
-            text: root.track.bitrate;
-        }
-        if root.widths.tags > 0: Cell {
-            width: root.widths.tags;
-            text: root.track.tags;
-            mono: true;
-        }
-        if root.widths.file > 0: Cell {
-            width: root.widths.file;
-            text: root.track.file;
-        }
-        if root.widths.folder > 0: Cell {
-            width: root.widths.folder;
-            text: root.track.folder;
+        for column in root.order: Cell {
+            width: root.width-of(column);
+            visible: self.width > 0;
+            text: root.text-of(column);
+            mono: root.numeric(column) || column == TrackColumn.tags;
+            text-alignment: root.numeric(column) ? right : left;
+            text-color: column != TrackColumn.title ? Theme.text-secondary : root.track.status == TrackStatus.unreadable ? Theme.error : root.track.playing ? Theme.accent-text : root.track.untitled ? Theme.text-tertiary : Theme.text-primary;
         }
     }
 
@@ -512,17 +530,17 @@ component TableRow inherits Rectangle {
             if root.track.status == TrackStatus.unreadable {
                 return;
             }
-            if self.mouse-x >= root.status-width && self.mouse-x < root.title-x {
+            if root.within(self.mouse-x, root.status-width, root.number-width) {
                 root.edit(TagField.track);
-            } else if self.mouse-x < root.artist-x {
+            } else if root.within(self.mouse-x, root.starts.title, root.widths.title) {
                 root.edit(TagField.title);
-            } else if self.mouse-x < root.album-x {
+            } else if root.within(self.mouse-x, root.starts.artist, root.widths.artist) {
                 root.edit(TagField.artist);
-            } else if self.mouse-x < root.year-x {
+            } else if root.within(self.mouse-x, root.starts.album, root.widths.album) {
                 root.edit(TagField.album);
-            } else if self.mouse-x < root.genre-x {
+            } else if root.within(self.mouse-x, root.starts.year, root.widths.year) {
                 root.edit(TagField.year);
-            } else if self.mouse-x < root.genre-end {
+            } else if root.within(self.mouse-x, root.starts.genre, root.widths.genre) {
                 root.edit(TagField.genre);
             }
         }
@@ -564,6 +582,21 @@ export component TrackTable inherits Rectangle {
     callback number-tracks;
     callback revert;
     callback columns-resized(TrackColumnWidths);
+    // Every column from left to right, a hidden one included; dragging a column's name puts it
+    // before the column of a place in this order, or last for a place past its end.
+    in property <[TrackColumn]> order: [
+        TrackColumn.title,
+        TrackColumn.artist,
+        TrackColumn.album,
+        TrackColumn.year,
+        TrackColumn.genre,
+        TrackColumn.time,
+        TrackColumn.bitrate,
+        TrackColumn.tags,
+        TrackColumn.file,
+        TrackColumn.folder,
+    ];
+    callback move-column(TrackColumn, int);
 
     property <length> header-height: 28px;
     property <length> row-height: 26px;
@@ -660,15 +693,108 @@ export component TrackTable inherits Rectangle {
     property <int> shrink-to-row: -1;
 
     property <TrackRow> editing-track: root.rows[root.editing-row];
-    // Where the editable cells start, a hidden column taking no room.
-    property <length> title-x: root.status-width + root.number-width;
-    property <length> artist-x: root.title-x + root.widths.title;
-    property <length> album-x: root.artist-x + root.widths.artist;
-    property <length> year-x: root.album-x + root.widths.album;
-    property <length> genre-x: root.year-x + root.widths.year;
+
+    pure function width-of(column: TrackColumn) -> length {
+        return column == TrackColumn.title ? root.widths.title
+            : column == TrackColumn.artist ? root.widths.artist
+            : column == TrackColumn.album ? root.widths.album
+            : column == TrackColumn.year ? root.widths.year
+            : column == TrackColumn.genre ? root.widths.genre
+            : column == TrackColumn.time ? root.widths.time
+            : column == TrackColumn.bitrate ? root.widths.bitrate
+            : column == TrackColumn.tags ? root.widths.tags
+            : column == TrackColumn.file ? root.widths.file
+            : root.widths.folder;
+    }
+
+    // A column's place in the order.
+    pure function place-of(column: TrackColumn) -> int {
+        return root.order[0] == column ? 0 : root.order[1] == column ? 1 : root.order[2] == column ? 2
+            : root.order[3] == column ? 3 : root.order[4] == column ? 4 : root.order[5] == column ? 5
+            : root.order[6] == column ? 6 : root.order[7] == column ? 7 : root.order[8] == column ? 8
+            : 9;
+    }
+
+    // Where the column of a place starts in a row, a hidden column taking no room; a place past
+    // the order's end is where the columns end.
+    pure function place-x(place: int) -> length {
+        return root.status-width + root.number-width
+            + (place > 0 ? root.width-of(root.order[0]) : 0px)
+            + (place > 1 ? root.width-of(root.order[1]) : 0px)
+            + (place > 2 ? root.width-of(root.order[2]) : 0px)
+            + (place > 3 ? root.width-of(root.order[3]) : 0px)
+            + (place > 4 ? root.width-of(root.order[4]) : 0px)
+            + (place > 5 ? root.width-of(root.order[5]) : 0px)
+            + (place > 6 ? root.width-of(root.order[6]) : 0px)
+            + (place > 7 ? root.width-of(root.order[7]) : 0px)
+            + (place > 8 ? root.width-of(root.order[8]) : 0px)
+            + (place > 9 ? root.width-of(root.order[9]) : 0px);
+    }
+
+    property <TrackColumnWidths> starts: {
+        title: root.place-x(root.place-of(TrackColumn.title)),
+        artist: root.place-x(root.place-of(TrackColumn.artist)),
+        album: root.place-x(root.place-of(TrackColumn.album)),
+        year: root.place-x(root.place-of(TrackColumn.year)),
+        genre: root.place-x(root.place-of(TrackColumn.genre)),
+        time: root.place-x(root.place-of(TrackColumn.time)),
+        bitrate: root.place-x(root.place-of(TrackColumn.bitrate)),
+        tags: root.place-x(root.place-of(TrackColumn.tags)),
+        file: root.place-x(root.place-of(TrackColumn.file)),
+        folder: root.place-x(root.place-of(TrackColumn.folder)),
+    };
+
+    // The place a column dragged to `x`, in the row's coordinates, would take: before the first
+    // column whose middle lies past it.
+    pure function drop-place(x: length) -> int {
+        return (root.place-x(0) + root.width-of(root.order[0]) / 2 < x ? 1 : 0)
+            + (root.place-x(1) + root.width-of(root.order[1]) / 2 < x ? 1 : 0)
+            + (root.place-x(2) + root.width-of(root.order[2]) / 2 < x ? 1 : 0)
+            + (root.place-x(3) + root.width-of(root.order[3]) / 2 < x ? 1 : 0)
+            + (root.place-x(4) + root.width-of(root.order[4]) / 2 < x ? 1 : 0)
+            + (root.place-x(5) + root.width-of(root.order[5]) / 2 < x ? 1 : 0)
+            + (root.place-x(6) + root.width-of(root.order[6]) / 2 < x ? 1 : 0)
+            + (root.place-x(7) + root.width-of(root.order[7]) / 2 < x ? 1 : 0)
+            + (root.place-x(8) + root.width-of(root.order[8]) / 2 < x ? 1 : 0)
+            + (root.place-x(9) + root.width-of(root.order[9]) / 2 < x ? 1 : 0);
+    }
+
+    // The column dragged by its name, and where the pointer is in the row's coordinates.
+    property <bool> dragging;
+    property <length> drag-x;
+
+    pure function row-x(window-x: length) -> length {
+        return window-x - root.absolute-position.x - root.scroll-x;
+    }
+
+    pure function name-of(column: TrackColumn) -> string {
+        return column == TrackColumn.title ? @tr("Title")
+            : column == TrackColumn.artist ? @tr("Artist")
+            : column == TrackColumn.album ? @tr("Album")
+            : column == TrackColumn.year ? @tr("Year")
+            : column == TrackColumn.genre ? @tr("Genre")
+            : column == TrackColumn.time ? @tr("Time")
+            : column == TrackColumn.bitrate ? @tr("Bitrate")
+            : column == TrackColumn.tags ? @tr("Tags")
+            : column == TrackColumn.file ? @tr("File")
+            : @tr("Folder");
+    }
+
+    pure function sort-of(column: TrackColumn) -> SortColumn {
+        return column == TrackColumn.title ? SortColumn.title
+            : column == TrackColumn.artist ? SortColumn.artist
+            : column == TrackColumn.album ? SortColumn.album
+            : column == TrackColumn.year ? SortColumn.year
+            : column == TrackColumn.genre ? SortColumn.genre
+            : column == TrackColumn.time ? SortColumn.time
+            : column == TrackColumn.bitrate ? SortColumn.bitrate
+            : column == TrackColumn.tags ? SortColumn.tags
+            : column == TrackColumn.file ? SortColumn.file
+            : SortColumn.folder;
+    }
 
     pure function field-x(field: TagField) -> length {
-        return field == TagField.track ? root.status-width : field == TagField.title ? root.title-x : field == TagField.artist ? root.artist-x : field == TagField.album ? root.album-x : field == TagField.year ? root.year-x : root.genre-x;
+        return field == TagField.track ? root.status-width : field == TagField.title ? root.starts.title : field == TagField.artist ? root.starts.artist : field == TagField.album ? root.starts.album : field == TagField.year ? root.starts.year : root.starts.genre;
     }
 
     pure function field-width(field: TagField) -> length {
@@ -1023,190 +1149,41 @@ export component TrackTable inherits Rectangle {
                         resizable: false;
                     }
 
-                    HeaderCell {
-                        width: root.widths.title;
-                        text: @tr("Title");
-                        sorted: root.sorted && root.sorted-by == SortColumn.title;
+                    for column in root.order: HeaderCell {
+                        width: root.width-of(column);
+                        visible: self.width > 0;
+                        text: root.name-of(column);
+                        text-alignment: column == TrackColumn.year || column == TrackColumn.time || column == TrackColumn.bitrate ? right : left;
+                        sorted: root.sorted && root.sorted-by == root.sort-of(column);
                         descending: root.sort-descending;
                         sort => {
-                            root.sort-by(SortColumn.title);
+                            root.sort-by(root.sort-of(column));
                         }
                         open-menu(x, y) => {
                             header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
                         }
                         resized(width) => {
-                            root.resize(TrackColumn.title, width);
+                            root.resize(column, width);
                         }
                         fitted => {
-                            root.fit(TrackColumn.title);
+                            root.fit(column);
+                        }
+                        dragged(x) => {
+                            root.dragging = true;
+                            root.drag-x = root.row-x(x);
+                        }
+                        dropped(x) => {
+                            root.dragging = false;
+                            root.move-column(column, root.drop-place(root.row-x(x)));
                         }
                     }
+                }
 
-                    if root.columns.artist: HeaderCell {
-                        width: root.widths.artist;
-                        text: @tr("Artist");
-                        sorted: root.sorted && root.sorted-by == SortColumn.artist;
-                        descending: root.sort-descending;
-                        sort => {
-                            root.sort-by(SortColumn.artist);
-                        }
-                        open-menu(x, y) => {
-                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
-                        }
-                        resized(width) => {
-                            root.resize(TrackColumn.artist, width);
-                        }
-                        fitted => {
-                            root.fit(TrackColumn.artist);
-                        }
-                    }
-                    if root.columns.album: HeaderCell {
-                        width: root.widths.album;
-                        text: @tr("Album");
-                        sorted: root.sorted && root.sorted-by == SortColumn.album;
-                        descending: root.sort-descending;
-                        sort => {
-                            root.sort-by(SortColumn.album);
-                        }
-                        open-menu(x, y) => {
-                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
-                        }
-                        resized(width) => {
-                            root.resize(TrackColumn.album, width);
-                        }
-                        fitted => {
-                            root.fit(TrackColumn.album);
-                        }
-                    }
-                    if root.columns.year: HeaderCell {
-                        width: root.widths.year;
-                        text: @tr("Year");
-                        sorted: root.sorted && root.sorted-by == SortColumn.year;
-                        descending: root.sort-descending;
-                        sort => {
-                            root.sort-by(SortColumn.year);
-                        }
-                        open-menu(x, y) => {
-                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
-                        }
-                        text-alignment: right;
-                        resized(width) => {
-                            root.resize(TrackColumn.year, width);
-                        }
-                        fitted => {
-                            root.fit(TrackColumn.year);
-                        }
-                    }
-                    if root.columns.genre: HeaderCell {
-                        width: root.widths.genre;
-                        text: @tr("Genre");
-                        sorted: root.sorted && root.sorted-by == SortColumn.genre;
-                        descending: root.sort-descending;
-                        sort => {
-                            root.sort-by(SortColumn.genre);
-                        }
-                        open-menu(x, y) => {
-                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
-                        }
-                        resized(width) => {
-                            root.resize(TrackColumn.genre, width);
-                        }
-                        fitted => {
-                            root.fit(TrackColumn.genre);
-                        }
-                    }
-                    if root.columns.time: HeaderCell {
-                        width: root.widths.time;
-                        text: @tr("Time");
-                        sorted: root.sorted && root.sorted-by == SortColumn.time;
-                        descending: root.sort-descending;
-                        sort => {
-                            root.sort-by(SortColumn.time);
-                        }
-                        open-menu(x, y) => {
-                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
-                        }
-                        text-alignment: right;
-                        resized(width) => {
-                            root.resize(TrackColumn.time, width);
-                        }
-                        fitted => {
-                            root.fit(TrackColumn.time);
-                        }
-                    }
-                    if root.columns.bitrate: HeaderCell {
-                        width: root.widths.bitrate;
-                        text: @tr("Bitrate");
-                        sorted: root.sorted && root.sorted-by == SortColumn.bitrate;
-                        descending: root.sort-descending;
-                        sort => {
-                            root.sort-by(SortColumn.bitrate);
-                        }
-                        open-menu(x, y) => {
-                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
-                        }
-                        text-alignment: right;
-                        resized(width) => {
-                            root.resize(TrackColumn.bitrate, width);
-                        }
-                        fitted => {
-                            root.fit(TrackColumn.bitrate);
-                        }
-                    }
-                    if root.columns.tags: HeaderCell {
-                        width: root.widths.tags;
-                        text: @tr("Tags");
-                        sorted: root.sorted && root.sorted-by == SortColumn.tags;
-                        descending: root.sort-descending;
-                        sort => {
-                            root.sort-by(SortColumn.tags);
-                        }
-                        open-menu(x, y) => {
-                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
-                        }
-                        resized(width) => {
-                            root.resize(TrackColumn.tags, width);
-                        }
-                        fitted => {
-                            root.fit(TrackColumn.tags);
-                        }
-                    }
-                    if root.columns.file: HeaderCell {
-                        width: root.widths.file;
-                        text: @tr("File");
-                        sorted: root.sorted && root.sorted-by == SortColumn.file;
-                        descending: root.sort-descending;
-                        sort => {
-                            root.sort-by(SortColumn.file);
-                        }
-                        open-menu(x, y) => {
-                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
-                        }
-                        resized(width) => {
-                            root.resize(TrackColumn.file, width);
-                        }
-                        fitted => {
-                            root.fit(TrackColumn.file);
-                        }
-                    }
-                    if root.columns.folder: HeaderCell {
-                        width: root.widths.folder;
-                        text: @tr("Folder");
-                        sorted: root.sorted && root.sorted-by == SortColumn.folder;
-                        descending: root.sort-descending;
-                        sort => {
-                            root.sort-by(SortColumn.folder);
-                        }
-                        open-menu(x, y) => {
-                            header-menu.show({ x: x - header-menu.absolute-position.x, y: y - header-menu.absolute-position.y });
-                        }
-                        resized(width) => {
-                            root.resize(TrackColumn.folder, width);
-                        }
-                        fitted => {
-                            root.fit(TrackColumn.folder);
-                        }
-                    }
+                // Where the column dragged by its name would go.
+                if root.dragging: Rectangle {
+                    x: root.scroll-x + root.place-x(root.drop-place(root.drag-x)) - 1px;
+                    width: 2px;
+                    background: Theme.accent;
                 }
             }
 
@@ -1297,6 +1274,8 @@ export component TrackTable inherits Rectangle {
             status-width: root.status-width;
             number-width: root.number-width;
             widths: root.widths;
+            order: root.order;
+            starts: root.starts;
             table-focused: keys.has-focus;
             pressed(toggle, extend) => {
                 keys.focus();
