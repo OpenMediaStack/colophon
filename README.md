@@ -73,8 +73,19 @@ Download the latest version from the
 | Linux, x86_64 | `Colophon-<version>-x86_64.AppImage` |
 
 **macOS**: open the disk image and drag Colophon to Applications. The app is not signed with an
-Apple Developer ID, so macOS refuses to open it the first time: open it once, then go to
-**System Settings → Privacy & Security** and click **Open Anyway**.
+Apple Developer ID, so the first time macOS says it could not verify Colophon and only offers
+**Done** or **Move to Trash**: click **Done**, then either
+
+- go to **System Settings → Privacy & Security**, scroll down to **Security**, click
+  **Open Anyway** next to the line about Colophon (it shows for about an hour after the attempt),
+  confirm with your password or Touch ID, and open Colophon again;
+- or lift the quarantine macOS put on the downloaded app, from the Terminal:
+
+  ```bash
+  xattr -dr com.apple.quarantine /Applications/Colophon.app
+  ```
+
+Either way, macOS remembers it, and Colophon then opens like any other app.
 
 **Windows**: run the installer. SmartScreen may warn about an unknown publisher: click
 **More info**, then **Run anyway**.
