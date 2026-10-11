@@ -25,10 +25,9 @@
     <script type="module" src="./src/main.js"></script>
   </head>
   <body>
-    <div class="mx-auto max-w-7xl border-x border-line-soft bg-surface">
-      <header
-        class="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-4 border-b border-line bg-surface/95 px-4 py-3.5 backdrop-blur sm:px-8"
-      >
+    <div>
+      <header class="sticky top-0 z-10 border-b border-line bg-surface/95 backdrop-blur">
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-8">
         <a href="#top" class="flex items-center gap-2.5 text-[17px] font-semibold tracking-tight text-ink">
           <img src="../assets/icon/colophon.svg" alt="" width="30" height="30" />
           Colophon
@@ -44,10 +43,11 @@
             >Download</a
           >
         </nav>
+        </div>
       </header>
 
       <main>
-        <section id="top" class="flex flex-col items-center gap-7 px-4 pt-22 pb-14 text-center sm:px-8">
+        <section id="top" class="mx-auto flex max-w-7xl flex-col items-center gap-7 px-4 pt-22 pb-14 text-center sm:px-8">
           <p class="label tracking-[0.12em] text-subtle">MP3 tag editor · macOS · Windows · Linux</p>
           <h1 class="max-w-245 text-[clamp(2.75rem,6.6vw,5.75rem)] leading-none font-semibold tracking-[-0.04em]">
             The <em class="font-serif font-normal tracking-[-0.02em] text-accent">fine print</em> of your music, set
@@ -81,7 +81,7 @@
           </p>
         </section>
 
-        <div class="px-4 pb-16 sm:px-8">
+        <div class="mx-auto max-w-7xl px-4 pb-16 sm:px-8">
           <div
             class="overflow-hidden rounded-xl border border-line shadow-[0_40px_120px_rgba(0,0,0,0.55),0_0_0_1px_rgba(234,179,8,0.06)]"
           >
@@ -117,17 +117,23 @@
         </div>
 
         <section id="features">
-          <div class="label flex flex-wrap justify-between gap-2 border-b border-line px-4 py-3.5 text-subtle sm:px-8">
-            <span>01 / Features</span><span>Six things it does well</span>
+          <div class="border-b border-line">
+            <div class="label mx-auto flex max-w-7xl flex-wrap justify-between gap-2 px-4 py-3.5 text-subtle sm:px-8">
+              <span>01 / Features</span><span>Six things it does well</span>
+            </div>
           </div>
+          <div class="mx-auto max-w-7xl">
           <h2
             class="max-w-225 px-4 pt-18 pb-14 text-[clamp(2.25rem,4.6vw,4rem)] leading-[1.05] font-semibold tracking-[-0.035em] sm:px-8"
           >
             Edit a hundred tracks <em class="font-serif font-normal text-accent">as easily</em> as one.
           </h2>
+          </div>
 
-          <div class="grid border-t border-line md:grid-cols-2">
-            <article class="border-b border-line md:border-r">
+          <div class="border-t border-line">
+            <div class="border-b border-line">
+            <div class="mx-auto grid max-w-7xl md:grid-cols-2">
+            <article class="border-b border-line md:border-r md:border-b-0">
               <div class="label flex justify-between border-b border-line px-6 py-3 text-[11px] text-subtle">
                 <span>Library</span><span>01</span>
               </div>
@@ -148,7 +154,7 @@
               </div>
             </article>
 
-            <article class="border-b border-line">
+            <article>
               <div class="label flex justify-between border-b border-line px-6 py-3 text-[11px] text-subtle">
                 <span>Editing</span><span>02</span>
               </div>
@@ -168,8 +174,12 @@
                 </p>
               </div>
             </article>
+            </div>
+            </div>
+            <div class="border-b border-line">
+            <div class="mx-auto grid max-w-7xl md:grid-cols-2">
 
-            <article class="border-b border-line md:border-r">
+            <article class="border-b border-line md:border-r md:border-b-0">
               <div class="label flex justify-between border-b border-line px-6 py-3 text-[11px] text-subtle">
                 <span>Saving</span><span>03</span>
               </div>
@@ -190,7 +200,7 @@
               </div>
             </article>
 
-            <article class="border-b border-line">
+            <article>
               <div class="label flex justify-between border-b border-line px-6 py-3 text-[11px] text-subtle">
                 <span>Player</span><span>04</span>
               </div>
@@ -222,8 +232,12 @@
                 </p>
               </div>
             </article>
+            </div>
+            </div>
+            <div class="border-b border-line">
+            <div class="mx-auto grid max-w-7xl md:grid-cols-2">
 
-            <article class="border-b border-line md:border-r">
+            <article class="border-b border-line md:border-r md:border-b-0">
               <div class="label flex justify-between border-b border-line px-6 py-3 text-[11px] text-subtle">
                 <span>Tag versions</span><span>05</span>
               </div>
@@ -255,7 +269,7 @@
               </div>
             </article>
 
-            <article class="border-b border-line">
+            <article>
               <div class="label flex justify-between border-b border-line px-6 py-3 text-[11px] text-subtle">
                 <span>Keyboard</span><span>06</span>
               </div>
@@ -294,30 +308,37 @@
                 </p>
               </div>
             </article>
+            </div>
+            </div>
           </div>
         </section>
 
         <section id="yours">
-          <div class="label flex flex-wrap justify-between gap-2 border-b border-line px-4 py-3.5 text-subtle sm:px-8">
-            <span>02 / Your files</span><span>Free and open source</span>
+          <div class="border-b border-line">
+            <div class="label mx-auto flex max-w-7xl flex-wrap justify-between gap-2 px-4 py-3.5 text-subtle sm:px-8">
+              <span>02 / Your files</span><span>Free and open source</span>
+            </div>
           </div>
+          <div class="mx-auto max-w-7xl">
           <h2
             class="max-w-225 px-4 pt-18 pb-14 text-[clamp(2.25rem,4.6vw,4rem)] leading-[1.05] font-semibold tracking-[-0.035em] sm:px-8"
           >
             Your music <em class="font-serif font-normal text-accent">stays yours.</em>
           </h2>
-          <div class="grid border-t border-line md:grid-cols-3">
-            <div class="flex flex-col gap-2.5 border-b border-line p-8 md:border-r">
+          </div>
+          <div class="border-y border-line">
+            <div class="mx-auto grid max-w-7xl md:grid-cols-3">
+            <div class="flex flex-col gap-2.5 border-b border-line p-8 md:border-r md:border-b-0">
               <span class="font-mono text-xs text-accent">A</span>
               <h3 class="text-xl font-semibold">No account, no cloud</h3>
               <p class="text-muted">Colophon runs on your computer and talks to no server: no sign-in, no upload, no tracking.</p>
             </div>
-            <div class="flex flex-col gap-2.5 border-b border-line p-8 md:border-r">
+            <div class="flex flex-col gap-2.5 border-b border-line p-8 md:border-r md:border-b-0">
               <span class="font-mono text-xs text-accent">B</span>
               <h3 class="text-xl font-semibold">Written when you say so</h3>
               <p class="text-muted">Edits stay in Colophon until you save them, and quitting asks what to do with the ones left.</p>
             </div>
-            <div class="flex flex-col gap-2.5 border-b border-line p-8">
+            <div class="flex flex-col gap-2.5 p-8">
               <span class="font-mono text-xs text-accent">C</span>
               <h3 class="text-xl font-semibold">Open source, MIT</h3>
               <p class="text-muted">
@@ -325,21 +346,25 @@
                 <a href="https://github.com/OpenMediaStack/colophon" class="text-accent hover:text-accent-hover">on GitHub</a>.
               </p>
             </div>
+            </div>
           </div>
         </section>
 
         <section id="download">
-          <div class="label flex flex-wrap justify-between gap-2 border-b border-line px-4 py-3.5 text-subtle sm:px-8">
-            <span>03 / Download</span><span data-version>Latest version</span>
+          <div class="border-b border-line">
+            <div class="label mx-auto flex max-w-7xl flex-wrap justify-between gap-2 px-4 py-3.5 text-subtle sm:px-8">
+              <span>03 / Download</span><span data-version>Latest version</span>
+            </div>
           </div>
-          <div class="flex flex-col items-center gap-5 px-4 pt-22 pb-16 text-center sm:px-8">
+          <div class="mx-auto flex max-w-7xl flex-col items-center gap-5 px-4 pt-22 pb-16 text-center sm:px-8">
             <h2 class="text-[clamp(2.75rem,6vw,5.25rem)] leading-none font-semibold tracking-[-0.04em]">
               Start <em class="font-serif font-normal text-accent">tagging.</em>
             </h2>
             <p class="max-w-140 text-lg text-muted">Free for macOS, Windows and Linux, with nothing to sign up for.</p>
           </div>
-          <div class="grid border-t border-line md:grid-cols-3">
-            <div class="flex flex-col gap-3.5 border-b border-line p-8 md:border-r">
+          <div class="border-y border-line">
+            <div class="mx-auto grid max-w-7xl md:grid-cols-3">
+            <div class="flex flex-col gap-3.5 border-b border-line p-8 md:border-r md:border-b-0">
               <span class="label text-subtle">macOS 11 or later</span>
               <h3 class="text-[26px] font-semibold tracking-[-0.02em]">Mac</h3>
               <p class="text-muted">
@@ -353,7 +378,7 @@
                 >Download .dmg</a
               >
             </div>
-            <div class="flex flex-col gap-3.5 border-b border-line p-8 md:border-r">
+            <div class="flex flex-col gap-3.5 border-b border-line p-8 md:border-r md:border-b-0">
               <span class="label text-subtle">Windows 10 and 11, x64</span>
               <h3 class="text-[26px] font-semibold tracking-[-0.02em]">Windows</h3>
               <p class="text-muted">An installer for you alone, without administrator rights, or for everyone on the computer.</p>
@@ -364,7 +389,7 @@
                 >Download .exe</a
               >
             </div>
-            <div class="flex flex-col gap-3.5 border-b border-line p-8">
+            <div class="flex flex-col gap-3.5 p-8">
               <span class="label text-subtle">x86_64</span>
               <h3 class="text-[26px] font-semibold tracking-[-0.02em]">Linux</h3>
               <p class="text-muted">An AppImage that runs on most distributions: make it executable, then open it.</p>
@@ -375,14 +400,18 @@
                 >Download .AppImage</a
               >
             </div>
+            </div>
           </div>
-          <p class="overflow-x-auto border-b border-line px-4 py-5 font-mono text-[13px] whitespace-nowrap text-subtle sm:px-8">
-            Or build it from source: <span class="text-ink">cargo build --release -p colophon</span>
-          </p>
+          <div class="border-b border-line">
+            <p class="mx-auto max-w-7xl overflow-x-auto px-4 py-5 font-mono text-[13px] whitespace-nowrap text-subtle sm:px-8">
+              Or build it from source: <span class="text-ink">cargo build --release -p colophon</span>
+            </p>
+          </div>
         </section>
       </main>
 
-      <footer class="flex flex-wrap justify-between gap-10 px-4 pt-14 pb-10 sm:px-8">
+      <footer>
+        <div class="mx-auto flex max-w-7xl flex-wrap justify-between gap-10 px-4 pt-14 pb-10 sm:px-8">
         <div class="flex max-w-90 flex-[1_1_280px] flex-col gap-3">
           <div class="flex items-center gap-2.5 text-[17px] font-semibold">
             <img src="../assets/icon/colophon.svg" alt="" width="30" height="30" />
@@ -404,9 +433,12 @@
             <a href="https://github.com/OpenMediaStack/colophon/blob/main/LICENSE" class="text-muted hover:text-ink">MIT License</a>
           </div>
         </div>
-        <div class="flex flex-[1_1_100%] flex-wrap justify-between gap-3 border-t border-line pt-6 font-mono text-xs text-subtle">
-          <span>© 2026 Florent Sorel</span>
-          <a href="https://slint.dev" class="hover:text-ink">Made with Slint</a>
+        </div>
+        <div class="border-t border-line">
+          <div class="mx-auto flex max-w-7xl flex-wrap justify-between gap-3 px-4 py-6 font-mono text-xs text-subtle sm:px-8">
+            <span>© 2026 Florent Sorel</span>
+            <a href="https://slint.dev" class="hover:text-ink">Made with Slint</a>
+          </div>
         </div>
       </footer>
     </div>
