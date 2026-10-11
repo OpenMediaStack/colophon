@@ -1,0 +1,15 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <title>Colophon</title>
+  <defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2B2B31"/>
+      <stop offset="1" stop-color="#151518"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#ground)"/>
+  <rect x="102" y="102" width="820" height="820" rx="184" fill="none" stroke="#FFFFFF" stroke-opacity="0.09" stroke-width="4"/>
+  <circle cx="512" cy="512" r="150" fill="none" stroke="#EAB308" stroke-opacity="0.45" stroke-width="14"/>
+  <circle cx="512" cy="512" r="104" fill="none" stroke="#EAB308" stroke-opacity="0.45" stroke-width="14"/>
+  <circle cx="512" cy="512" r="46" fill="#EAB308"/>
+  <path d="M 714.6 364.8 A 250 250 0 1 0 714.6 659.2" fill="none" stroke="#EAB308" stroke-width="104" stroke-linecap="round"/>
+</svg>

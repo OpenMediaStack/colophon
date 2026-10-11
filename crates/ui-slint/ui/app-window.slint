@@ -281,6 +281,8 @@ export component AppWindow inherits Window {
     }
 
     title: root.window-title;
+    // Windows and Linux show it in the title bar and the task bar; macOS takes the bundle's.
+    icon: @image-url("../../../assets/icon/png/colophon-256.png");
     preferred-width: 1280px;
     preferred-height: 800px;
     min-width: 960px;
