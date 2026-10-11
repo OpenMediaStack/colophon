@@ -1030,62 +1030,81 @@ export component Inspector inherits Rectangle {
 
                         FieldLabel {
                             text: @tr("Text encoding");
-                            padding-left: 0;
                         }
 
-                        Segmented {
-                            fit-labels: true;
-                            label: @tr("Text encoding");
-                            segments: [
-                                { label: @tr("Auto") },
-                                { label: "Latin-1" },
-                                { label: "UTF-16" },
-                                { label: "UTF-16BE" },
-                                { label: "UTF-8" },
-                            ];
-                            selected: root.encoding-choice;
-                            chosen(index) => {
-                                root.choose-encoding(index);
+                        // In line with the labels above.
+                        HorizontalLayout {
+                            padding-left: 12px;
+
+                            Segmented {
+                                fit-labels: true;
+                                label: @tr("Text encoding");
+                                segments: [
+                                    { label: @tr("Auto") },
+                                    { label: "Latin-1" },
+                                    { label: "UTF-16" },
+                                    { label: "UTF-16BE" },
+                                    { label: "UTF-8" },
+                                ];
+                                selected: root.encoding-choice;
+                                chosen(index) => {
+                                    root.choose-encoding(index);
+                                }
                             }
                         }
 
                         FieldLabel {
                             text: @tr("Padding");
-                            padding-left: 0;
                         }
 
-                        Segmented {
-                            label: @tr("Padding");
-                            segments: [
-                                { label: @tr("Auto") },
-                                { label: "0", mono: true },
-                                { label: "256", mono: true },
-                                { label: "1024", mono: true },
-                                { label: "4096", mono: true },
-                            ];
-                            selected: root.padding-choice;
-                            chosen(index) => {
-                                root.choose-padding(index);
+                        // In line with the labels above.
+                        HorizontalLayout {
+                            padding-left: 12px;
+
+                            Segmented {
+                                label: @tr("Padding");
+                                segments: [
+                                    { label: @tr("Auto") },
+                                    { label: "0", mono: true },
+                                    { label: "256", mono: true },
+                                    { label: "1024", mono: true },
+                                    { label: "4096", mono: true },
+                                ];
+                                selected: root.padding-choice;
+                                chosen(index) => {
+                                    root.choose-padding(index);
+                                }
                             }
                         }
 
-                        Checkbox {
-                            text: @tr("Unsynchronisation");
-                            checked: root.unsynchronisation;
-                            toggled => {
-                                root.toggle-unsynchronisation();
+                        // In line with the labels above.
+                        HorizontalLayout {
+                            padding-left: 12px;
+
+                            Checkbox {
+                                text: @tr("Unsynchronisation");
+                                checked: root.unsynchronisation;
+                                toggled => {
+                                    root.toggle-unsynchronisation();
+                                }
                             }
                         }
 
-                        Text {
-                            wrap: word-wrap;
-                            text: @tr("These apply to every file saved in developer mode. UTF-16BE and UTF-8 need ID3v2.4; earlier versions get UTF-16.");
-                            font-size: 12px;
-                            color: Theme.text-tertiary;
+                        // In line with the labels above.
+                        HorizontalLayout {
+                            padding-left: 12px;
+
+                            Text {
+                                wrap: word-wrap;
+                                text: @tr("These apply to every file saved in developer mode. UTF-16BE and UTF-8 need ID3v2.4; earlier versions get UTF-16.");
+                                font-size: 12px;
+                                color: Theme.text-tertiary;
+                            }
                         }
 
                         HorizontalLayout {
                             alignment: start;
+                            padding-left: 12px;
 
                             Button {
                                 text: @tr("Rewrite Selected Files");
