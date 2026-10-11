@@ -30,8 +30,9 @@ thread_local! {
 /// The icon of the Dock and the app switcher, large enough for the largest Retina Dock.
 const ICON: &[u8] = include_bytes!("../../../assets/icon/png/colophon-1024.png");
 
-/// Shows Colophon's icon in the Dock and the app switcher. Must run once the event loop exists,
-/// which creating the window ensures: winit makes the shared application its own.
+/// Shows Colophon's icon in the Dock and the app switcher. Must run once the event loop runs:
+/// launching gives the Dock the icon of the app bundle, or the generic one without a bundle,
+/// whatever was set before.
 pub fn show_icon() {
     let (Some(data), Some(image), Some(application)) = (
         AnyClass::get(c"NSData"),
