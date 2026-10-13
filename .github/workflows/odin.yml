@@ -54,6 +54,14 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release: ${{ env.ODIN_RELEASE }}
+      - name: Build Odin's stb libraries (Linux)
+        # fontstash rasterizes with stb_truetype, which Odin ships as C source on Linux.
+        if: runner.os == 'Linux'
+        run: |
+          stb="$(odin root)/vendor/stb"
+          if [ ! -e "$stb/lib/stb_truetype.a" ]; then
+            sh "$stb/src/build_stb.sh" unix
+          fi
       - name: Install SDL3 (macOS)
         if: runner.os == 'macOS'
         run: brew install sdl3
@@ -92,6 +100,13 @@ jobs:
         run: ./scripts/check.sh
       - name: Test
         run: ./scripts/test.sh
+      - name: Keep the captures that differ from their references
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: failed-captures-${{ matrix.os }}
+          path: build/captures/
+          if-no-files-found: ignore
       - name: Build
         run: ./scripts/build.sh
       - name: Render a frame without a window
