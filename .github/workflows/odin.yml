@@ -57,7 +57,11 @@ jobs:
       - name: Build Odin's stb libraries (Linux)
         # fontstash rasterizes with stb_truetype, which Odin ships as C source on Linux.
         if: runner.os == 'Linux'
-        run: make -C "$(odin root)/vendor/stb/src"
+        run: |
+          stb="$(odin root)/vendor/stb"
+          if [ ! -e "$stb/lib/stb_truetype.a" ]; then
+            (cd "$stb/src" && sh build_stb.sh)
+          fi
       - name: Install SDL3 (macOS)
         if: runner.os == 'macOS'
         run: brew install sdl3
