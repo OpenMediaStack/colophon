@@ -116,7 +116,7 @@ Each screen matches 1.0.0's reference captures (`crates/ui-slint/tests/reference
 - [ ] **32. `feat(app): inspector`.** Cover, fields, multiple values, the File section, unreadable files explained, genre suggestions. Port `inspector.rs`, `unreadable.rs`, `genres.rs`.
 - [ ] **33. `feat(app): editing`.** Inspector and table editing through engine commands, undo and redo, numbering an album, selecting an album. Port `editing.rs`, `table_editing.rs`, `selection.rs`.
 - [ ] **34. `feat(app): saving`.** Save buttons, unsaved markers, toasts, write errors, the unsaved changes dialog. Port `saving.rs`, `toasts.rs`, `unsaved_changes.rs`.
-- [ ] **35. `feat(app): warnings`.** In the table and the inspector.
+- [ ] **35. `feat(app): warnings`.** In the table and the inspector, computed once after each change to the library or the edits (4 to 6 ms for 10,000 tracks), not every frame.
 - [ ] **36. `feat(app): cover art`.** Port `covers.rs`. Cover edits in the engine, the inspection's shared cover, saving covers, and the cover test of `tests/edits.rs`.
 - [ ] **37. `feat(app): command palette and shortcuts`.** Port `palette.rs`.
 - [ ] **38. `feat(app): settings`.** Port `settings.rs`, `tag_removal.rs`.

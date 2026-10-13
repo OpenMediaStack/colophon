@@ -4,6 +4,8 @@ import "core:path/filepath"
 import "core:slice"
 import "core:strings"
 
+import lib "../library"
+
 // What looks wrong in a track's tags beside the other tracks of its album: those of
 // the same folder with the same album title.
 Warning :: enum u8 {
@@ -13,24 +15,22 @@ Warning :: enum u8 {
 	Odd_Album_Artist,
 }
 
+// What looks wrong in one track.
 Warnings :: bit_set[Warning]
 
 // The tracks whose tags look wrong beside the rest of their album, with what does,
-// from the tags they show. Allocated with allocator.
+// from the tags they show. Allocated with allocator. It walks the whole library: call
+// it once after each change, not every frame.
 warnings :: proc(e: ^Engine, allocator := context.allocator) -> map[Track_Id]Warnings {
-	Entry :: struct {
-		folder, album: string,
-		track:         Track_Id,
-	}
-	entries := make([dynamic]Entry, context.temp_allocator)
+	entries := make([dynamic]Album_Entry, context.temp_allocator)
 	for track, i in e.library.tracks {
 		id := Track_Id(i)
 		tags := shown_tags(e, id) or_continue
 		album := tags.album.? or_continue
-		append(&entries, Entry{filepath.dir(track.path), album, id})
+		append(&entries, Album_Entry{filepath.dir(track.path), album, id, tags})
 	}
 	// The tracks of an album follow each other, in library order.
-	slice.sort_by_cmp(entries[:], proc(a, b: Entry) -> slice.Ordering {
+	slice.sort_by_cmp(entries[:], proc(a, b: Album_Entry) -> slice.Ordering {
 		if order := slice.Ordering(strings.compare(a.folder, b.folder)); order != .Equal do return order
 		if order := slice.Ordering(strings.compare(a.album, b.album)); order != .Equal do return order
 		return slice.cmp(a.track, b.track)
@@ -43,36 +43,40 @@ warnings :: proc(e: ^Engine, allocator := context.allocator) -> map[Track_Id]War
 		    entries[end].album == entries[start].album {
 			end += 1
 		}
-		album := make([]Track_Id, end - start, context.temp_allocator)
-		for entry, i in entries[start:end] do album[i] = entry.track
-		if len(album) > 1 do warn_album(e, album, &found)
+		if end - start > 1 do warn_album(entries[start:end], &found)
 		start = end
 	}
 	return found
 }
 
+// A track of an album, by the folder and the album title that make the album.
+@(private = "file")
+Album_Entry :: struct {
+	folder, album: string,
+	track:         Track_Id,
+	tags:          ^lib.Tags,
+}
+
 // Adds the warnings of the tracks of one album to found.
 @(private = "file")
-warn_album :: proc(e: ^Engine, album: []Track_Id, found: ^map[Track_Id]Warnings) {
+warn_album :: proc(album: []Album_Entry, found: ^map[Track_Id]Warnings) {
 	numbered := false
 	artists := make([]Maybe(string), len(album), context.temp_allocator)
-	for track, i in album {
-		tags, _ := shown_tags(e, track)
-		if tags.track != nil do numbered = true
-		artists[i] = tags.album_artist
+	for entry, i in album {
+		if entry.tags.track != nil do numbered = true
+		artists[i] = entry.tags.album_artist
 	}
 	usual, has_usual := most_common(artists)
-	for track in album {
-		tags, _ := shown_tags(e, track)
+	for entry in album {
 		w: Warnings
-		if numbered && tags.track == nil do w += {.Missing_Number}
-		if has_usual && tags.album_artist != usual do w += {.Odd_Album_Artist}
-		if w != {} do found[track] = w
+		if numbered && entry.tags.track == nil do w += {.Missing_Number}
+		if has_usual && entry.tags.album_artist != usual do w += {.Odd_Album_Artist}
+		if w != {} do found[entry.track] = w
 	}
 }
 
 // The value that comes up most often, unless another comes up as often. Sorts values.
-@(private)
+@(private = "file")
 most_common :: proc(values: []Maybe(string)) -> (top: Maybe(string), ok: bool) {
 	slice.sort_by(values, proc(a, b: Maybe(string)) -> bool {
 		x, has_x := a.?
