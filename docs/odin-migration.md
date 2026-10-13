@@ -78,7 +78,7 @@ Each slice is one pull request, in this order unless a slice says it can move. A
 
 ### Phase 1: engine and library, without a window
 
-- [ ] **6. `feat(mpa): MPEG audio properties`.** Ported from the prototype: frame headers, Xing, Info and VBRI, duration with encoder delay, constant or variable bitrate, sample rate, channels, on the region odid3's `Layout.audio` gives. ffprobe parity on `testdata/`.
+- [x] **6. `feat(mpa): MPEG audio properties`.** Ported from the prototype: frame headers, Xing, Info and VBRI, duration with encoder delay, constant or variable bitrate, sample rate, channels, on the region odid3's `Layout.audio` gives. ffprobe parity on `testdata/`.
 - [ ] **7. `feat(engine): tracks and library state`.** The generic track model, `Track_Id`, the per-format extension (`union`, ID3 for now), adding and replacing scanned tracks. Port `engine/tests/library.rs`.
 - [ ] **8. `feat(engine): listing`.** Sources (all, recently changed, unreadable, folder, album, artist), filter, sort by every column with 1.0.0's tie-breaks. Port `listing.rs` and `tests/listing.rs`, `tests/view.rs`.
 - [ ] **9. `feat(engine): selection`.** Single, toggle, range, all, an album, keyboard moves. Port `selection.rs` and its tests.
