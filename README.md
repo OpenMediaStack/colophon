@@ -133,6 +133,8 @@ the work runs is in [`AGENTS.md`](AGENTS.md).
 | Folder | What it holds |
 |---|---|
 | `src/app` | The application: the window and the event loop |
+| `src/engine` | The application state and every command |
+| `src/library` | Finding the audio files of a folder, reading and saving them |
 | `src/mpa` | The MPEG audio properties: duration, bitrate, sample rate, channels |
 | `libs/odid3` | [odid3](https://github.com/OpenMediaStack/odid3), which reads and writes the ID3 tags |
 

@@ -79,7 +79,7 @@ Each slice is one pull request, in this order unless a slice says it can move. A
 ### Phase 1: engine and library, without a window
 
 - [x] **6. `feat(mpa): MPEG audio properties`.** Ported from the prototype: frame headers, Xing, Info and VBRI, duration with encoder delay, constant or variable bitrate, sample rate, channels, on the region odid3's `Layout.audio` gives. ffprobe parity on `testdata/`.
-- [ ] **7. `feat(engine): tracks and library state`.** The generic track model, `Track_Id`, the per-format extension (`union`, ID3 for now), adding and replacing scanned tracks. Port `engine/tests/library.rs`.
+- [x] **7. `feat(engine): library, tracks and scan`.** The generic track model (`library.Track`, its tags, audio properties and tag formats), reading a track through odid3 and `mpa`, the scan on its own thread (folders and files, sorted by name, hidden entries skipped, the extension list, stopping, the `wake` callback), and the engine's library state fed by it: roots, tracks found once, unreadable entries, scan status, `Open_Folder`, `Open_Files`, `Stop_Scan` and `poll`. Port `engine/tests/library.rs` and `library/tests/scan.rs`. It takes in slice 15, since the engine's library tests need a real scan.
 - [ ] **8. `feat(engine): listing`.** Sources (all, recently changed, unreadable, folder, album, artist), filter, sort by every column with 1.0.0's tie-breaks. Port `listing.rs` and `tests/listing.rs`, `tests/view.rs`.
 - [ ] **9. `feat(engine): selection`.** Single, toggle, range, all, an album, keyboard moves. Port `selection.rs` and its tests.
 - [ ] **10. `feat(engine): edits, undo and redo`.** Pending edits per track and field, edits on several tracks, numbering an album, commands with stable ids, undo and redo. Port `edits.rs` and its tests.
@@ -87,7 +87,7 @@ Each slice is one pull request, in this order unless a slice says it can move. A
 - [ ] **12. `feat(engine): warnings`.** Port `warnings.rs` and its tests.
 - [ ] **13. `feat(engine): columns and preferences`.** Visible columns, widths, order, defaults (Tags off, Title always shown), write policies, volume, panels; `preferences.toml` read and written as 1.0.0 does (a small reader and writer for the subset of TOML it uses), what is missing keeping its default. Port `columns.rs`, `preferences.rs` and their tests.
 - [ ] **14. `feat(engine): playback state`.** Port `playback.rs` and its tests.
-- [ ] **15. `feat(library): scan`.** Folders and files on worker threads, the extension list, progress, cancelling, the `wake` callback; odid3 reads with `skip_picture_data`, `mpa` reads the audio. Port `library/tests/scan.rs`.
+- [x] **15. `feat(library): scan`.** Done in slice 7.
 - [ ] **16. `feat(library): save`.** Pending edits written through odid3 with the write policies (ID3v2 version, ID3v1 kept, always or never, through `sync_v1`), covers replaced or removed, per-file developer choices, one error per file. Round trips with an audio hash. Port `engine/tests/save.rs`.
 - [ ] **17. `test(library): robustness corpus`.** Truncated and mutated fixtures scan without a panic.
 
