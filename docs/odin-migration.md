@@ -96,7 +96,7 @@ Each slice is one pull request, in this order unless a slice says it can move. A
 ### Phase 2: the UI toolkit
 
 - [x] **18. `feat(ui): context, input and headless tests`.** The `Ui` context, widget ids, hot, active and focus rules, layout helpers, and the harness that runs frames with scripted input and finds widgets by label. SDL's events become the `Ui`'s input through `input_from_sdl`, which the app's loop calls from slice 28.
-- [ ] **19. `feat(ui): buttons`.** Toolbar buttons, icon and label, primary, secondary, ghost and destructive, every state of the brief's component sheet. Reference captures.
+- [x] **19. `feat(ui): buttons`.** Toolbar buttons, icon and label, primary, secondary, ghost and destructive, every state of the brief's component sheet. Reference captures. Tooltips come with the overlays of slice 24; moving the focus with Tab with the text field of slice 20.
 - [ ] **20. `feat(ui): text field`.** Caret, selection by mouse and keys, word moves as each platform does them, clipboard, undo inside the field, double click selects a word and triple click all, placeholder, the states (hover, focus, modified, multiple values, error, disabled), IME composition (after spike 4), typed text as a pending change.
 - [ ] **21. `feat(ui): number pair and combo box`.** The track and disc pairs, the genre combo with suggestions.
 - [ ] **22. `feat(ui): checkbox and segmented control`.**
