@@ -161,13 +161,13 @@ Walk :: struct {
 // Reports the files of folder and its subfolders; true when asked to stop.
 @(private = "file")
 walk :: proc(w: ^Walk, folder: string) -> (stopped: bool) {
-	entries, err := os.read_all_directory_by_path(folder, w.allocator)
-	defer os.file_info_slice_delete(entries, w.allocator)
-	if err != nil {
-		w.report(Scan_Error{strings.clone(folder, w.allocator), err}, w.data)
-		return false
+	entries, ok := read_folder(w, folder)
+	defer {
+		for entry in entries do delete(entry.name, w.allocator)
+		delete(entries)
 	}
-	slice.sort_by(entries, proc(a, b: os.File_Info) -> bool {return a.name < b.name})
+	if !ok do return false
+	slice.sort_by(entries[:], proc(a, b: Entry) -> bool {return a.name < b.name})
 	for entry in entries {
 		if sync.atomic_load(w.stop) do return true
 		if strings.has_prefix(entry.name, ".") do continue
@@ -183,6 +183,44 @@ walk :: proc(w: ^Walk, folder: string) -> (stopped: bool) {
 		}
 	}
 	return sync.atomic_load(w.stop)
+}
+
+@(private = "file")
+Entry :: struct {
+	name: string,
+	type: os.File_Type,
+}
+
+// The entries of folder. An entry that cannot be read, a file removed during the
+// scan say, is reported alone; a folder that cannot be read is reported, and false.
+@(private = "file")
+read_folder :: proc(w: ^Walk, folder: string) -> (entries: [dynamic]Entry, ok: bool) {
+	entries = make([dynamic]Entry, w.allocator)
+	f, open_err := os.open(folder)
+	if open_err != nil {
+		w.report(Scan_Error{strings.clone(folder, w.allocator), open_err}, w.data)
+		return
+	}
+	defer os.close(f)
+	it := os.read_directory_iterator_create(f)
+	defer os.read_directory_iterator_destroy(&it)
+	reported: Scan_Error
+	for info in os.read_directory_iterator(&it) {
+		// The iterator gives an empty entry for one it could not read, and keeps the error.
+		if info.name == "" {
+			path, err := os.read_directory_iterator_error(&it)
+			reported = {path, err}
+			w.report(Scan_Error{strings.clone(path, w.allocator), err}, w.data)
+			continue
+		}
+		append(&entries, Entry{strings.clone(info.name, w.allocator), info.type})
+	}
+	// An error the loop did not report stopped the reading of the folder itself.
+	if path, err := os.read_directory_iterator_error(&it);
+	   err != nil && (path != reported.path || err != reported.error) {
+		w.report(Scan_Error{strings.clone(folder, w.allocator), err}, w.data)
+	}
+	return entries, true
 }
 
 // The path of name in folder, with one separator between them even when folder is a

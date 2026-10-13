@@ -91,7 +91,7 @@ Each slice is one pull request, in this order unless a slice says it can move. A
 - [x] **14. `feat(engine): playback state`.** Port `playback.rs` and its tests. The engine plays through an `Output`, a struct of procedures that the app fills with the real player and the tests with a fake.
 - [x] **15. `feat(library): scan`.** Done in slice 7.
 - [x] **16. `feat(library): save`.** Pending edits written through odid3 with the write policies (ID3v2 version, ID3v1 kept, always or never, made with odid3's `v1_from_tag`, an Enhanced TAG keeping its speed and times), covers replaced or removed, per-file developer choices, one error per file. Round trips with an audio hash. Port `engine/tests/save.rs`, and the listing test of recently changed tracks. Saving runs on its own thread and reports each file, as 1.0.0's did; a field whose value does not change keeps its frame, so a full date keeps its month and day. Covers come with slice 36; the write details of developer mode (encoding, padding, unsynchronisation) and rewriting a file as it is with slice 39.
-- [ ] **17. `test(library): robustness corpus`.** Truncated and mutated fixtures scan without a panic. A folder entry that cannot be read (removed during the scan, say) is reported alone rather than failing its whole folder: read folders with `core:os`'s directory iterator.
+- [x] **17. `test(library): robustness corpus`.** Truncated and mutated fixtures scan without a panic, and those that read save again. A folder entry that cannot be read (removed during the scan, say) is reported alone rather than failing its whole folder: read folders with `core:os`'s directory iterator.
 
 ### Phase 2: the UI toolkit
 
