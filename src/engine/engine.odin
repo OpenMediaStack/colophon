@@ -57,6 +57,8 @@ Engine :: struct {
 	saved:     map[Track_Id]struct{},
 	selection: Selection,
 	edits:     Edits,
+	view:      View_State,
+	playback:  Playback,
 }
 
 // Adds a folder's audio files to the library.
@@ -73,9 +75,16 @@ Stop_Scan :: struct {}
 
 // A user action. The engine copies what it keeps of a command's strings.
 Command :: union {
+	Toggle_Sidebar,
+	Toggle_Inspector,
+	Toggle_Developer_Mode,
 	Open_Folder,
 	Open_Files,
 	Stop_Scan,
+	Toggle_Column,
+	Resize_Columns,
+	Reset_Columns,
+	Move_Column,
 	Show_Source,
 	Filter,
 	Sort_By,
@@ -93,18 +102,35 @@ Command :: union {
 	Number_Tracks,
 	Select_Album,
 	Choose_Version,
+	Set_Write_Policy,
+	Set_Volume,
+	Resize_Window,
 }
 
 // A stable identifier for each kind of command, for the command palette and the
 // shortcut table.
 command_id :: proc(command: Command) -> string {
 	switch _ in command {
+	case Toggle_Sidebar:
+		return "view.toggle_sidebar"
+	case Toggle_Inspector:
+		return "view.toggle_inspector"
+	case Toggle_Developer_Mode:
+		return "view.toggle_developer_mode"
 	case Open_Folder:
 		return "library.open_folder"
 	case Open_Files:
 		return "library.open_files"
 	case Stop_Scan:
 		return "library.stop_scan"
+	case Toggle_Column:
+		return "view.toggle_column"
+	case Resize_Columns:
+		return "view.resize_columns"
+	case Reset_Columns:
+		return "view.reset_columns"
+	case Move_Column:
+		return "view.move_column"
 	case Show_Source:
 		return "view.show_source"
 	case Filter:
@@ -139,6 +165,12 @@ command_id :: proc(command: Command) -> string {
 		return "selection.select_album"
 	case Choose_Version:
 		return "tags.choose_version"
+	case Set_Write_Policy:
+		return "settings.write_policy"
+	case Set_Volume:
+		return "playback.volume"
+	case Resize_Window:
+		return "view.resize_window"
 	}
 	return ""
 }
@@ -160,6 +192,8 @@ init :: proc(e: ^Engine, wake := lib.Wake{}, allocator := context.allocator) {
 	e.saved = make(map[Track_Id]struct{}, allocator)
 	e.selection.tracks = make([dynamic]Track_Id, allocator)
 	edits_init(&e.edits, allocator)
+	e.view = DEFAULT_VIEW
+	e.playback = DEFAULT_PLAYBACK
 }
 
 // Stops the scans and frees everything.
@@ -192,6 +226,12 @@ destroy :: proc(e: ^Engine) {
 execute :: proc(e: ^Engine, command: Command) {
 	context.allocator = e.allocator
 	switch c in command {
+	case Toggle_Sidebar:
+		e.view.sidebar_visible = !e.view.sidebar_visible
+	case Toggle_Inspector:
+		e.view.inspector_visible = !e.view.inspector_visible
+	case Toggle_Developer_Mode:
+		e.view.developer_mode = !e.view.developer_mode
 	case Open_Folder:
 		folder := opened_path(c.path)
 		open(e, {folder}, {folder})
@@ -206,6 +246,16 @@ execute :: proc(e: ^Engine, command: Command) {
 		open(e, paths[:], folders[:])
 	case Stop_Scan:
 		stop_scans(e)
+	case Toggle_Column:
+		e.view.columns ~= {c.column}
+	case Resize_Columns:
+		e.view.column_widths = c.widths
+	case Reset_Columns:
+		e.view.columns = DEFAULT_COLUMNS
+		e.view.column_widths = nil
+		e.view.column_order = DEFAULT_COLUMN_ORDER
+	case Move_Column:
+		move_column(&e.view.column_order, c.column, c.before)
 	// Copied before the old value is freed: the command may hold the engine's own.
 	case Show_Source:
 		source := clone_source(c.source)
@@ -252,6 +302,12 @@ execute :: proc(e: ^Engine, command: Command) {
 		select_albums(e)
 	case Choose_Version:
 		choose_versions(e, e.selection.tracks[:], c.choice)
+	case Set_Write_Policy:
+		e.edits.policy = c.policy
+	case Set_Volume:
+		e.playback.volume = f32(clamp(c.percent, 0, 100)) / 100
+	case Resize_Window:
+		e.view.window_size = c.size
 	}
 }
 
