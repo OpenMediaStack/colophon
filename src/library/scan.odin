@@ -8,6 +8,7 @@ import "core:strings"
 import "core:sync"
 import "core:thread"
 
+// How a scan ended: after its last root, or when asked to stop.
 Scan_Outcome :: enum u8 {
 	Completed,
 	Stopped,
@@ -27,7 +28,8 @@ Scan_Event :: union {
 	Scan_Outcome,
 }
 
-// Called from the scan's thread when it has events to take, to wake the UI loop.
+// Called from the scan's thread when events wait to be taken where there were none,
+// to wake the UI loop: once until the next take_scan_events.
 Wake :: struct {
 	procedure: proc "contextless" (data: rawptr),
 	data:      rawptr,
@@ -50,13 +52,17 @@ Scan :: struct {
 // that the caller, the UI thread above all, never waits for the disk. The scan
 // finishes once, after the last root. Tracks are allocated with allocator, which
 // the scan's thread uses: it must be thread safe, as the default heap allocator is.
+// ok is false when the thread cannot be started.
 start_scan :: proc(
 	roots: []string,
 	extensions: []string,
 	wake := Wake{},
 	allocator := context.allocator,
-) -> ^Scan {
-	s := new(Scan, allocator)
+) -> (
+	s: ^Scan,
+	ok: bool,
+) {
+	s = new(Scan, allocator)
 	s.allocator = allocator
 	s.roots = make([]string, len(roots), allocator)
 	for root, i in roots do s.roots[i] = strings.clone(root, allocator)
@@ -65,7 +71,11 @@ start_scan :: proc(
 	s.wake = wake
 	s.events = make([dynamic]Scan_Event, allocator)
 	s.thread = thread.create_and_start_with_data(s, run_scan)
-	return s
+	if s.thread == nil {
+		destroy_scan(s)
+		return nil, false
+	}
+	return s, true
 }
 
 // Moves the events reported since the last call to the end of into. The caller owns
@@ -85,8 +95,10 @@ stop_scan :: proc(s: ^Scan) {
 // Stops the scan, waits for its thread, and frees it with the events no one took.
 destroy_scan :: proc(s: ^Scan) {
 	stop_scan(s)
-	thread.join(s.thread)
-	thread.destroy(s.thread)
+	if s.thread != nil {
+		thread.join(s.thread)
+		thread.destroy(s.thread)
+	}
 	for &event in s.events do destroy_scan_event(&event, s.allocator)
 	delete(s.events)
 	for root in s.roots do delete(root, s.allocator)
@@ -96,6 +108,7 @@ destroy_scan :: proc(s: ^Scan) {
 	free(s, s.allocator)
 }
 
+// Frees an event with the allocator its scan was started with.
 destroy_scan_event :: proc(event: ^Scan_Event, allocator := context.allocator) {
 	switch &e in event {
 	case Track:
@@ -111,7 +124,8 @@ destroy_scan_event :: proc(event: ^Scan_Event, allocator := context.allocator) {
 // whose extension is in extensions, ignoring case, read with read_track. A root that
 // is a file is reported alone. Hidden entries, whose name starts with a dot, are
 // skipped, among them the `._` files macOS leaves on external drives. Checks stop
-// between entries. Strings in the events are allocated with allocator.
+// before the root and between entries. Strings in the events are allocated with
+// allocator.
 scan :: proc(
 	root: string,
 	extensions: []string,
@@ -120,6 +134,7 @@ scan :: proc(
 	data: rawptr,
 	allocator := context.allocator,
 ) -> Scan_Outcome {
+	if sync.atomic_load(stop) do return .Stopped
 	w := Walk{extensions, stop, report, data, allocator}
 	info, err := os.stat(root, allocator)
 	defer os.file_info_delete(info, allocator)
@@ -158,7 +173,7 @@ walk :: proc(w: ^Walk, folder: string) -> (stopped: bool) {
 		if strings.has_prefix(entry.name, ".") do continue
 		// The path as the folder was given, not the one the system resolves, so that a
 		// track stays inside its root.
-		path := strings.concatenate({folder, filepath.SEPARATOR_STRING, entry.name}, w.allocator)
+		path := child_path(folder, entry.name, w.allocator)
 		defer delete(path, w.allocator)
 		#partial switch entry.type {
 		case .Directory:
@@ -168,6 +183,16 @@ walk :: proc(w: ^Walk, folder: string) -> (stopped: bool) {
 		}
 	}
 	return sync.atomic_load(w.stop)
+}
+
+// The path of name in folder, with one separator between them even when folder is a
+// volume's root, which ends with one.
+@(private = "file")
+child_path :: proc(folder, name: string, allocator: runtime.Allocator) -> string {
+	if strings.has_suffix(folder, "/") || strings.has_suffix(folder, filepath.SEPARATOR_STRING) {
+		return strings.concatenate({folder, name}, allocator)
+	}
+	return strings.concatenate({folder, filepath.SEPARATOR_STRING, name}, allocator)
 }
 
 @(private = "file")
@@ -185,9 +210,10 @@ run_scan :: proc(data: rawptr) {
 	report :: proc(event: Scan_Event, data: rawptr) {
 		s := (^Scan)(data)
 		sync.mutex_lock(&s.mutex)
+		was_empty := len(s.events) == 0
 		append(&s.events, event)
 		sync.mutex_unlock(&s.mutex)
-		if s.wake.procedure != nil do s.wake.procedure(s.wake.data)
+		if was_empty && s.wake.procedure != nil do s.wake.procedure(s.wake.data)
 	}
 	for root in s.roots {
 		if scan(root, s.extensions, &s.stop, report, s, s.allocator) == .Stopped {

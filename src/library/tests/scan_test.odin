@@ -1,7 +1,8 @@
 package library_tests
 
-import "core:os"
+import "core:path/filepath"
 import "core:strings"
+import "core:sync"
 import "core:testing"
 import "core:time"
 
@@ -24,11 +25,19 @@ destroy_events :: proc(events: ^[dynamic]lib.Scan_Event) {
 	delete(events^)
 }
 
-// The paths of the files found, relative to root.
+// The paths of the files found, relative to root, with `/` between components.
 found :: proc(root: string, events: []lib.Scan_Event) -> []string {
+	prefix := strings.concatenate({root, filepath.SEPARATOR_STRING}, context.temp_allocator)
 	paths := make([dynamic]string, context.temp_allocator)
 	for event in events {
-		if track, ok := event.(lib.Track); ok do append(&paths, strings.trim_prefix(track.path, strings.concatenate({root, "/"}, context.temp_allocator)))
+		track := event.(lib.Track) or_continue
+		path, _ := strings.replace_all(
+			strings.trim_prefix(track.path, prefix),
+			filepath.SEPARATOR_STRING,
+			"/",
+			context.temp_allocator,
+		)
+		append(&paths, path)
 	}
 	return paths[:]
 }
@@ -85,21 +94,67 @@ reports_the_size_and_the_modification_date :: proc(t: ^testing.T) {
 	testing.expect_value(t, sizes, [2]i64{1, 2})
 }
 
+// Counts the tracks a scan reports, and stops it after the first when stop_at_first.
+@(private = "file")
+Counter :: struct {
+	stop:          bool,
+	stop_at_first: bool,
+	tracks:        int,
+}
+
+@(private = "file")
+count_tracks :: proc(event: lib.Scan_Event, data: rawptr) {
+	counter := (^Counter)(data)
+	if _, ok := event.(lib.Track); ok {
+		counter.tracks += 1
+		if counter.stop_at_first do sync.atomic_store(&counter.stop, true)
+	}
+	event := event
+	lib.destroy_scan_event(&event)
+}
+
 @(test)
 stops_when_asked :: proc(t: ^testing.T) {
-	folder := folder_with(t, {"a.mp3", "b.mp3"})
+	folder := folder_with(t, {"1.mp3", "2.mp3", "3.mp3"})
 	defer remove_folder(folder)
-	stop := true
 	extensions := lib.AUDIO_EXTENSIONS
-	count := 0
-	report :: proc(event: lib.Scan_Event, data: rawptr) {
-		(^int)(data)^ += 1
-		event := event
-		lib.destroy_scan_event(&event)
+	counter := Counter {
+		stop_at_first = true,
 	}
-	outcome := lib.scan(folder, extensions[:], &stop, report, &count)
+	outcome := lib.scan(folder, extensions[:], &counter.stop, count_tracks, &counter)
 	testing.expect_value(t, outcome, lib.Scan_Outcome.Stopped)
-	testing.expect_value(t, count, 0)
+	testing.expect_value(t, counter.tracks, 1)
+}
+
+@(test)
+a_stopped_scan_reads_no_file_root :: proc(t: ^testing.T) {
+	folder := folder_with(t, {"a.mp3"})
+	defer remove_folder(folder)
+	extensions := lib.AUDIO_EXTENSIONS
+	counter := Counter {
+		stop = true,
+	}
+	root := strings.concatenate({folder, "/a.mp3"}, context.temp_allocator)
+	outcome := lib.scan(root, extensions[:], &counter.stop, count_tracks, &counter)
+	testing.expect_value(t, outcome, lib.Scan_Outcome.Stopped)
+	testing.expect_value(t, counter.tracks, 0)
+}
+
+@(test)
+a_root_ending_with_a_separator_gives_clean_paths :: proc(t: ^testing.T) {
+	folder := folder_with(t, {"a.mp3"})
+	defer remove_folder(folder)
+	events := scan_all(
+		strings.concatenate({folder, filepath.SEPARATOR_STRING}, context.temp_allocator),
+	)
+	defer destroy_events(&events)
+	track, ok := events[0].(lib.Track)
+	if !testing.expect(t, ok) do return
+	want := strings.concatenate(
+		{folder, filepath.SEPARATOR_STRING, "a.mp3"},
+		context.temp_allocator,
+	)
+	testing.expect_value(t, track.path, want)
 }
 
 @(test)
@@ -131,7 +186,8 @@ a_spawned_scan_reads_files_and_folders_and_finishes_once :: proc(t: ^testing.T) 
 		strings.concatenate({folder, "/c.mp3"}, context.temp_allocator),
 	}
 	extensions := lib.AUDIO_EXTENSIONS
-	scan := lib.start_scan(roots, extensions[:])
+	scan, started := lib.start_scan(roots, extensions[:])
+	if !testing.expect(t, started) do return
 	defer lib.destroy_scan(scan)
 	events: [dynamic]lib.Scan_Event
 	defer destroy_events(&events)
@@ -151,17 +207,44 @@ a_spawned_scan_reads_files_and_folders_and_finishes_once :: proc(t: ^testing.T) 
 }
 
 @(test)
+a_spawned_scan_wakes_its_caller :: proc(t: ^testing.T) {
+	folder := folder_with(t, {"a.mp3", "b.mp3"})
+	defer remove_folder(folder)
+	wakes := 0
+	wake :: proc "contextless" (data: rawptr) {
+		sync.atomic_add((^int)(data), 1)
+	}
+	extensions := lib.AUDIO_EXTENSIONS
+	scan, started := lib.start_scan({folder}, extensions[:], {wake, &wakes})
+	if !testing.expect(t, started) do return
+	defer lib.destroy_scan(scan)
+	events: [dynamic]lib.Scan_Event
+	defer destroy_events(&events)
+	deadline := time.tick_now()
+	for {
+		lib.take_scan_events(scan, &events)
+		if len(events) > 0 {
+			if _, done := events[len(events) - 1].(lib.Scan_Outcome); done do break
+		}
+		if time.tick_since(deadline) > 20 * time.Second do break
+		time.sleep(time.Millisecond)
+	}
+	testing.expect(t, sync.atomic_load(&wakes) >= 1)
+	testing.expect_value(t, len(found(folder, events[:])), 2)
+}
+
+@(test)
 a_found_file_carries_its_tags :: proc(t: ^testing.T) {
 	track := lib.read_track(fixture("v23_full.mp3"))
 	defer lib.destroy_track(&track)
 	testing.expect_value(t, track.error, lib.Read_Error.None)
-	testing.expect(t, track.metadata.tags.title != nil)
+	testing.expect_value(t, track.metadata.tags.title, "Paper Satellites")
 	testing.expect_value(
 		t,
 		track.metadata.formats.id3v2,
 		Maybe(lib.Id3v2_Version)(lib.Id3v2_Version.V2_3),
 	)
-	testing.expect(t, track.metadata.audio.sample_rate > 0)
+	testing.expect_value(t, track.metadata.audio.sample_rate, 44100)
 }
 
 @(test)
@@ -180,5 +263,4 @@ a_missing_file_cannot_be_opened :: proc(t: ^testing.T) {
 	track := lib.read_track("/this/file/does/not/exist.mp3")
 	defer lib.destroy_track(&track)
 	testing.expect_value(t, track.error, lib.Read_Error.Cannot_Open)
-	_ = os.exists(track.path)
 }

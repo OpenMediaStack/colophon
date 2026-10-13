@@ -1,8 +1,10 @@
 package engine_tests
 
 import "core:fmt"
+import "core:path/filepath"
 import "core:slice"
 import "core:testing"
+import "core:time"
 
 import "../../engine"
 
@@ -99,7 +101,10 @@ opening_files_lists_them_and_their_folders :: proc(t: ^testing.T) {
 	expect_strings(
 		t,
 		e.library.roots[:],
-		{fmt.tprintf("%s/One", folder), fmt.tprintf("%s/Two", folder)},
+		{
+			fmt.tprintf("%s%sOne", folder, filepath.SEPARATOR_STRING),
+			fmt.tprintf("%s%sTwo", folder, filepath.SEPARATOR_STRING),
+		},
 	)
 }
 
@@ -127,6 +132,27 @@ stopping_the_scan_ends_it_at_once :: proc(t: ^testing.T) {
 	engine.execute(&e, engine.Stop_Scan{})
 	testing.expect_value(t, e.library.status, engine.Scan_Status.Stopped)
 	testing.expect(t, !engine.poll(&e), "nothing arrives once the scan is stopped")
+	start := time.tick_now()
+	for len(e.stopping) > 0 && time.tick_since(start) < PATIENCE {
+		engine.poll(&e)
+		time.sleep(time.Millisecond)
+	}
+	testing.expect_value(t, len(e.stopping), 0)
+	testing.expect_value(t, len(e.library.tracks), 0)
+}
+
+@(test)
+a_folder_opened_with_a_trailing_separator_is_one_root :: proc(t: ^testing.T) {
+	folder := folder_with(t, {"a.mp3"})
+	defer remove_folder(folder)
+	e: engine.Engine
+	engine.init(&e)
+	defer engine.destroy(&e)
+	engine.execute(&e, engine.Open_Folder{fmt.tprintf("%s/", folder)})
+	engine.execute(&e, engine.Open_Folder{folder})
+	poll_until_done(t, &e)
+	expect_strings(t, e.library.roots[:], {folder})
+	testing.expect_value(t, len(e.library.tracks), 1)
 }
 
 @(test)

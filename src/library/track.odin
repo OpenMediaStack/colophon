@@ -3,6 +3,7 @@
 package library
 
 import "base:runtime"
+import "core:strings"
 import "core:time"
 
 import "../mpa"
@@ -17,7 +18,7 @@ Track :: struct {
 	size:     i64,
 	// The zero time when the system does not say.
 	modified: time.Time,
-	// Its tags and audio properties, when read_error is .None: the file stays in the
+	// Its tags and audio properties, when error is .None: the file stays in the
 	// library either way.
 	metadata: Metadata,
 	error:    Read_Error,
@@ -31,10 +32,10 @@ Read_Error :: enum u8 {
 	Damaged,
 }
 
+// What Colophon read in a file.
 Metadata :: struct {
 	tags:    Tags,
 	audio:   Audio_Properties,
-	// The tag formats the file holds, in the order they come in it.
 	formats: Tag_Formats,
 }
 
@@ -55,6 +56,8 @@ Tags :: struct {
 	has_cover:    bool,
 }
 
+// The audio of a file whose MPEG frames could be read: a track whose audio cannot
+// be read is .Damaged, so every value is known.
 Audio_Properties :: struct {
 	duration:     time.Duration,
 	bitrate_kbps: int,
@@ -74,7 +77,9 @@ Id3v1_Version :: enum u8 {
 	V1_1,
 }
 
-// The tags a file holds: an ID3v2 tag, an ID3v1 tag, an APE tag.
+// The tags a file holds: an ID3v2 tag, an ID3v1 tag, an APE tag. The Tags column
+// shows them, and saving keeps or converts them, so they belong to every format
+// Colophon reads, as 1.0.0's list of formats did.
 Tag_Formats :: struct {
 	id3v2: Maybe(Id3v2_Version),
 	id3v1: Maybe(Id3v1_Version),
@@ -90,16 +95,15 @@ destroy_track :: proc(track: ^Track, allocator := context.allocator) {
 
 // Frees the strings of tags, with the allocator they were made with.
 destroy_tags :: proc(tags: ^Tags, allocator := context.allocator) {
-	for text in ([?]Maybe(string) {
-			tags.title,
-			tags.artist,
-			tags.album_artist,
-			tags.album,
-			tags.genre,
-			tags.comment,
-		}) {
+	delete_text :: proc(text: Maybe(string), allocator: runtime.Allocator) {
 		if s, ok := text.?; ok do delete(s, allocator)
 	}
+	delete_text(tags.title, allocator)
+	delete_text(tags.artist, allocator)
+	delete_text(tags.album_artist, allocator)
+	delete_text(tags.album, allocator)
+	delete_text(tags.genre, allocator)
+	delete_text(tags.comment, allocator)
 	tags^ = {}
 }
 
@@ -131,19 +135,5 @@ clone_text :: proc(
 ) {
 	s, ok := text.?
 	if !ok do return nil, nil
-	return clone_string(s, allocator)
-}
-
-@(private)
-clone_string :: proc(
-	s: string,
-	allocator: runtime.Allocator,
-) -> (
-	string,
-	runtime.Allocator_Error,
-) {
-	bytes, err := make([]u8, len(s), allocator)
-	if err != nil do return "", err
-	copy(bytes, s)
-	return string(bytes), nil
+	return strings.clone(s, allocator)
 }

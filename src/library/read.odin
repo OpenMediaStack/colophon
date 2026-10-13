@@ -1,5 +1,6 @@
 package library
 
+import "base:runtime"
 import "core:os"
 import "core:strings"
 
@@ -7,9 +8,9 @@ import id3 "../../libs/odid3"
 import "../mpa"
 
 // Reads the file at path: its size and date, its tags through odid3 and its audio
-// through mpa. A file that cannot be read gives a Track all the same, with
-// read_error saying why. The Track's strings are allocated with allocator; free it
-// with destroy_track. Scratch memory comes from allocator too and is freed before
+// through mpa. A file that cannot be read gives a Track all the same, with error
+// saying why. The Track's strings are allocated with allocator; free it with
+// destroy_track. Scratch memory comes from allocator too and is freed before
 // returning. Safe to call from any thread, with an allocator that is.
 read_track :: proc(path: string, allocator := context.allocator) -> (track: Track) {
 	track.path = strings.clone(path, allocator)
@@ -28,14 +29,14 @@ read_track :: proc(path: string, allocator := context.allocator) -> (track: Trac
 	}
 	defer id3.destroy(&tags)
 	audio := tags.layout.audio
-	properties, audio_err := mpa.read_file(path, audio.offset, audio.size)
+	properties, audio_err := mpa.read_file(path, audio.offset, audio.size, allocator)
 	if audio_err != nil {
 		_, cannot_open := audio_err.(os.Error)
 		track.error = cannot_open ? .Cannot_Open : .Damaged
 		return
 	}
 	track.metadata = {
-		tags = tags_of(&tags, allocator),
+		tags = primary_tags(path, &tags, allocator),
 		audio = {
 			duration = properties.duration,
 			bitrate_kbps = properties.bitrate_kbps,
@@ -54,38 +55,58 @@ is_open_error :: proc(err: id3.Error) -> bool {
 	return ok
 }
 
-// The generic fields of a file's ID3 tags: ID3v2's, else ID3v1's.
+// The fields of the file's richest tag, ID3v2, else ID3v1, else APE, never mixed
+// field by field: a mix would hide the differences between two tags of one file.
 @(private = "file")
-tags_of :: proc(tags: ^id3.Tags, allocator := context.allocator) -> (t: Tags) {
-	text :: proc(
-		tags: ^id3.Tags,
-		field: id3.Field,
-		allocator := context.allocator,
-	) -> Maybe(string) {
-		value := id3.get(tags, field, context.temp_allocator)
-		if len(value) == 0 do return nil
-		return strings.clone(value, allocator)
+primary_tags :: proc(path: string, tags: ^id3.Tags, allocator: runtime.Allocator) -> Tags {
+	if tags.v2.version != .None {
+		t := id3_fields(&tags.v2, allocator)
+		t.has_cover = has_picture(&tags.v2)
+		return t
+	}
+	// Without ID3v2, odid3 gives each field of the file from ID3v1.
+	if tags.v1.version != .None do return id3_fields(tags, allocator)
+	if tags.layout.ape.size > 0 {
+		t, _ := read_ape(path, tags.layout.ape.offset, tags.layout.ape.size, allocator)
+		return t
+	}
+	return {}
+}
+
+// The generic fields of an ID3v2 tag, or of a file's ID3v1 tag through its Tags.
+@(private = "file")
+id3_fields :: proc(tag: ^$T, allocator: runtime.Allocator) -> (t: Tags) {
+	text :: proc(tag: ^T, field: id3.Field, allocator: runtime.Allocator) -> Maybe(string) {
+		value := id3.get(tag, field, allocator)
+		if len(value) > 0 do return value
+		delete(value, allocator)
+		return nil
 	}
 	number :: proc(n: int) -> Maybe(int) {
 		return n > 0 ? n : nil
 	}
-	t.title = text(tags, .Title, allocator)
-	t.artist = text(tags, .Artist, allocator)
-	t.album_artist = text(tags, .Album_Artist, allocator)
-	t.album = text(tags, .Album, allocator)
-	t.genre = text(tags, .Genre, allocator)
-	t.comment = text(tags, .Comment, allocator)
-	if year, ok := id3.year(tags); ok do t.year = year
-	track, track_total := id3.track(tags)
+	t.title = text(tag, .Title, allocator)
+	t.artist = text(tag, .Artist, allocator)
+	t.album_artist = text(tag, .Album_Artist, allocator)
+	t.album = text(tag, .Album, allocator)
+	t.genre = text(tag, .Genre, allocator)
+	t.comment = text(tag, .Comment, allocator)
+	if year, ok := id3.year(tag); ok do t.year = year
+	track, track_total := id3.track(tag)
 	t.track, t.track_total = number(track), number(track_total)
-	disc, disc_total := id3.disc(tags)
+	disc, disc_total := id3.disc(tag)
 	t.disc, t.disc_total = number(disc), number(disc_total)
-	cover, found, _ := id3.front_cover(&tags.v2, allocator)
-	if found {
-		t.has_cover = true
-		id3.destroy(&cover, allocator)
-	}
 	return
+}
+
+// Whether the tag holds a picture of any type: the cover is the front cover, or
+// else the first picture. Picture data is not read, so this looks at frame ids.
+@(private = "file")
+has_picture :: proc(tag: ^id3.Tag) -> bool {
+	for f in tag.frames {
+		if kind, known := id3.frame_kind(f.id, tag.version); known && kind == .APIC do return true
+	}
+	return false
 }
 
 @(private = "file")
