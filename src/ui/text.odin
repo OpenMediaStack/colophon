@@ -2,7 +2,6 @@ package ui
 
 import "core:math"
 import "core:strings"
-import "core:unicode/utf8"
 import fs "vendor:fontstash"
 
 Font :: enum u8 {
@@ -13,7 +12,7 @@ Font :: enum u8 {
 	Mono_Medium,
 }
 
-@(rodata)
+@(private, rodata)
 FONT_FILES := [Font][]u8 {
 	.Inter_Regular  = #load("../../assets/fonts/Inter-Regular.ttf"),
 	.Inter_Medium   = #load("../../assets/fonts/Inter-Medium.ttf"),
@@ -70,6 +69,8 @@ draw_text :: proc(
 	align := Align.Left,
 ) -> f32 {
 	if len(text) == 0 do return 0
+	// fontstash grows the atlas with the context allocator: make it the atlas's.
+	context.allocator = r.atlas.allocator
 	shown := styled_text(text, style)
 	set_font_state(r, style)
 	width := fs.TextBounds(&r.atlas.fonts, shown) / r.scale
@@ -110,7 +111,9 @@ draw_text_fit :: proc(
 	color: Color,
 	align := Align.Left,
 ) {
-	shown := text_fit(r, text, style, width)
+	shown := styled_text(text, style)
+	length, cut := text_fit(r, shown, style, width)
+	if cut do shown = strings.concatenate({shown[:length], ELLIPSIS}, context.temp_allocator)
 	switch align {
 	case .Left:
 		draw_text(r, shown, x, y, style, color)
@@ -124,40 +127,74 @@ draw_text_fit :: proc(
 // The width of text in points.
 text_width :: proc(r: ^Renderer, text: string, style: Text_Style) -> f32 {
 	if len(text) == 0 do return 0
+	context.allocator = r.atlas.allocator
 	set_font_state(r, style)
 	return fs.TextBounds(&r.atlas.fonts, styled_text(text, style)) / r.scale
 }
 
-// text, or its longest start followed by an ellipsis that fits width. A cut string
-// is allocated with context.temp_allocator.
-text_fit :: proc(r: ^Renderer, text: string, style: Text_Style, width: f32) -> string {
-	if width <= 0 do return ""
-	if text_width(r, text, style) <= width do return text
+// How many bytes of text fit width: all of it (cut is false), or the longest
+// start, on a character boundary, that leaves room for an ellipsis after it.
+text_fit :: proc(
+	r: ^Renderer,
+	text: string,
+	style: Text_Style,
+	width: f32,
+) -> (
+	length: int,
+	cut: bool,
+) {
+	if width <= 0 do return 0, len(text) > 0
+	if text_width(r, text, style) <= width do return len(text), false
 	room := width - text_width(r, ELLIPSIS, style)
-	end := 0
-	for i := 0; i < len(text); {
-		_, size := utf8.decode_rune_in_string(text[i:])
-		next := i + size
-		if text_width(r, text[:next], style) > room do break
-		end = next
-		i = next
+	for advance in text_advances(r, text, style) {
+		if advance.x > room do break
+		length = advance.end
 	}
-	return strings.concatenate({text[:end], ELLIPSIS}, context.temp_allocator)
+	return length, true
 }
 
 // The x of every byte boundary of text, in points from its start: the caret
-// positions of a text field. Allocated with context.temp_allocator.
-caret_positions :: proc(r: ^Renderer, text: string, style: Text_Style) -> []f32 {
-	xs := make([]f32, len(text) + 1, context.temp_allocator)
-	for i := 0; i < len(text); {
-		_, size := utf8.decode_rune_in_string(text[i:])
-		width := text_width(r, text[:i + size], style)
-		for k in i + 1 ..= i + size do xs[k] = width
-		i += size
+// positions of a text field. The slice is allocated with allocator; free it with
+// delete.
+caret_positions :: proc(
+	r: ^Renderer,
+	text: string,
+	style: Text_Style,
+	allocator := context.allocator,
+) -> []f32 {
+	xs := make([]f32, len(text) + 1, allocator)
+	previous := 0
+	for advance in text_advances(r, text, style) {
+		for k in previous + 1 ..= advance.end do xs[k] = advance.x
+		previous = advance.end
 	}
 	return xs
 }
 
+// The end of a character of a text, as a byte offset, and the x after it in points.
+@(private = "file")
+Advance :: struct {
+	end: int,
+	x:   f32,
+}
+
+// Where each character of text ends, in order, measured in one pass. Allocated
+// with context.temp_allocator.
+@(private = "file")
+text_advances :: proc(r: ^Renderer, text: string, style: Text_Style) -> []Advance {
+	advances := make([dynamic]Advance, 0, len(text), context.temp_allocator)
+	if len(text) == 0 do return advances[:]
+	context.allocator = r.atlas.allocator
+	set_font_state(r, style)
+	iter := fs.TextIterInit(&r.atlas.fonts, 0, 0, text)
+	quad: fs.Quad
+	for fs.TextIterNext(&r.atlas.fonts, &iter, &quad) {
+		append(&advances, Advance{iter.next, iter.nextx / r.scale})
+	}
+	return advances[:]
+}
+
+// The text a style shows: in uppercase for labels, in context.temp_allocator.
 @(private)
 styled_text :: proc(text: string, style: Text_Style) -> string {
 	if !TEXT_STYLES[style].uppercase do return text

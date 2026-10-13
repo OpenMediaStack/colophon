@@ -7,54 +7,46 @@ import "core:strings"
 import "core:testing"
 import sdl "vendor:sdl3"
 
-// The reference captures of the repository, from this file's folder.
+// The reference captures of the repository, and where a capture that differs is
+// written, from this file's folder.
 @(private = "file")
 REFERENCES :: #directory + "/../../tests/references"
+@(private = "file")
+FAILED_CAPTURES :: #directory + "/../../build/captures"
 
-// Channels may differ by this much without counting as a difference, and this share
-// of the pixels may differ more: rasterizing is not bit for bit the same everywhere.
+// A channel may differ by this much without counting, and this many pixels may
+// differ more: rasterizing is not bit for bit the same on every system.
 @(private = "file")
 CHANNEL_TOLERANCE :: 8
 @(private = "file")
-PIXEL_TOLERANCE :: 0.002
+DIFFERING_PIXELS_ALLOWED :: 64
 
 @(test)
 the_test_card_matches_its_reference :: proc(t: ^testing.T) {
-	ok :=
-		sdl.SetHint(sdl.HINT_VIDEO_DRIVER, "dummy") &&
-		sdl.SetHint(sdl.HINT_RENDER_DRIVER, "software")
-	if !testing.expect(t, ok) do return
-	if !testing.expectf(t, sdl.Init({.VIDEO}), "SDL_Init: %s", sdl.GetError()) do return
-	defer sdl.Quit()
-
 	size := [2]f32{480, 270}
 	scale: f32 = 2
-	window := sdl.CreateWindow("test card", c.int(size.x * scale), c.int(size.y * scale), {})
-	if !testing.expectf(t, window != nil, "SDL_CreateWindow: %s", sdl.GetError()) do return
-	defer sdl.DestroyWindow(window)
-	renderer := sdl.CreateRenderer(window, nil)
-	if !testing.expectf(t, renderer != nil, "SDL_CreateRenderer: %s", sdl.GetError()) do return
+	// SDL's software renderer on a surface needs no SDL_Init, window or hint, so
+	// capture tests may run on any thread, side by side.
+	surface := sdl.CreateSurface(c.int(size.x * scale), c.int(size.y * scale), .RGBA32)
+	if !testing.expectf(t, surface != nil, "SDL_CreateSurface: %s", sdl.GetError()) do return
+	defer sdl.DestroySurface(surface)
+	renderer := sdl.CreateSoftwareRenderer(surface)
+	if !testing.expectf(t, renderer != nil, "SDL_CreateSoftwareRenderer: %s", sdl.GetError()) do return
 	defer sdl.DestroyRenderer(renderer)
 
-	r := new(Renderer)
-	defer free(r)
-	renderer_init(r)
-	defer renderer_destroy(r)
+	r := test_renderer(scale)
+	defer destroy_test_renderer(r)
 	backend: Sdl_Backend
 	sdl_backend_init(&backend, renderer)
 	defer sdl_backend_destroy(&backend)
 
-	begin_frame(r, scale)
 	draw_test_card(r, {0, 0, size.x / 2, size.y}, theme(.Dark))
 	draw_test_card(r, {size.x / 2, 0, size.x / 2, size.y}, theme(.Light))
+	testing.expect(t, !atlas_grew(r))
 	testing.expect(t, sdl.RenderClear(renderer))
 	testing.expectf(t, sdl_backend_draw(&backend, r), "drawing: %s", sdl.GetError())
-	free_all(context.temp_allocator)
-
-	capture := sdl.RenderReadPixels(renderer, nil)
-	if !testing.expectf(t, capture != nil, "SDL_RenderReadPixels: %s", sdl.GetError()) do return
-	defer sdl.DestroySurface(capture)
-	expect_reference(t, capture, "test-card.png")
+	testing.expect(t, sdl.RenderPresent(renderer))
+	expect_reference(t, surface, "test-card.png")
 }
 
 // Every shape, every text style and every icon, on the theme's surfaces.
@@ -139,15 +131,14 @@ draw_test_card :: proc(r: ^Renderer, area: Rect, th: Theme) {
 }
 
 // Compares capture with the reference of that name, or writes the reference when
-// UPDATE_REFERENCES is set or when it does not exist yet (and fails, to be looked at).
+// UPDATE_REFERENCES is set or when it does not exist yet (and fails, to be looked
+// at). A capture that differs is written to build/captures.
 @(private = "file")
 expect_reference :: proc(t: ^testing.T, capture: ^sdl.Surface, name: string) {
 	path := fmt.tprintf("%s/%s", REFERENCES, name)
 	cpath := strings.clone_to_cstring(path, context.temp_allocator)
-	defer free_all(context.temp_allocator)
 	update := len(os.get_env("UPDATE_REFERENCES", context.temp_allocator)) > 0
 	if update || !os.exists(path) {
-		os.make_directory_all(REFERENCES)
 		testing.expectf(t, sdl.SavePNG(capture, cpath), "SDL_SavePNG: %s", sdl.GetError())
 		testing.expectf(
 			t,
@@ -166,7 +157,24 @@ expect_reference :: proc(t: ^testing.T, capture: ^sdl.Surface, name: string) {
 	defer sdl.DestroySurface(got)
 	if !testing.expect(t, want != nil && got != nil) do return
 	if !testing.expectf(t, want.w == got.w && want.h == got.h, "%s is %dx%d, the capture %dx%d", name, want.w, want.h, got.w, got.h) do return
-	differing := 0
+	differing := count_differing_pixels(want, got)
+	if differing > DIFFERING_PIXELS_ALLOWED {
+		_ = os.make_directory_all(FAILED_CAPTURES)
+		failed := fmt.tprintf("%s/%s", FAILED_CAPTURES, name)
+		sdl.SavePNG(got, strings.clone_to_cstring(failed, context.temp_allocator))
+		testing.expectf(
+			t,
+			false,
+			"%d pixels differ from %s: the capture is in %s",
+			differing,
+			name,
+			failed,
+		)
+	}
+}
+
+@(private = "file")
+count_differing_pixels :: proc(want, got: ^sdl.Surface) -> (differing: int) {
 	for y in 0 ..< int(got.h) {
 		a := ([^]u8)(want.pixels)[y * int(want.pitch):][:got.w * 4]
 		b := ([^]u8)(got.pixels)[y * int(got.pitch):][:got.w * 4]
@@ -179,18 +187,5 @@ expect_reference :: proc(t: ^testing.T, capture: ^sdl.Surface, name: string) {
 			}
 		}
 	}
-	share := f64(differing) / f64(got.w * got.h)
-	if share > PIXEL_TOLERANCE {
-		failed := fmt.tprintf("%s/%s.failed.png", REFERENCES, name)
-		sdl.SavePNG(got, strings.clone_to_cstring(failed, context.temp_allocator))
-		testing.expectf(
-			t,
-			false,
-			"%d pixels (%.2f%%) differ from %s: the capture is in %s",
-			differing,
-			share * 100,
-			name,
-			failed,
-		)
-	}
+	return
 }

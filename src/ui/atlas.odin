@@ -27,9 +27,10 @@ Icon :: enum u8 {
 }
 
 // The side of an icon mask, in pixels. scripts/icons.sh makes the masks.
+@(private)
 ICON_SIZE :: 64
 
-@(rodata)
+@(private, rodata)
 ICON_MASKS := [Icon][]u8 {
 	.Check          = #load("../../assets/icons/masks/check.a8"),
 	.Chevron_Down   = #load("../../assets/icons/masks/chevron-down.a8"),
@@ -53,7 +54,13 @@ ICON_MASKS := [Icon][]u8 {
 	.X              = #load("../../assets/icons/masks/x.a8"),
 }
 
+@(private)
 ATLAS_SIZE :: 2048
+
+// Each icon is kept at 64, 32 and 16 pixels, each halved from the one before, so
+// one drawn at 16 or 32 pixels is not sampled from a mask four times its size.
+@(private)
+ICON_LEVELS :: [3]int{64, 32, 16}
 
 // One alpha texture for glyphs, icons and solid shapes. fontstash packs the glyphs
 // and keeps a 2 by 2 white rect at the origin, which solid shapes sample; the icons
@@ -62,7 +69,8 @@ Atlas :: struct {
 	allocator: runtime.Allocator,
 	fonts:     fs.FontContext,
 	font_ids:  [Font]int,
-	icons:     [Icon][2]int,
+	// Where each size of each icon starts in the atlas.
+	icons:     [Icon][len(ICON_LEVELS)][2]int,
 }
 
 @(private)
@@ -73,21 +81,43 @@ atlas_init :: proc(a: ^Atlas, allocator := context.allocator) {
 	for font in Font {
 		a.font_ids[font] = fs.AddFontMem(&a.fonts, "colophon", FONT_FILES[font], false)
 	}
+	levels := ICON_LEVELS
 	for icon in Icon {
-		// One pixel of empty border keeps a neighbour from bleeding in when sampled.
-		x, y, ok := fs.__AtlasAddRect(&a.fonts, ICON_SIZE + 2, ICON_SIZE + 2)
-		if !ok do continue
-		a.icons[icon] = {x + 1, y + 1}
 		mask := ICON_MASKS[icon]
-		for row in 0 ..< ICON_SIZE {
-			start := row * ICON_SIZE
-			if start + ICON_SIZE > len(mask) do break
-			dst := (y + 1 + row) * a.fonts.width + x + 1
-			copy(a.fonts.textureData[dst:dst + ICON_SIZE], mask[start:start + ICON_SIZE])
+		if len(mask) < ICON_SIZE * ICON_SIZE do continue
+		pixels := make([]u8, ICON_SIZE * ICON_SIZE)
+		defer delete(pixels)
+		copy(pixels, mask)
+		for size, level in levels {
+			if level > 0 do halve(pixels, size * 2)
+			// One pixel of empty border keeps a neighbour from bleeding in when sampled.
+			x, y, ok := fs.__AtlasAddRect(&a.fonts, size + 2, size + 2)
+			if !ok do break
+			a.icons[icon][level] = {x + 1, y + 1}
+			for row in 0 ..< size {
+				dst := (y + 1 + row) * a.fonts.width + x + 1
+				copy(a.fonts.textureData[dst:dst + size], pixels[row * size:][:size])
+			}
 		}
 	}
 	// Everything changed: the backend uploads the whole atlas once.
 	a.fonts.dirtyRect = {0, 0, f32(a.fonts.width), f32(a.fonts.height)}
+}
+
+// Halves a square mask side by side in place: each pixel becomes the average of
+// the 2 by 2 block it covered, and the result fills the start of pixels.
+@(private = "file")
+halve :: proc(pixels: []u8, side: int) {
+	half := side / 2
+	for y in 0 ..< half {
+		for x in 0 ..< half {
+			sum := int(pixels[2 * y * side + 2 * x]) + int(pixels[2 * y * side + 2 * x + 1])
+			sum +=
+				int(pixels[(2 * y + 1) * side + 2 * x]) +
+				int(pixels[(2 * y + 1) * side + 2 * x + 1])
+			pixels[y * half + x] = u8((sum + 2) / 4)
+		}
+	}
 }
 
 @(private)
@@ -101,10 +131,16 @@ white_uv :: proc(a: ^Atlas) -> [2]f32 {
 	return {1 / f32(a.fonts.width), 1 / f32(a.fonts.height)}
 }
 
+// The texture coordinates of the size of icon best drawn pixels wide: the
+// smallest at least that big.
 @(private)
-icon_uv :: proc(a: ^Atlas, icon: Icon) -> (u0, v0, u1, v1: f32) {
-	p := a.icons[icon]
+icon_uv :: proc(a: ^Atlas, icon: Icon, pixels: f32) -> (u0, v0, u1, v1: f32) {
+	levels := ICON_LEVELS
+	level := 0
+	for size, i in levels do if f32(size) >= pixels do level = i
+	size := levels[level]
+	p := a.icons[icon][level]
 	w := f32(a.fonts.width)
 	h := f32(a.fonts.height)
-	return f32(p.x) / w, f32(p.y) / h, f32(p.x + ICON_SIZE) / w, f32(p.y + ICON_SIZE) / h
+	return f32(p.x) / w, f32(p.y) / h, f32(p.x + size) / w, f32(p.y + size) / h
 }

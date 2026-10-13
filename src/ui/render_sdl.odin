@@ -9,12 +9,13 @@ import sdl "vendor:sdl3"
 #assert(offset_of(Vertex, uv) == offset_of(sdl.Vertex, tex_coord))
 
 // Draws a Renderer's lists with an SDL renderer, and owns the textures they name.
+// The lists are in pixels: keep the SDL renderer's scale at 1.
 Sdl_Backend :: struct {
 	renderer:   ^sdl.Renderer,
 	atlas:      ^sdl.Texture,
 	atlas_size: [2]int,
-	// The atlas as white RGBA pixels whose alpha is the coverage.
-	staging:    [dynamic]u8,
+	// Indexed by Texture_Id minus one; a destroyed texture leaves nil, and its id
+	// is never given again, so a stale id draws nothing rather than another image.
 	textures:   [dynamic]^sdl.Texture,
 }
 
@@ -25,7 +26,6 @@ sdl_backend_init :: proc(
 	allocator := context.allocator,
 ) {
 	b.renderer = renderer
-	b.staging = make([dynamic]u8, allocator)
 	b.textures = make([dynamic]^sdl.Texture, allocator)
 }
 
@@ -34,11 +34,11 @@ sdl_backend_destroy :: proc(b: ^Sdl_Backend) {
 	for texture in b.textures {
 		if texture != nil do sdl.DestroyTexture(texture)
 	}
-	delete(b.staging)
 	delete(b.textures)
 }
 
-// Makes a texture from RGBA pixels, w by h. ok is false when SDL fails.
+// Makes a texture from RGBA pixels, w by h, for draw_image. ok is false when SDL
+// fails.
 sdl_backend_create_texture :: proc(
 	b: ^Sdl_Backend,
 	rgba: []u8,
@@ -56,16 +56,11 @@ sdl_backend_create_texture :: proc(
 		sdl.DestroyTexture(texture)
 		return
 	}
-	for &slot, i in b.textures {
-		if slot == nil {
-			slot = texture
-			return Texture_Id(i + 1), true
-		}
-	}
 	append(&b.textures, texture)
 	return Texture_Id(len(b.textures)), true
 }
 
+// Destroys a texture of sdl_backend_create_texture. Its id draws nothing after.
 sdl_backend_destroy_texture :: proc(b: ^Sdl_Backend, id: Texture_Id) {
 	index := int(id) - 1
 	if index < 0 || index >= len(b.textures) || b.textures[index] == nil do return
@@ -76,12 +71,16 @@ sdl_backend_destroy_texture :: proc(b: ^Sdl_Backend, id: Texture_Id) {
 // Uploads what changed in the atlas and draws every layer. False when SDL fails.
 sdl_backend_draw :: proc(b: ^Sdl_Backend, r: ^Renderer) -> bool {
 	upload_atlas(b, &r.atlas) or_return
+	// Texture coordinates stay inside each texture: an image's edge is not blended
+	// with its opposite edge, and SDL need not check every vertex for wrapping.
+	sdl.SetRenderTextureAddressMode(b.renderer, .CLAMP, .CLAMP) or_return
+	defer sdl.SetRenderClipRect(b.renderer, nil)
 	for &list in r.lists {
 		for command in list.commands {
 			draw_command(b, &list, command) or_return
 		}
 	}
-	return sdl.SetRenderClipRect(b.renderer, nil)
+	return true
 }
 
 @(private = "file")
@@ -95,7 +94,7 @@ draw_command :: proc(b: ^Sdl_Backend, list: ^Draw_List, command: Draw_Command) -
 	}
 	texture := texture_of(b, command.texture)
 	if texture == nil do return true
-	vertices := list.vertices[command.first_vertex:]
+	vertices := list.vertices[command.first_vertex:][:command.vertex_count]
 	indices := list.indices[command.first_index:][:command.index_count]
 	return sdl.RenderGeometry(
 		b.renderer,
@@ -115,14 +114,14 @@ texture_of :: proc(b: ^Sdl_Backend, id: Texture_Id) -> ^sdl.Texture {
 	return b.textures[index]
 }
 
-// Makes the atlas texture again when fontstash grew it, else uploads the region
-// fontstash marked as changed.
+// Makes the atlas texture again when fontstash grew it, else writes the region
+// fontstash marked as changed into it.
 @(private = "file")
 upload_atlas :: proc(b: ^Sdl_Backend, a: ^Atlas) -> bool {
 	size := [2]int{a.fonts.width, a.fonts.height}
 	if b.atlas == nil || size != b.atlas_size {
 		if b.atlas != nil do sdl.DestroyTexture(b.atlas)
-		b.atlas = sdl.CreateTexture(b.renderer, .RGBA32, .STATIC, c.int(size.x), c.int(size.y))
+		b.atlas = sdl.CreateTexture(b.renderer, .RGBA32, .STREAMING, c.int(size.x), c.int(size.y))
 		if b.atlas == nil do return false
 		sdl.SetTextureBlendMode(b.atlas, {.BLEND}) or_return
 		sdl.SetTextureScaleMode(b.atlas, .LINEAR) or_return
@@ -135,19 +134,22 @@ upload_atlas :: proc(b: ^Sdl_Backend, a: ^Atlas) -> bool {
 	y0 := clamp(int(dirty[1]), 0, size.y)
 	x1 := clamp(int(dirty[2]), x0, size.x)
 	y1 := clamp(int(dirty[3]), y0, size.y)
-	w := x1 - x0
-	h := y1 - y0
-	if w == 0 || h == 0 do return true
-	resize(&b.staging, w * h * 4)
-	for y in 0 ..< h {
-		for x in 0 ..< w {
-			i := (y * w + x) * 4
-			b.staging[i + 0] = 255
-			b.staging[i + 1] = 255
-			b.staging[i + 2] = 255
-			b.staging[i + 3] = a.fonts.textureData[(y0 + y) * size.x + x0 + x]
+	if x1 == x0 || y1 == y0 do return true
+	rect := sdl.Rect{c.int(x0), c.int(y0), c.int(x1 - x0), c.int(y1 - y0)}
+	pixels: rawptr
+	pitch: c.int
+	sdl.LockTexture(b.atlas, &rect, &pixels, &pitch) or_return
+	defer sdl.UnlockTexture(b.atlas)
+	// The atlas holds coverage; the texture is white with that coverage as alpha.
+	for y in y0 ..< y1 {
+		row := ([^]u8)(pixels)[(y - y0) * int(pitch):]
+		for x in x0 ..< x1 {
+			i := (x - x0) * 4
+			row[i + 0] = 255
+			row[i + 1] = 255
+			row[i + 2] = 255
+			row[i + 3] = a.fonts.textureData[y * size.x + x]
 		}
 	}
-	rect := sdl.Rect{c.int(x0), c.int(y0), c.int(w), c.int(h)}
-	return sdl.UpdateTexture(b.atlas, &rect, raw_data(b.staging), c.int(w * 4))
+	return true
 }
