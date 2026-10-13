@@ -1,0 +1,130 @@
+name: Odin
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - odin-migration
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Only a pull request supersedes itself; a push to the branch is left to finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  ODIN_RELEASE: dev-2026-10
+  # SDL3 is built from source on Linux, where the runner's Ubuntu has no package of it.
+  SDL3_VERSION: 3.4.18
+  # odinfmt is built from this OLS commit, checked to build with ODIN_RELEASE.
+  OLS_COMMIT: a2cb00fadb49b0d79ca5089c8f700ab94cfb08ba
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    name: Check, test and run (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: laytan/setup-odin@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release: ${{ env.ODIN_RELEASE }}
+      - name: Install SDL3 (macOS)
+        if: runner.os == 'macOS'
+        run: brew install sdl3
+      - name: Cache SDL3 (Linux)
+        if: runner.os == 'Linux'
+        id: sdl3-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/sdl3
+          key: sdl3-${{ env.SDL3_VERSION }}-${{ runner.os }}-${{ runner.arch }}-headless
+      - name: Build SDL3 (Linux)
+        if: runner.os == 'Linux' && steps.sdl3-cache.outputs.cache-hit != 'true'
+        run: |
+          curl --silent --show-error --location --fail \
+            "https://github.com/libsdl-org/SDL/releases/download/release-$SDL3_VERSION/SDL3-$SDL3_VERSION.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP"
+          cmake -S "$RUNNER_TEMP/SDL3-$SDL3_VERSION" -B "$RUNNER_TEMP/sdl3-build" \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$HOME/sdl3" -DCMAKE_INSTALL_LIBDIR=lib \
+            -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF \
+            -DSDL_X11=OFF -DSDL_WAYLAND=OFF -DSDL_KMSDRM=OFF
+          cmake --build "$RUNNER_TEMP/sdl3-build" --parallel
+          cmake --install "$RUNNER_TEMP/sdl3-build"
+      - name: Point the linker at SDL3 (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo "SDL3_LIB_DIR=$HOME/sdl3/lib" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$HOME/sdl3/lib" >> "$GITHUB_ENV"
+      - name: Check
+        run: ./scripts/check.sh
+      - name: Test
+        run: ./scripts/test.sh
+      - name: Build
+        run: ./scripts/build.sh
+      - name: Render a frame without a window
+        run: |
+          app=build/colophon
+          if [ "$RUNNER_OS" = "Windows" ]; then app=build/colophon.exe; fi
+          "$app" --screenshot=build/smoke.png --size=1280x720
+          test -s build/smoke.png
+      - uses: actions/upload-artifact@v7
+        with:
+          name: smoke-${{ matrix.os }}
+          path: build/smoke.png
+
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: laytan/setup-odin@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release: ${{ env.ODIN_RELEASE }}
+      - name: Build odinfmt
+        run: |
+          git clone --quiet --filter=blob:none https://github.com/DanielGavin/ols.git "$RUNNER_TEMP/ols"
+          git -C "$RUNNER_TEMP/ols" checkout --quiet "$OLS_COMMIT"
+          cd "$RUNNER_TEMP/ols"
+          odin build tools/odinfmt/main.odin -file -collection:src=src -out:"$RUNNER_TEMP/odinfmt"
+      - name: Check formatting
+        run: |
+          "$RUNNER_TEMP/odinfmt" -path:src -w
+          if ! git diff --exit-code; then
+            echo "::error::odinfmt changes the files above: run odinfmt -path:src -w"
+            exit 1
+          fi
+
+  dashes:
+    name: No em or en dashes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Look for em and en dashes
+        run: |
+          em=$(printf '\342\200\224')
+          en=$(printf '\342\200\223')
+          if git grep -nI -F -e "$em" -e "$en"; then
+            echo "::error::Use a comma, a colon, parentheses or a new sentence instead of an em or en dash."
+            exit 1
+          fi

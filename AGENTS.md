@@ -127,7 +127,7 @@ Rules that keep the door open while v1 ships MP3 only:
 - **Round trips:** saving through the engine and the library, then reading back, gives the same fields, and a hash of the audio bytes is unchanged.
 - **Robustness:** a corpus of truncated and mutated fixtures, generated in a temporary directory, scans without a single panic.
 - **UI without a window.** Tests run frames of the `Ui` with scripted input (mouse moves, clicks, keys, typed text) against the real screens and engine, with the renderer recording draw lists instead of drawing. They find widgets by their accessible label and check what happened in the engine and what was drawn.
-- **Reference captures** for the screens and components that matter: the app renders one frame offscreen (SDL's `offscreen` video driver and the software renderer, so pixels do not depend on the GPU), and the test compares it with a stored PNG in `tests/references/`, within a small tolerance. Fonts are embedded so a capture does not depend on the machine. `UPDATE_REFERENCES=1` writes them again after an intended change.
+- **Reference captures** for the screens and components that matter: the app renders one frame without a window (SDL's `dummy` video driver and the software renderer, so pixels do not depend on the GPU), and the test compares it with a stored PNG in `tests/references/`, within a small tolerance. Fonts are embedded so a capture does not depend on the machine. `UPDATE_REFERENCES=1` writes them again after an intended change.
 
 ## Design
 

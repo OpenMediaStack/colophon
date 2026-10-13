@@ -104,7 +104,7 @@ Some distributions need FUSE 2 for AppImages (`libfuse2` on Debian and Ubuntu).
 
 This branch, `odin-migration`, rebuilds Colophon 1.0.0 in [Odin](https://odin-lang.org) with
 SDL3. The plan and its progress are in [`docs/odin-migration.md`](docs/odin-migration.md), and how
-the work runs is in [`AGENTS.md`](AGENTS.md). The commands below arrive with the plan's first slice.
+the work runs is in [`AGENTS.md`](AGENTS.md).
 
 ### Prerequisites
 
