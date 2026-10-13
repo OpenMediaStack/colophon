@@ -35,35 +35,38 @@ Library :: struct {
 
 // Colophon's state. Make it with init, free it with destroy.
 Engine :: struct {
-	allocator:    runtime.Allocator,
-	library:      Library,
+	allocator:     runtime.Allocator,
+	library:       Library,
 	// Called by the scans' threads when they have news, to wake the UI loop.
-	wake:         lib.Wake,
-	scans:        [dynamic]^lib.Scan,
+	wake:          lib.Wake,
+	scans:         [dynamic]^lib.Scan,
 	// Scans asked to stop, whose threads end after the entry they are reading: poll
 	// frees them then, so that the UI thread never waits for a disk.
-	stopping:     [dynamic]^lib.Scan,
+	stopping:      [dynamic]^lib.Scan,
 	// The paths of the tracks found, so that opening a file twice lists it once. The
 	// keys are the paths of library.tracks.
-	found:        map[string]Track_Id,
-	events:       [dynamic]lib.Scan_Event,
+	found:         map[string]Track_Id,
+	events:        [dynamic]lib.Scan_Event,
 	// The source of the table's tracks, its filter and its order.
-	source:       Source,
-	filter:       string,
-	sort:         Maybe(Sort),
+	source:        Source,
+	filter:        string,
+	sort:          Maybe(Sort),
 	// The tracks the table lists, in its order.
-	listed:       [dynamic]Track_Id,
+	listed:        [dynamic]Track_Id,
 	// The tracks saved since Colophon started.
-	saved:        map[Track_Id]struct{},
-	selection:    Selection,
-	edits:        Edits,
-	view:         View_State,
+	saved:         map[Track_Id]struct{},
+	selection:     Selection,
+	edits:         Edits,
+	view:          View_State,
 	// Set by the app to play tracks; nil without a sound device, and in tests that do
 	// not need sound.
-	output:       Maybe(Output),
-	playback:     Playback,
+	output:        Maybe(Output),
+	playback:      Playback,
 	// The track that last failed to play, until another plays.
-	play_failure: Maybe(Play_Failure),
+	play_failure:  Maybe(Play_Failure),
+	saving:        Maybe(Saving),
+	// The files the last save could not write.
+	save_failures: [dynamic]Save_Failure,
 }
 
 // Adds a folder's audio files to the library.
@@ -107,6 +110,8 @@ Command :: union {
 	Number_Tracks,
 	Select_Album,
 	Choose_Version,
+	Save,
+	Save_Keeping_Id3v1,
 	Set_Write_Policy,
 	Play,
 	Play_Pause,
@@ -175,6 +180,10 @@ command_id :: proc(command: Command) -> string {
 		return "selection.select_album"
 	case Choose_Version:
 		return "tags.choose_version"
+	case Save:
+		return "tags.save"
+	case Save_Keeping_Id3v1:
+		return "tags.save_keeping_id3v1"
 	case Set_Write_Policy:
 		return "settings.write_policy"
 	case Play:
@@ -210,6 +219,7 @@ init :: proc(e: ^Engine, wake := lib.Wake{}, allocator := context.allocator) {
 	e.events = make([dynamic]lib.Scan_Event, allocator)
 	e.listed = make([dynamic]Track_Id, allocator)
 	e.saved = make(map[Track_Id]struct{}, allocator)
+	e.save_failures = make([dynamic]Save_Failure, allocator)
 	e.selection.tracks = make([dynamic]Track_Id, allocator)
 	edits_init(&e.edits, allocator)
 	e.view = DEFAULT_VIEW
@@ -219,6 +229,8 @@ init :: proc(e: ^Engine, wake := lib.Wake{}, allocator := context.allocator) {
 // Stops the scans and frees everything.
 destroy :: proc(e: ^Engine) {
 	context.allocator = e.allocator
+	if s, running := e.saving.?; running do lib.destroy_save(s.save)
+	delete(e.save_failures)
 	for scan in e.scans do lib.destroy_scan(scan)
 	delete(e.scans)
 	for scan in e.stopping do lib.destroy_scan(scan)
@@ -325,6 +337,10 @@ execute :: proc(e: ^Engine, command: Command) {
 		select_albums(e)
 	case Choose_Version:
 		choose_versions(e, e.selection.tracks[:], c.choice)
+	case Save:
+		save(e, false)
+	case Save_Keeping_Id3v1:
+		save(e, true)
 	case Set_Write_Policy:
 		e.edits.policy = c.policy
 	case Play:
@@ -428,10 +444,10 @@ destroy_source :: proc(source: ^Source) {
 	source^ = All_Tracks{}
 }
 
-// Takes in what the running scans reported since the last call, plays the next
-// track when the playing one has ended, and says whether anything changed. The UI
-// calls it when woken, and regularly while scans run or a track plays; it never
-// waits.
+// Takes in what the running scans and save reported since the last call, plays the
+// next track when the playing one has ended, and says whether anything changed. The UI
+// calls it when woken, and regularly while scans or a save run or a track plays; it
+// never waits.
 poll :: proc(e: ^Engine) -> (changed: bool) {
 	context.allocator = e.allocator
 	drop_stopped(e)
@@ -461,6 +477,7 @@ poll :: proc(e: ^Engine) -> (changed: bool) {
 		ordered_remove(&e.scans, i)
 		if len(e.scans) == 0 do e.library.status = outcome == .Stopped ? .Stopped : .Completed
 	}
+	if poll_save(e) do changed = true
 	if changed do relist(e)
 	if advance_playback(e) do changed = true
 	return

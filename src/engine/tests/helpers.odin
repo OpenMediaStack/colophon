@@ -84,3 +84,11 @@ listed_names :: proc(e: ^engine.Engine) -> []string {
 	for id, i in e.listed do names[i] = filepath.base(e.library.tracks[id].path)
 	return names
 }
+
+// The track of this file name.
+track_named :: proc(e: ^engine.Engine, name: string) -> engine.Track_Id {
+	for track, i in e.library.tracks {
+		if filepath.base(track.path) == name do return engine.Track_Id(i)
+	}
+	return -1
+}

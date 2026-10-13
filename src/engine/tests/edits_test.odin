@@ -1,6 +1,5 @@
 package engine_tests
 
-import "core:path/filepath"
 import "core:testing"
 
 import "../../engine"
@@ -11,15 +10,6 @@ title_of :: proc(e: ^engine.Engine, track: engine.Track_Id) -> string {
 	tags, ok := engine.shown_tags(e, track)
 	if !ok do return "?"
 	return tags.title.? or_else ""
-}
-
-// The track of this file name.
-@(private = "file")
-track_named :: proc(e: ^engine.Engine, name: string) -> engine.Track_Id {
-	for track, i in e.library.tracks {
-		if filepath.base(track.path) == name do return engine.Track_Id(i)
-	}
-	return -1
 }
 
 @(private = "file")
