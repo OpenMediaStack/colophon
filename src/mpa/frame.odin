@@ -58,8 +58,8 @@ parse_frame_header :: proc(b: []u8) -> (h: Frame_Header, ok: bool) {
 	case:
 		h.version = .MPEG_1
 	}
-	h.layer = Layer(4 - layer_bits)
-	h.bitrate_kbps = BITRATES[h.version == .MPEG_1 ? 0 : 1][int(h.layer) - 1][bitrate_index]
+	h.layer = Layer(3 - layer_bits)
+	h.bitrate_kbps = BITRATES[h.version == .MPEG_1 ? 0 : 1][int(h.layer)][bitrate_index]
 	h.sample_rate = SAMPLE_RATES[h.version][rate_index]
 	h.padding = b[2] & 0x02 != 0
 	h.mono = b[3] >> 6 == 3
@@ -89,17 +89,24 @@ same_stream :: proc(a, b: Frame_Header) -> bool {
 // stream right after it. When the frame ends exactly at the end of buf and buf is
 // the whole stream (at_end), no second header is needed.
 @(private)
-find_first_frame :: proc(buf: []u8, at_end: bool) -> (offset: int, h: Frame_Header, ok: bool) {
+find_first_frame :: proc(
+	buf: []u8,
+	at_end: bool,
+) -> (
+	offset: int,
+	h: Frame_Header,
+	err: Format_Error,
+) {
 	for i := 0; i + 4 <= len(buf); i += 1 {
 		if buf[i] != 0xFF || buf[i + 1] & 0xE0 != 0xE0 do continue
 		first := parse_frame_header(buf[i:]) or_continue
 		next := i + first.length
 		if next + 4 <= len(buf) {
 			second, valid := parse_frame_header(buf[next:])
-			if valid && same_stream(first, second) do return i, first, true
+			if valid && same_stream(first, second) do return i, first, nil
 		} else if at_end && next == len(buf) {
-			return i, first, true
+			return i, first, nil
 		}
 	}
-	return
+	return 0, {}, .No_Frame
 }
