@@ -126,7 +126,7 @@ Each screen matches 1.0.0's reference captures (`crates/ui-slint/tests/reference
 
 ### Phase 4: audio
 
-- [ ] **42. `feat(audio): playback`.** Play, pause, seek, next and previous, volume, a playhead in sync over a 6 minute track, the player hidden while idle. Port `player.rs` and `engine/tests/playback.rs`.
+- [ ] **42. `feat(audio): playback`.** Play, pause, seek, next and previous, volume, a playhead in sync over a 6 minute track, the player hidden while idle: miniaudio behind the engine's `Output`, which slice 14 made. Port `player.rs` and its tests (an MP3 decodes and moves to a position, a file that is no audio is refused) and `ui-slint/tests/player.rs`; `engine/tests/playback.rs` came with slice 14. `play` runs on the UI thread, as 1.0.0's did: either keep it so, or load asynchronously and report a failure through the output.
 - [ ] **43. `feat(audio): waveform`.** The min/max pyramid computed off the UI thread, drawn at any width at once, scrubbing. Port `player/src/waveform.rs` and its tests.
 
 ### Phase 5: the platform

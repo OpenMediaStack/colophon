@@ -3,7 +3,11 @@ package engine
 import "core:time"
 
 // Where the engine sends the sound of a track: the system's speakers, or a fake in
-// tests. Each procedure gets data.
+// tests. Each procedure gets data, which must outlive the engine's use of it: the app
+// stops and frees its player after engine.destroy. The engine calls them from the
+// thread that runs execute and poll; a player with an audio thread of its own makes
+// position and finished safe to read from there. finished speaks of the file the last
+// play started, never of one before it. path is only borrowed for the call.
 Output :: struct {
 	data:       rawptr,
 	// Plays a file from its start, in place of what played.
@@ -20,6 +24,7 @@ Output :: struct {
 	set_volume: proc(data: rawptr, volume: f32),
 }
 
+// Why the output could not play a file or reach a position.
 Play_Error :: enum u8 {
 	None,
 	// The file could not be opened.
@@ -51,6 +56,7 @@ DEFAULT_PLAYBACK :: Playback {
 
 // Previous plays the track before only within its first seconds; later, it starts
 // the playing one again.
+@(private = "file")
 RESTART_AFTER :: 3 * time.Second
 
 // Plays a track from its start.
@@ -153,10 +159,10 @@ play_next :: proc(e: ^Engine) {
 
 @(private)
 play_previous :: proc(e: ^Engine) {
-	playing := e.playback.track.? or_else -1
-	if playing < 0 do return
-	if track, ok := listed_from_playing(e, -1); ok && position(e) < RESTART_AFTER {
-		play(e, track)
+	playing, ok := e.playback.track.?
+	if !ok do return
+	if before, found := listed_from_playing(e, -1); found && position(e) < RESTART_AFTER {
+		play(e, before)
 	} else {
 		play(e, playing)
 	}
@@ -166,7 +172,7 @@ play_previous :: proc(e: ^Engine) {
 seek :: proc(e: ^Engine, to: time.Duration) {
 	output, ok := e.output.?
 	// A position the decoder cannot reach leaves the track where it was.
-	if ok && e.playback.track != nil do _ = output.seek(output.data, to)
+	if ok && e.playback.track != nil do _ = output.seek(output.data, max(to, 0))
 }
 
 @(private)

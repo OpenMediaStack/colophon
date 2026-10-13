@@ -58,7 +58,8 @@ Engine :: struct {
 	selection:    Selection,
 	edits:        Edits,
 	view:         View_State,
-	// Set by the app to play tracks; nil in tests that do not need sound.
+	// Set by the app to play tracks; nil without a sound device, and in tests that do
+	// not need sound.
 	output:       Maybe(Output),
 	playback:     Playback,
 	// The track that last failed to play, until another plays.
