@@ -82,3 +82,14 @@ id3v2_and_id3v1_are_never_mixed :: proc(t: ^testing.T) {
 	testing.expect_value(t, tags.year, nil)
 	testing.expect_value(t, tags.track, nil)
 }
+
+@(test)
+the_tags_column_names_the_formats_in_file_order :: proc(t: ^testing.T) {
+	all := lib.tag_formats_string(
+		{id3v2 = .V2_3, id3v1 = .V1_1, ape = true},
+		context.temp_allocator,
+	)
+	testing.expect_value(t, all, "ID3v2.3, ID3v1.1, APE")
+	testing.expect_value(t, lib.tag_formats_string({}, context.temp_allocator), "")
+	free_all(context.temp_allocator)
+}

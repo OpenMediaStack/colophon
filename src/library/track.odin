@@ -137,3 +137,36 @@ clone_text :: proc(
 	if !ok do return nil, nil
 	return strings.clone(s, allocator)
 }
+
+@(private, rodata)
+ID3V2_NAMES := [Id3v2_Version]string {
+	.V2_2 = "ID3v2.2",
+	.V2_3 = "ID3v2.3",
+	.V2_4 = "ID3v2.4",
+}
+
+@(private, rodata)
+ID3V1_NAMES := [Id3v1_Version]string {
+	.V1_0 = "ID3v1.0",
+	.V1_1 = "ID3v1.1",
+}
+
+// The tag formats a file holds, as the Tags column shows them: "ID3v2.3, ID3v1.1",
+// "" without any. Allocated with allocator.
+tag_formats_string :: proc(f: Tag_Formats, allocator := context.allocator) -> string {
+	names: [3]string
+	count := 0
+	if v, ok := f.id3v2.?; ok {
+		names[count] = ID3V2_NAMES[v]
+		count += 1
+	}
+	if v, ok := f.id3v1.?; ok {
+		names[count] = ID3V1_NAMES[v]
+		count += 1
+	}
+	if f.ape {
+		names[count] = "APE"
+		count += 1
+	}
+	return strings.join(names[:count], ", ", allocator)
+}
