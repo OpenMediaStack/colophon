@@ -352,3 +352,26 @@ sort_key :: proc(e: ^Engine, id: Track_Id, column: Sort_Column) -> (key: Sort_Ke
 	key.track = tags.track.? or_else 0
 	return
 }
+
+// The genres to suggest: those an ID3v1 tag can name and those of the files read, once
+// each whatever their case, in alphabetical order. A genre only typed so far is not one
+// of them. Allocated with allocator; the strings belong to the library.
+genres :: proc(e: ^Engine, allocator := context.allocator) -> []string {
+	Named :: struct {
+		folded, name: string,
+	}
+	all := make([dynamic]Named, context.temp_allocator)
+	for name in lib.id3v1_genres(context.temp_allocator) do append(&all, Named{lower(name), name})
+	for &track in e.library.tracks {
+		if track.error != .None do continue
+		if genre, ok := track.metadata.tags.genre.?; ok do append(&all, Named{lower(genre), genre})
+	}
+	// The first spelling of a genre wins: ID3v1's, then the first file's.
+	slice.stable_sort_by(all[:], proc(a, b: Named) -> bool {return a.folded < b.folded})
+	result := make([dynamic]string, 0, len(all), allocator)
+	for named, i in all {
+		if i > 0 && named.folded == all[i - 1].folded do continue
+		append(&result, named.name)
+	}
+	return result[:]
+}

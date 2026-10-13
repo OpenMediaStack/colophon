@@ -103,3 +103,16 @@ id3v1_losses :: proc(tags: ^Tags, version: Id3v1_Version) -> (losses: Id3v1_Loss
 	}
 	return
 }
+
+// The genres an ID3v1 tag can name, Winamp's included, as the list spells them: any
+// other genre does not fit it. The list is allocated with allocator; its strings are
+// constants.
+id3v1_genres :: proc(allocator := context.allocator) -> []string {
+	names := make([dynamic]string, 0, 256, allocator)
+	for index in 0 ..< 255 {
+		name := id3.genre_name(u8(index))
+		if name == "" do break
+		append(&names, name)
+	}
+	return names[:]
+}

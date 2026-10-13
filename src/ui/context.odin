@@ -268,6 +268,14 @@ Ui :: struct {
 	// When the caret last moved, so that it shows at once and then blinks.
 	caret_time:      f64,
 	clipboard:       Clipboard,
+	// The open popup's rect, from the last frame and for the next: the widgets under it
+	// do not take the mouse, whatever their order. Only the popup's own widgets do.
+	popup:           Maybe(Rect),
+	popup_next:      Maybe(Rect),
+	in_popup:        bool,
+	popup_layer:     Layer,
+	// The combo box whose suggestions are open, and its list's state.
+	combo:           Combo_State,
 }
 
 // widgets and the input's lists use allocator.
@@ -282,6 +290,7 @@ ui_init :: proc(ui: ^Ui, renderer: ^Renderer, theme: Theme, allocator := context
 	text_edit_init(&ui.edit, allocator)
 	ui.edit_start = make([dynamic]u8, allocator)
 	ui.edit_ended_text = make([dynamic]u8, allocator)
+	ui.combo.filter = make([dynamic]u8, allocator)
 }
 
 // Frees what ui_init made.
@@ -293,6 +302,7 @@ ui_destroy :: proc(ui: ^Ui) {
 	text_edit_destroy(&ui.edit)
 	delete(ui.edit_start)
 	delete(ui.edit_ended_text)
+	delete(ui.combo.filter)
 	ui^ = {}
 }
 
@@ -305,6 +315,8 @@ ui_begin_frame :: proc(ui: ^Ui, scale: f32) {
 	ui.active_seen = false
 	ui.focus_seen = false
 	if ui.input.lost_focus do ui.active = 0
+	ui.popup = ui.popup_next
+	ui.popup_next = nil
 	ui.cursor = .Default
 	clear(&ui.widgets)
 	renderer_begin_frame(ui.renderer, scale)
@@ -364,10 +376,12 @@ child_id :: proc "contextless" (parent: Widget_Id, name: string, index := 0) -> 
 	return Widget_Id(h | 1)
 }
 
-// Whether the mouse is over rect and inside the clip drawn into.
+// Whether the mouse is over rect and inside the clip drawn into, and not over an open
+// popup that rect is not part of.
 mouse_over :: proc(ui: ^Ui, rect: Rect) -> bool {
 	p := ui.input.mouse
 	if !rect_contains(rect, p) do return false
+	if !ui.in_popup && mouse_in_popup(ui) do return false
 	if clip, clipped := current_clip(ui.renderer); clipped && !rect_contains(clip, p) do return false
 	return true
 }
@@ -551,4 +565,25 @@ tab_target :: proc(ui: ^Ui, direction: Tab) -> (target: Widget_Id, found: bool) 
 Edit_Click :: struct {
 	owner:  Widget_Id,
 	offset: int,
+}
+
+// Starts drawing a popup at rect: a list of suggestions, a menu. Its widgets take the
+// mouse before those under it from the next frame on, whatever the order they are
+// drawn in. End it with end_popup.
+begin_popup :: proc(ui: ^Ui, rect: Rect) {
+	ui.popup_next = rect
+	ui.in_popup = true
+	ui.popup_layer = set_layer(ui.renderer, .Overlay)
+	block_mouse(ui, rect)
+}
+
+end_popup :: proc(ui: ^Ui) {
+	ui.in_popup = false
+	set_layer(ui.renderer, ui.popup_layer)
+}
+
+// Whether the mouse is over the popup open in the last frame.
+mouse_in_popup :: proc(ui: ^Ui) -> bool {
+	popup, open := ui.popup.?
+	return open && rect_contains(popup, ui.input.mouse)
 }
