@@ -56,6 +56,7 @@ Engine :: struct {
 	// The tracks saved since Colophon started.
 	saved:     map[Track_Id]struct{},
 	selection: Selection,
+	edits:     Edits,
 }
 
 // Adds a folder's audio files to the library.
@@ -84,6 +85,14 @@ Command :: union {
 	Select_All,
 	Move_Selection,
 	Extend_Selection,
+	Apply_Edit,
+	Continue_Edit,
+	Undo,
+	Redo,
+	Revert,
+	Number_Tracks,
+	Select_Album,
+	Choose_Version,
 }
 
 // A stable identifier for each kind of command, for the command palette and the
@@ -114,6 +123,22 @@ command_id :: proc(command: Command) -> string {
 		return "selection.move"
 	case Extend_Selection:
 		return "selection.extend"
+	case Apply_Edit:
+		return "tags.edit"
+	case Continue_Edit:
+		return "tags.continue_edit"
+	case Undo:
+		return "edit.undo"
+	case Redo:
+		return "edit.redo"
+	case Revert:
+		return "tags.revert"
+	case Number_Tracks:
+		return "tags.number_tracks"
+	case Select_Album:
+		return "selection.select_album"
+	case Choose_Version:
+		return "tags.choose_version"
 	}
 	return ""
 }
@@ -134,6 +159,7 @@ init :: proc(e: ^Engine, wake := lib.Wake{}, allocator := context.allocator) {
 	e.listed = make([dynamic]Track_Id, allocator)
 	e.saved = make(map[Track_Id]struct{}, allocator)
 	e.selection.tracks = make([dynamic]Track_Id, allocator)
+	edits_init(&e.edits, allocator)
 }
 
 // Stops the scans and frees everything.
@@ -157,6 +183,7 @@ destroy :: proc(e: ^Engine) {
 	delete(e.listed)
 	delete(e.saved)
 	destroy_selection(&e.selection)
+	edits_destroy(&e.edits)
 	e^ = {}
 }
 
@@ -207,6 +234,24 @@ execute :: proc(e: ^Engine, command: Command) {
 		move_selection(&e.selection, c.step, e.listed[:])
 	case Extend_Selection:
 		extend_selection(&e.selection, c.step, e.listed[:])
+	case Apply_Edit:
+		edit_tracks(e, e.selection.tracks[:], c.edit, false)
+	case Continue_Edit:
+		edit_tracks(e, e.selection.tracks[:], c.edit, true)
+	case Undo:
+		undo_step(e)
+	case Redo:
+		redo_step(e)
+	case Revert:
+		revert_tracks(e, e.selection.tracks[:])
+	case Number_Tracks:
+		ordered := make([dynamic]Track_Id, context.temp_allocator)
+		for track in e.listed do if is_selected(&e.selection, track) do append(&ordered, track)
+		number_tracks(e, ordered[:])
+	case Select_Album:
+		select_albums(e)
+	case Choose_Version:
+		choose_versions(e, e.selection.tracks[:], c.choice)
 	}
 }
 
@@ -215,17 +260,48 @@ has_track :: proc(e: ^Engine, track: Track_Id) -> bool {
 	return track >= 0 && int(track) < len(e.library.tracks)
 }
 
-// The tags a track shows, or false when it could not be read. The pointer is valid
-// until the library changes: poll may move the tracks.
-shown_tags :: proc(e: ^Engine, id: Track_Id) -> (^lib.Tags, bool) {
-	track := &e.library.tracks[id]
-	if track.error != .None do return nil, false
-	return &track.metadata.tags, true
+// The tags a track shows: those waiting to be saved, or else its file's; false when
+// its file could not be read. The pointer is valid until the tracks or the edits
+// change.
+shown_tags :: proc(e: ^Engine, id: Track_Id) -> (tags: ^lib.Tags, ok: bool) {
+	if pending, found := &e.edits.pending[id]; found do return pending, true
+	saved := saved_metadata(e, id) or_return
+	return &saved.tags, true
 }
 
 // Whether a track has changes waiting to be saved, or was saved since Colophon started.
 is_changed :: proc(e: ^Engine, id: Track_Id) -> bool {
-	return id in e.saved
+	return id in e.edits.pending || id in e.saved
+}
+
+// Every listed track of the albums of the selected tracks joins the selection.
+@(private = "file")
+select_albums :: proc(e: ^Engine) {
+	albums := make([dynamic]Album_Key, context.temp_allocator)
+	for track in e.selection.tracks {
+		tags := shown_tags(e, track) or_continue
+		if key, ok := album_key(tags); ok do append(&albums, key)
+	}
+	// Sorted, so that each listed track finds its album by a binary search.
+	slice.sort_by_cmp(albums[:], compare_album_keys)
+	tracks := make([dynamic]Track_Id, context.temp_allocator)
+	for track in e.listed {
+		tags := shown_tags(e, track) or_continue
+		key := album_key(tags) or_continue
+		if _, found := slice.binary_search_by(albums[:], key, compare_album_keys); found {
+			append(&tracks, track)
+		}
+	}
+	add_to_selection(&e.selection, tracks[:])
+}
+
+@(private = "file")
+compare_album_keys :: proc(a, b: Album_Key) -> slice.Ordering {
+	if order := slice.Ordering(strings.compare(a.title, b.title)); order != .Equal do return order
+	x, has_x := a.artist.?
+	y, has_y := b.artist.?
+	if has_x != has_y do return has_x ? .Greater : .Less
+	return slice.Ordering(strings.compare(x, y))
 }
 
 @(private = "file")
