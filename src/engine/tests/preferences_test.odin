@@ -41,7 +41,12 @@ what_the_file_lacks_keeps_its_default :: proc(t: ^testing.T) {
 @(test)
 a_file_that_is_not_one_gives_the_defaults :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
-	for text in ([]string{"sidebar = [", "volume = \"loud\"", "volume = 300", "[window]\nwidth = 1440\n"}) {
+	for text in ([]string {
+			"sidebar = [",
+			"volume = \"loud\"",
+			"volume = 300",
+			"[window]\nwidth = 1440\n",
+		}) {
 		testing.expect_value(t, engine.preferences_from_toml(text), engine.DEFAULT_PREFERENCES)
 	}
 }
@@ -94,7 +99,10 @@ folder = 0
 @(test)
 a_window_written_inline_or_dotted_reads_as_1_0_read_it :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
-	for text in ([]string{"window = { width = 1440, height = 900 }\nratio = 1.5\n", "window.width = 1440\nwindow.height = 900\n[[recent]]\npath = \"a\"\n"}) {
+	for text in ([]string {
+			"window = { width = 1440, height = 900 }\nratio = 1.5\n",
+			"window.width = 1440\nwindow.height = 900\n[[recent]]\npath = \"a\"\n",
+		}) {
 		p := engine.preferences_from_toml(text)
 		testing.expectf(t, p.view.window_size == engine.Window_Size{1440, 900}, "%q: %v", text, p)
 	}

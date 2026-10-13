@@ -34,7 +34,21 @@ width = 1440
 @(test)
 toml_that_is_not_toml_is_refused :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
-	for text in ([]string{"sidebar = [", "volume = 01", "volume = 1__0", "a = 1.", "a = 12:3", "a = 1\na = 2", "a = 1\na.b = 2", "[window]\n[window]", "window = { width = 1", "a = \"\"\"long\"\"\"", "a = 1 b = 2", "a = \"open", "a = 99999999999999999999"}) {
+	for text in ([]string {
+			"sidebar = [",
+			"volume = 01",
+			"volume = 1__0",
+			"a = 1.",
+			"a = 12:3",
+			"a = 1\na = 2",
+			"a = 1\na.b = 2",
+			"[window]\n[window]",
+			"window = { width = 1",
+			"a = \"\"\"long\"\"\"",
+			"a = 1 b = 2",
+			"a = \"open",
+			"a = 99999999999999999999",
+		}) {
 		_, ok := parse_toml(text)
 		testing.expectf(t, !ok, "%q should be refused", text)
 	}

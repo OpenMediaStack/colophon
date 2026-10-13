@@ -84,8 +84,14 @@ renderer_destroy :: proc(r: ^Renderer) {
 	atlas_destroy(&r.atlas)
 }
 
+// Starts a frame: renderer_begin_frame for drawing alone, ui_begin_frame for a Ui.
+begin_frame :: proc {
+	renderer_begin_frame,
+	ui_begin_frame,
+}
+
 // Starts a frame drawn at scale pixels per point, emptying the lists.
-begin_frame :: proc(r: ^Renderer, scale: f32) {
+renderer_begin_frame :: proc(r: ^Renderer, scale: f32) {
 	r.scale = scale > 0 ? scale : 1
 	r.layer = .Base
 	for &list in r.lists {
