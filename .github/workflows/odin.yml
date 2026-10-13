@@ -54,6 +54,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release: ${{ env.ODIN_RELEASE }}
+      - name: Build Odin's stb libraries (Linux)
+        # fontstash rasterizes with stb_truetype, which Odin ships as C source on Linux.
+        if: runner.os == 'Linux'
+        run: make -C "$(odin root)/vendor/stb/src"
       - name: Install SDL3 (macOS)
         if: runner.os == 'macOS'
         run: brew install sdl3
