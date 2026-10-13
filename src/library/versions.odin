@@ -1,5 +1,7 @@
 package library
 
+import id3 "../../libs/odid3"
+
 // The tag versions to write a file in; nil removes that tag.
 Tag_Versions :: struct {
 	id3v2: Maybe(Id3v2_Version),
@@ -54,4 +56,44 @@ id3v1_track :: proc(tags: ^Tags, version: Id3v1_Version) -> Maybe(int) {
 	track, ok := tags.track.?
 	if !ok || track < 1 || track > 255 do return nil
 	return track
+}
+
+// A field whose value an ID3v1 tag cannot hold whole.
+Id3v1_Loss :: enum u8 {
+	Title,
+	Artist,
+	Album,
+	Year,
+	Comment,
+	Track,
+	Genre,
+}
+
+Id3v1_Losses :: bit_set[Id3v1_Loss]
+
+// What an ID3v1 tag of version would lose of tags. It keeps 30 Latin-1 characters of
+// text, 28 of the comment next to a track number, a track up to 255 in ID3v1.1 only,
+// a year of four digits, and the genres of its list.
+id3v1_losses :: proc(tags: ^Tags, version: Id3v1_Version) -> (losses: Id3v1_Losses) {
+	fits :: proc(value: Maybe(string), length: int) -> bool {
+		s, ok := value.?
+		if !ok do return true
+		count := 0
+		for r in s {
+			if r > 0xff do return false
+			count += 1
+		}
+		return count <= length
+	}
+	track := id3v1_track(tags, version)
+	if !fits(tags.title, 30) do losses += {.Title}
+	if !fits(tags.artist, 30) do losses += {.Artist}
+	if !fits(tags.album, 30) do losses += {.Album}
+	if year, ok := tags.year.?; ok && year > 9999 do losses += {.Year}
+	if !fits(tags.comment, track != nil ? 28 : 30) do losses += {.Comment}
+	if tags.track != nil && track == nil do losses += {.Track}
+	if genre, ok := tags.genre.?; ok {
+		if _, known := id3.genre_index(genre); !known do losses += {.Genre}
+	}
+	return
 }
