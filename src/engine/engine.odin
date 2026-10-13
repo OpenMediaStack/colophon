@@ -35,30 +35,35 @@ Library :: struct {
 
 // Colophon's state. Make it with init, free it with destroy.
 Engine :: struct {
-	allocator: runtime.Allocator,
-	library:   Library,
+	allocator:    runtime.Allocator,
+	library:      Library,
 	// Called by the scans' threads when they have news, to wake the UI loop.
-	wake:      lib.Wake,
-	scans:     [dynamic]^lib.Scan,
+	wake:         lib.Wake,
+	scans:        [dynamic]^lib.Scan,
 	// Scans asked to stop, whose threads end after the entry they are reading: poll
 	// frees them then, so that the UI thread never waits for a disk.
-	stopping:  [dynamic]^lib.Scan,
+	stopping:     [dynamic]^lib.Scan,
 	// The paths of the tracks found, so that opening a file twice lists it once. The
 	// keys are the paths of library.tracks.
-	found:     map[string]Track_Id,
-	events:    [dynamic]lib.Scan_Event,
+	found:        map[string]Track_Id,
+	events:       [dynamic]lib.Scan_Event,
 	// The source of the table's tracks, its filter and its order.
-	source:    Source,
-	filter:    string,
-	sort:      Maybe(Sort),
+	source:       Source,
+	filter:       string,
+	sort:         Maybe(Sort),
 	// The tracks the table lists, in its order.
-	listed:    [dynamic]Track_Id,
+	listed:       [dynamic]Track_Id,
 	// The tracks saved since Colophon started.
-	saved:     map[Track_Id]struct{},
-	selection: Selection,
-	edits:     Edits,
-	view:      View_State,
-	playback:  Playback,
+	saved:        map[Track_Id]struct{},
+	selection:    Selection,
+	edits:        Edits,
+	view:         View_State,
+	// Set by the app to play tracks; nil without a sound device, and in tests that do
+	// not need sound.
+	output:       Maybe(Output),
+	playback:     Playback,
+	// The track that last failed to play, until another plays.
+	play_failure: Maybe(Play_Failure),
 }
 
 // Adds a folder's audio files to the library.
@@ -103,6 +108,11 @@ Command :: union {
 	Select_Album,
 	Choose_Version,
 	Set_Write_Policy,
+	Play,
+	Play_Pause,
+	Play_Next,
+	Play_Previous,
+	Seek,
 	Set_Volume,
 	Resize_Window,
 }
@@ -167,6 +177,16 @@ command_id :: proc(command: Command) -> string {
 		return "tags.choose_version"
 	case Set_Write_Policy:
 		return "settings.write_policy"
+	case Play:
+		return "playback.play"
+	case Play_Pause:
+		return "playback.play_pause"
+	case Play_Next:
+		return "playback.next"
+	case Play_Previous:
+		return "playback.previous"
+	case Seek:
+		return "playback.seek"
 	case Set_Volume:
 		return "playback.volume"
 	case Resize_Window:
@@ -307,8 +327,18 @@ execute :: proc(e: ^Engine, command: Command) {
 		choose_versions(e, e.selection.tracks[:], c.choice)
 	case Set_Write_Policy:
 		e.edits.policy = c.policy
+	case Play:
+		play(e, c.track)
+	case Play_Pause:
+		play_pause(e)
+	case Play_Next:
+		play_next(e)
+	case Play_Previous:
+		play_previous(e)
+	case Seek:
+		seek(e, c.position)
 	case Set_Volume:
-		e.playback.volume = f32(clamp(c.percent, 0, 100)) / 100
+		set_volume(e, c.percent)
 	case Resize_Window:
 		e.view.window_size = Window_Size {
 			clamp(c.size.width, 0, int(max(u32))),
@@ -317,7 +347,7 @@ execute :: proc(e: ^Engine, command: Command) {
 	}
 }
 
-@(private = "file")
+@(private)
 has_track :: proc(e: ^Engine, track: Track_Id) -> bool {
 	return track >= 0 && int(track) < len(e.library.tracks)
 }
@@ -398,9 +428,10 @@ destroy_source :: proc(source: ^Source) {
 	source^ = All_Tracks{}
 }
 
-// Takes in what the running scans reported since the last call, and says whether
-// the library changed. The UI calls it when woken, or regularly while scans run;
-// it never waits.
+// Takes in what the running scans reported since the last call, plays the next
+// track when the playing one has ended, and says whether anything changed. The UI
+// calls it when woken, and regularly while scans run or a track plays; it never
+// waits.
 poll :: proc(e: ^Engine) -> (changed: bool) {
 	context.allocator = e.allocator
 	drop_stopped(e)
@@ -431,6 +462,7 @@ poll :: proc(e: ^Engine) -> (changed: bool) {
 		if len(e.scans) == 0 do e.library.status = outcome == .Stopped ? .Stopped : .Completed
 	}
 	if changed do relist(e)
+	if advance_playback(e) do changed = true
 	return
 }
 

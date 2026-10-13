@@ -30,17 +30,6 @@ Window_Size :: struct {
 	width, height: int,
 }
 
-// What plays, and how loud. Playing comes with the playback slice.
-Playback :: struct {
-	// From 0, silent, to 1, as loud as the file.
-	volume: f32,
-}
-
-// Nothing plays, at 80 percent.
-DEFAULT_PLAYBACK :: Playback {
-	volume = 0.8,
-}
-
 // Shows or hides the sidebar.
 Toggle_Sidebar :: struct {}
 
@@ -53,11 +42,6 @@ Toggle_Developer_Mode :: struct {}
 // The versions to write the tracks the user chose none for in.
 Set_Write_Policy :: struct {
 	policy: lib.Write_Policy,
-}
-
-// From 0, silent, to 100, as loud as the file.
-Set_Volume :: struct {
-	percent: int,
 }
 
 // The window's size, to open it at the next launch.
