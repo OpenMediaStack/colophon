@@ -55,6 +55,7 @@ Engine :: struct {
 	listed:    [dynamic]Track_Id,
 	// The tracks saved since Colophon started.
 	saved:     map[Track_Id]struct{},
+	selection: Selection,
 }
 
 // Adds a folder's audio files to the library.
@@ -77,6 +78,12 @@ Command :: union {
 	Show_Source,
 	Filter,
 	Sort_By,
+	Select,
+	Toggle_Selected,
+	Select_Range,
+	Select_All,
+	Move_Selection,
+	Extend_Selection,
 }
 
 // A stable identifier for each kind of command, for the command palette and the
@@ -95,6 +102,18 @@ command_id :: proc(command: Command) -> string {
 		return "view.filter"
 	case Sort_By:
 		return "view.sort_by"
+	case Select:
+		return "selection.select"
+	case Toggle_Selected:
+		return "selection.toggle"
+	case Select_Range:
+		return "selection.select_range"
+	case Select_All:
+		return "selection.select_all"
+	case Move_Selection:
+		return "selection.move"
+	case Extend_Selection:
+		return "selection.extend"
 	}
 	return ""
 }
@@ -114,6 +133,7 @@ init :: proc(e: ^Engine, wake := lib.Wake{}, allocator := context.allocator) {
 	e.events = make([dynamic]lib.Scan_Event, allocator)
 	e.listed = make([dynamic]Track_Id, allocator)
 	e.saved = make(map[Track_Id]struct{}, allocator)
+	e.selection.tracks = make([dynamic]Track_Id, allocator)
 }
 
 // Stops the scans and frees everything.
@@ -136,6 +156,7 @@ destroy :: proc(e: ^Engine) {
 	delete(e.filter)
 	delete(e.listed)
 	delete(e.saved)
+	destroy_selection(&e.selection)
 	e^ = {}
 }
 
@@ -174,7 +195,24 @@ execute :: proc(e: ^Engine, command: Command) {
 		if sort, ok := e.sort.?; ok do descending = sort.column == c.column && !sort.descending
 		e.sort = Sort{c.column, descending}
 		relist(e)
+	case Select:
+		if has_track(e, c.track) do select_one(&e.selection, c.track)
+	case Toggle_Selected:
+		if has_track(e, c.track) do toggle_selected(&e.selection, c.track)
+	case Select_Range:
+		if has_track(e, c.track) do select_range(&e.selection, c.track, e.listed[:])
+	case Select_All:
+		select_all(&e.selection, e.listed[:])
+	case Move_Selection:
+		move_selection(&e.selection, c.step, e.listed[:])
+	case Extend_Selection:
+		extend_selection(&e.selection, c.step, e.listed[:])
 	}
+}
+
+@(private = "file")
+has_track :: proc(e: ^Engine, track: Track_Id) -> bool {
+	return track >= 0 && int(track) < len(e.library.tracks)
 }
 
 // The tags a track shows, or false when it could not be read. The pointer is valid
