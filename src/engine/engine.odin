@@ -47,6 +47,14 @@ Engine :: struct {
 	// keys are the paths of library.tracks.
 	found:     map[string]Track_Id,
 	events:    [dynamic]lib.Scan_Event,
+	// The source of the table's tracks, its filter and its order.
+	source:    Source,
+	filter:    string,
+	sort:      Maybe(Sort),
+	// The tracks the table lists, in its order.
+	listed:    [dynamic]Track_Id,
+	// The tracks saved since Colophon started.
+	saved:     map[Track_Id]struct{},
 }
 
 // Adds a folder's audio files to the library.
@@ -66,6 +74,9 @@ Command :: union {
 	Open_Folder,
 	Open_Files,
 	Stop_Scan,
+	Show_Source,
+	Filter,
+	Sort_By,
 }
 
 // A stable identifier for each kind of command, for the command palette and the
@@ -78,6 +89,12 @@ command_id :: proc(command: Command) -> string {
 		return "library.open_files"
 	case Stop_Scan:
 		return "library.stop_scan"
+	case Show_Source:
+		return "view.show_source"
+	case Filter:
+		return "view.filter"
+	case Sort_By:
+		return "view.sort_by"
 	}
 	return ""
 }
@@ -95,6 +112,8 @@ init :: proc(e: ^Engine, wake := lib.Wake{}, allocator := context.allocator) {
 	e.stopping = make([dynamic]^lib.Scan, allocator)
 	e.found = make(map[string]Track_Id, allocator)
 	e.events = make([dynamic]lib.Scan_Event, allocator)
+	e.listed = make([dynamic]Track_Id, allocator)
+	e.saved = make(map[Track_Id]struct{}, allocator)
 }
 
 // Stops the scans and frees everything.
@@ -113,6 +132,10 @@ destroy :: proc(e: ^Engine) {
 	for failure in e.library.unreadable do delete(failure.path)
 	delete(e.library.unreadable)
 	delete(e.found)
+	destroy_source(&e.source)
+	delete(e.filter)
+	delete(e.listed)
+	delete(e.saved)
 	e^ = {}
 }
 
@@ -135,7 +158,64 @@ execute :: proc(e: ^Engine, command: Command) {
 		open(e, paths[:], folders[:])
 	case Stop_Scan:
 		stop_scans(e)
+	case Show_Source:
+		destroy_source(&e.source)
+		e.source = clone_source(c.source)
+		relist(e)
+	case Filter:
+		delete(e.filter)
+		e.filter = strings.clone(c.text)
+		relist(e)
+	case Sort_By:
+		descending := false
+		if sort, ok := e.sort.?; ok do descending = sort.column == c.column && !sort.descending
+		e.sort = Sort{c.column, descending}
+		relist(e)
 	}
+}
+
+// The tags a track shows, or false when it could not be read.
+shown_tags :: proc(e: ^Engine, id: Track_Id) -> (^lib.Tags, bool) {
+	track := &e.library.tracks[id]
+	if track.error != .None do return nil, false
+	return &track.metadata.tags, true
+}
+
+// Whether a track has changes waiting to be saved, or was saved since Colophon started.
+is_changed :: proc(e: ^Engine, id: Track_Id) -> bool {
+	return id in e.saved
+}
+
+@(private = "file")
+clone_source :: proc(source: Source) -> Source {
+	switch s in source {
+	case nil, All_Tracks, Recently_Changed, Unreadable:
+		return source
+	case Folder:
+		return Folder{strings.clone(s.path)}
+	case Album_Key:
+		artist: Maybe(string)
+		if a, ok := s.artist.?; ok do artist = strings.clone(a)
+		return Album_Key{strings.clone(s.title), artist}
+	case Artist:
+		return Artist{strings.clone(s.name)}
+	}
+	return nil
+}
+
+@(private = "file")
+destroy_source :: proc(source: ^Source) {
+	switch s in source {
+	case nil, All_Tracks, Recently_Changed, Unreadable:
+	case Folder:
+		delete(s.path)
+	case Album_Key:
+		delete(s.title)
+		if a, ok := s.artist.?; ok do delete(a)
+	case Artist:
+		delete(s.name)
+	}
+	source^ = nil
 }
 
 // Takes in what the running scans reported since the last call, and says whether
@@ -170,6 +250,7 @@ poll :: proc(e: ^Engine) -> (changed: bool) {
 		ordered_remove(&e.scans, i)
 		if len(e.scans) == 0 do e.library.status = outcome == .Stopped ? .Stopped : .Completed
 	}
+	if changed do relist(e)
 	return
 }
 
