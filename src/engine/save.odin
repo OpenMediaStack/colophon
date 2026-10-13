@@ -139,6 +139,10 @@ take_saved :: proc(e: ^Engine, id: Track_Id, written: lib.Track) {
 		lib.destroy_track(&written)
 		return
 	}
+	// What the user wants now, before the file's tags change under it: an undo made
+	// while saving brings back what the file held, which is a change to save again.
+	wanted, readable := wanted_of(e, id)
+	defer if readable do destroy_wanted(&wanted)
 	track := &e.library.tracks[id]
 	lib.destroy_tags(&track.metadata.tags)
 	track.metadata = written.metadata
@@ -147,5 +151,5 @@ take_saved :: proc(e: ^Engine, id: Track_Id, written: lib.Track) {
 	track.error = .None
 	delete(written.path)
 	e.saved[id] = {}
-	settle(e, id)
+	if readable do want(e, id, wanted)
 }

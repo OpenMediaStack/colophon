@@ -473,7 +473,7 @@ record :: proc(e: ^Engine, field: Maybe(Field), changes: ^[dynamic]Change) {
 
 // Takes wanted in for a track: it waits to be saved if saving would change the file,
 // with other tags or in other versions. wanted is copied.
-@(private = "file")
+@(private)
 want :: proc(e: ^Engine, track: Track_Id, wanted: Wanted) {
 	if versions, chosen := wanted.versions.?; chosen {
 		e.edits.chosen[track] = versions

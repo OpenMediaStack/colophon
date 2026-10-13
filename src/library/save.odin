@@ -8,6 +8,7 @@ import "core:sync"
 import "core:thread"
 
 import id3 "../../libs/odid3"
+import "../mpa"
 
 // Why a file could not be written. Its tags are left as they were.
 Write_Error :: enum u8 {
@@ -61,11 +62,19 @@ write_tags :: proc(
 	info, stat_err := os.stat(path, allocator)
 	if stat_err != nil do return .Cannot_Write
 	read_only := .Write_User not_in info.mode
+	// Odin's stat on Windows gives a read only file write permissions and no read ones.
+	when ODIN_OS == .Windows do read_only ||= .Read_User not_in info.mode
 	os.file_info_delete(info, allocator)
 	if read_only do return .Read_Only
 	file, read_err := id3.read_file(path, {}, allocator)
 	if read_err != nil do return write_error(read_err)
 	defer id3.destroy(&file)
+	// A file without MPEG audio is left as it is, as it was read.
+	audio := file.layout.audio
+	if _, audio_err := mpa.read_file(path, audio.offset, audio.size, allocator); audio_err != nil {
+		_, cannot_open := audio_err.(os.Error)
+		return cannot_open ? .Cannot_Write : .Damaged
+	}
 
 	// The fields go into the ID3v2 tag that will be written, or into a scratch one that
 	// only the ID3v1 tag is made from.
@@ -98,6 +107,7 @@ write_tags :: proc(
 			allocator,
 		)
 		if v1_err != nil do return .Cannot_Write
+		keep_enhanced_details(&v1, old)
 		id3.destroy(old)
 		file.v1 = v1
 	} else {
@@ -144,22 +154,32 @@ set_fields :: proc(tag: ^id3.Tag, tags: Tags) -> id3.Error {
 		date := wants_year ? fmt.bprintf(buffer[:], "%04d", wanted) : ""
 		id3.set(tag, .Date, date) or_return
 	}
-	// A total without its number would read back as no number at all.
-	track, track_total := pair(tags.track, tags.track_total)
+	// A total without its number is written as "/12", which reads back the same.
+	track, track_total := tags.track.? or_else 0, tags.track_total.? or_else 0
 	if number, total := id3.tag_track(tag); number != track || total != track_total {
 		id3.set_track(tag, track, track_total) or_return
 	}
-	disc, disc_total := pair(tags.disc, tags.disc_total)
+	disc, disc_total := tags.disc.? or_else 0, tags.disc_total.? or_else 0
 	if number, total := id3.tag_disc(tag); number != disc || total != disc_total {
 		id3.set_disc(tag, disc, disc_total) or_return
 	}
 	return nil
+}
 
-	pair :: proc(number, total: Maybe(int)) -> (int, int) {
-		n, ok := number.?
-		if !ok do return 0, 0
-		return n, total.? or_else 0
-	}
+// Keeps what the Enhanced TAG of the old ID3v1 tag held beside the text, which
+// v1_from_tag does not know: the speed and the start and end times.
+@(private = "file")
+keep_enhanced_details :: proc(v1: ^id3.V1_Tag, old: ^id3.V1_Tag) {
+	if old.version == .None do return
+	before, had := old.enhanced.?
+	if !had do return
+	if v1.enhanced == nil do v1.enhanced = id3.V1_Enhanced{}
+	after := &v1.enhanced.?
+	after.speed = before.speed
+	delete(after.start_time, v1.allocator)
+	delete(after.end_time, v1.allocator)
+	after.start_time = strings.clone(before.start_time, v1.allocator)
+	after.end_time = strings.clone(before.end_time, v1.allocator)
 }
 
 @(private = "file")

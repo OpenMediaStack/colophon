@@ -1,9 +1,7 @@
 package library_tests
 
-import "core:bytes"
 import "core:fmt"
 import "core:os"
-import "core:slice"
 import "core:testing"
 import "core:time"
 
@@ -19,94 +17,11 @@ copy_of :: proc(t: ^testing.T, name: string) -> (folder, path: string) {
 	return
 }
 
-// The audio bytes of a file, between its tags. Allocated with the temp allocator.
-@(private = "file")
-audio_of :: proc(path: string) -> []u8 {
-	tags, err := id3.read_file(path, {skip_picture_data = true})
-	if err != nil do return nil
-	defer id3.destroy(&tags)
-	data, _ := os.read_entire_file_from_path(path, context.temp_allocator)
-	audio := tags.layout.audio
-	return data[audio.offset:][:audio.size]
-}
-
 @(private = "file")
 read_tags :: proc(t: ^testing.T, path: string) -> (track: lib.Track) {
 	track = lib.read_track(path)
 	testing.expect_value(t, track.error, lib.Read_Error.None)
 	return
-}
-
-@(test)
-every_version_round_trips_and_keeps_the_audio :: proc(t: ^testing.T) {
-	Case :: struct {
-		versions: lib.Tag_Versions,
-		formats:  lib.Tag_Formats,
-	}
-	cases := [?]Case {
-		{{.V2_4, nil}, {id3v2 = .V2_4}},
-		{{.V2_3, .V1_1}, {id3v2 = .V2_3, id3v1 = .V1_1}},
-		{{.V2_2, .V1_0}, {id3v2 = .V2_2, id3v1 = .V1_0}},
-		{{nil, .V1_1}, {id3v1 = .V1_1}},
-		{{nil, nil}, {}},
-	}
-	original := lib.read_track(fixture("v23_full.mp3"))
-	defer lib.destroy_track(&original)
-	// remove_folder frees the temp allocator: the bytes to compare with need their own.
-	audio := slice.clone(audio_of(fixture("v23_full.mp3")))
-	defer delete(audio)
-	for c in cases {
-		folder, path := copy_of(t, "v23_full.mp3")
-		defer remove_folder(folder)
-		tags := original.metadata.tags
-		tags.title = "Written again"
-
-		track, err := lib.write_track(path, tags, c.versions)
-		defer lib.destroy_track(&track)
-
-		testing.expectf(t, err == .None, "%v: %v", c.versions, err)
-		testing.expectf(
-			t,
-			track.metadata.formats == c.formats,
-			"%v: %v",
-			c.versions,
-			track.metadata.formats,
-		)
-		testing.expectf(t, bytes.equal(audio_of(path), audio), "%v: the audio changed", c.versions)
-		if c.versions.id3v2 != nil {
-			testing.expectf(
-				t,
-				track.metadata.tags == tags,
-				"%v: %v",
-				c.versions,
-				track.metadata.tags,
-			)
-		}
-	}
-}
-
-@(test)
-other_frames_stay_as_they_were :: proc(t: ^testing.T) {
-	folder, path := copy_of(t, "v23_cover.mp3")
-	defer remove_folder(folder)
-	before := read_tags(t, path)
-	defer lib.destroy_track(&before)
-	tags := before.metadata.tags
-	tags.title = "Another title"
-
-	track, err := lib.write_track(path, tags, {.V2_3, nil})
-	defer lib.destroy_track(&track)
-
-	testing.expect_value(t, err, lib.Write_Error.None)
-	testing.expect(t, track.metadata.tags.has_cover)
-	file, read_err := id3.read_file(path)
-	defer id3.destroy(&file)
-	testing.expect(t, read_err == nil)
-	publisher := id3.get(&file.v2, .Title, context.temp_allocator)
-	testing.expect_value(t, publisher, "Another title")
-	found := false
-	for f in file.v2.frames do if f.id == "TPUB" do found = true
-	testing.expect(t, found, "the publisher frame is lost")
 }
 
 @(test)

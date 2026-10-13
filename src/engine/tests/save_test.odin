@@ -6,6 +6,7 @@ import "core:strings"
 import "core:testing"
 import "core:time"
 
+import id3 "../../../libs/odid3"
 import "../../engine"
 import lib "../../library"
 
@@ -257,13 +258,13 @@ save_commands_keep_the_ids_of_1_0 :: proc(t: ^testing.T) {
 
 @(test)
 a_file_that_cannot_be_written_keeps_its_change :: proc(t: ^testing.T) {
-	when ODIN_OS == .Windows do return
 	e: engine.Engine
 	folder := two_tracks(t, &e)
 	defer remove_folder(folder)
 	defer engine.destroy(&e)
 	locked := fmt.tprintf("%s/2.mp3", folder)
 	testing.expect(t, os.change_mode(locked, {.Read_User, .Read_Group, .Read_Other}) == nil)
+	defer os.change_mode(locked, os.Permissions_Default)
 	engine.execute(&e, engine.Select_All{})
 	engine.execute(&e, engine.Apply_Edit{{.Album, "Analog Hearts"}})
 
@@ -278,4 +279,47 @@ a_file_that_cannot_be_written_keeps_its_change :: proc(t: ^testing.T) {
 	)
 	testing.expect_value(t, len(e.edits.pending), 1)
 	testing.expect_value(t, album_on_disk(folder, "1.mp3"), "Analog Hearts")
+}
+
+@(test)
+a_total_without_its_number_settles_once_saved :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := folder_with_fixtures(t, {{"v23_full.mp3", "1.mp3"}})
+	defer remove_folder(folder)
+	path := fmt.tprintf("%s/1.mp3", folder)
+	file, _ := id3.read_file(path)
+	testing.expect(t, id3.set_track(&file.v2, 0, 12) == nil)
+	testing.expect(t, id3.write_file(path, &file) == nil)
+	id3.destroy(&file)
+	engine_reading(t, &e, folder)
+	defer engine.destroy(&e)
+	engine.execute(&e, engine.Select{0})
+
+	engine.execute(&e, engine.Choose_Version{engine.Id3v2_Choice{.V2_4}})
+	engine.execute(&e, engine.Save{})
+	poll_until_saved(t, &e)
+
+	testing.expect_value(t, len(e.edits.pending), 0)
+	track := on_disk(folder, "1.mp3")
+	defer lib.destroy_track(&track)
+	testing.expect_value(t, track.metadata.tags.track_total, 12)
+}
+
+@(test)
+an_undo_made_while_saving_waits_to_be_saved :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := two_tracks(t, &e)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	engine.execute(&e, engine.Select{track_named(&e, "1.mp3")})
+	engine.execute(&e, engine.Apply_Edit{{.Album, "Analog Hearts"}})
+
+	engine.execute(&e, engine.Save{})
+	engine.execute(&e, engine.Undo{})
+	poll_until_saved(t, &e)
+
+	testing.expect_value(t, album_on_disk(folder, "1.mp3"), "Analog Hearts")
+	testing.expect_value(t, len(e.edits.pending), 1)
+	tags, _ := engine.shown_tags(&e, track_named(&e, "1.mp3"))
+	testing.expect_value(t, tags.album, "Small Hours")
 }
