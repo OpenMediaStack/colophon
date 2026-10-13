@@ -62,3 +62,19 @@ a_year_of_five_digits_is_lost :: proc(t: ^testing.T) {
 	}
 	testing.expect_value(t, lib.id3v1_losses(&tags, .V1_1), lib.Id3v1_Losses{.Year})
 }
+
+@(test)
+a_genre_the_list_spells_otherwise_is_lost :: proc(t: ^testing.T) {
+	for genre in ([]string{"Hip Hop", "Alternative Rock", "Jazz Funk", "Hyperpop"}) {
+		tags := lib.Tags {
+			genre = genre,
+		}
+		testing.expectf(t, lib.id3v1_losses(&tags, .V1_1) == {.Genre}, "%s", genre)
+	}
+	for genre in ([]string{"hip-hop", " Folk ", "AlternRock"}) {
+		tags := lib.Tags {
+			genre = genre,
+		}
+		testing.expectf(t, lib.id3v1_losses(&tags, .V1_1) == {}, "%s", genre)
+	}
+}

@@ -3,7 +3,6 @@ package engine
 import "core:path/filepath"
 
 import lib "../library"
-import "../mpa"
 
 // What the inspector shows of the selected tracks; nil when nothing is selected.
 Inspection :: union {
@@ -30,8 +29,9 @@ Mixed :: struct {}
 // The audio properties shown in one line, when every track shares them.
 Audio_Line :: struct {
 	bitrate_kbps: int,
+	// In hertz.
 	sample_rate:  int,
-	mode:         mpa.Bitrate_Mode,
+	mode:         lib.Bitrate_Mode,
 }
 
 // The selected tracks whose tags could be read, field by field. Its strings belong to
@@ -69,7 +69,8 @@ Summary :: struct {
 	id3v1_losses: lib.Id3v1_Losses,
 }
 
-// What the inspector shows of the selected tracks.
+// What the inspector shows of the selected tracks. It walks the whole selection: call
+// it once after each command or poll that changed something, not every frame.
 inspect :: proc(e: ^Engine) -> Inspection {
 	selected := e.selection.tracks[:]
 	switch len(selected) {
@@ -86,7 +87,7 @@ inspect :: proc(e: ^Engine) -> Inspection {
 summarise :: proc(e: ^Engine, selected: []Track_Id) -> (s: Summary) {
 	s.count = len(selected)
 	read := 0
-	for id, i in selected {
+	for id in selected {
 		track := &e.library.tracks[id]
 		s.size += track.size
 		tags, readable := shown_tags(e, id)
@@ -108,7 +109,7 @@ summarise :: proc(e: ^Engine, selected: []Track_Id) -> (s: Summary) {
 		share(&s.formats, Maybe(lib.Tag_Formats)(track.metadata.formats), first)
 		versions, _ := versions_of(e, id)
 		share(&s.versions, Maybe(lib.Tag_Versions)(versions), first)
-		if s.count == 1 && i == 0 {
+		if s.count == 1 {
 			s.heading = tags.title.? or_else filepath.stem(track.path)
 		}
 	}

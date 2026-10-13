@@ -1,5 +1,7 @@
 package library
 
+import "core:strings"
+
 import id3 "../../libs/odid3"
 
 // The tag versions to write a file in; nil removes that tag.
@@ -69,11 +71,13 @@ Id3v1_Loss :: enum u8 {
 	Genre,
 }
 
+// The fields an ID3v1 tag would lose.
 Id3v1_Losses :: bit_set[Id3v1_Loss]
 
 // What an ID3v1 tag of version would lose of tags. It keeps 30 Latin-1 characters of
 // text, 28 of the comment next to a track number, a track up to 255 in ID3v1.1 only,
-// a year of four digits, and the genres of its list.
+// a year of four digits, and the genres of its list, as the list spells them: odid3
+// writes the list's spelling of a genre it knows by another, "Hip-Hop" for "Hip Hop".
 id3v1_losses :: proc(tags: ^Tags, version: Id3v1_Version) -> (losses: Id3v1_Losses) {
 	fits :: proc(value: Maybe(string), length: int) -> bool {
 		s, ok := value.?
@@ -93,7 +97,9 @@ id3v1_losses :: proc(tags: ^Tags, version: Id3v1_Version) -> (losses: Id3v1_Loss
 	if !fits(tags.comment, track != nil ? 28 : 30) do losses += {.Comment}
 	if tags.track != nil && track == nil do losses += {.Track}
 	if genre, ok := tags.genre.?; ok {
-		if _, known := id3.genre_index(genre); !known do losses += {.Genre}
+		name := strings.trim_space(genre)
+		index, known := id3.genre_index(name)
+		if !known || !strings.equal_fold(id3.genre_name(index), name) do losses += {.Genre}
 	}
 	return
 }
