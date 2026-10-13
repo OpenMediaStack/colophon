@@ -58,10 +58,14 @@ Tags :: struct {
 
 // The audio of a file whose MPEG frames could be read: a track whose audio cannot
 // be read is .Damaged, so every value is known.
+// Constant or variable, as the encoder wrote it.
+Bitrate_Mode :: mpa.Bitrate_Mode
+
 Audio_Properties :: struct {
 	duration:     time.Duration,
 	bitrate_kbps: int,
-	bitrate_mode: mpa.Bitrate_Mode,
+	bitrate_mode: Bitrate_Mode,
+	// In hertz.
 	sample_rate:  int,
 	channels:     int,
 }
