@@ -249,7 +249,10 @@ execute :: proc(e: ^Engine, command: Command) {
 	case Toggle_Column:
 		e.view.columns ~= {c.column}
 	case Resize_Columns:
-		e.view.column_widths = c.widths
+		// Widths the file can hold.
+		widths := c.widths
+		for &width in widths do width = clamp(width, 0, int(max(u32)))
+		e.view.column_widths = widths
 	case Reset_Columns:
 		e.view.columns = DEFAULT_COLUMNS
 		e.view.column_widths = nil
@@ -307,7 +310,10 @@ execute :: proc(e: ^Engine, command: Command) {
 	case Set_Volume:
 		e.playback.volume = f32(clamp(c.percent, 0, 100)) / 100
 	case Resize_Window:
-		e.view.window_size = c.size
+		e.view.window_size = Window_Size {
+			clamp(c.size.width, 0, int(max(u32))),
+			clamp(c.size.height, 0, int(max(u32))),
+		}
 	}
 }
 

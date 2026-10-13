@@ -14,6 +14,7 @@ Preferences :: struct {
 	writing: lib.Write_Policy,
 }
 
+// What Colophon starts from on its first launch.
 DEFAULT_PREFERENCES :: Preferences {
 	view    = DEFAULT_VIEW,
 	volume  = 80,
@@ -53,7 +54,7 @@ preferences_to_toml :: proc(p: Preferences, allocator := context.allocator) -> s
 	shown := make([dynamic]string, context.temp_allocator)
 	for column in Column do if column in view.columns do append(&shown, COLUMN_NAMES[table_column(column)])
 	write_names(&b, "columns", shown[:])
-	fmt.sbprintfln(&b, "volume = %d", p.volume)
+	fmt.sbprintfln(&b, "volume = %d", clamp(p.volume, 0, 100))
 	fmt.sbprintfln(&b, "id3v2 = \"%s\"", p.writing.id3v2 == .V2_3 ? "2.3" : "2.4")
 	fmt.sbprintfln(&b, "id3v1 = \"%s\"", ID3V1_POLICY_NAMES[p.writing.id3v1])
 	fmt.sbprintfln(&b, "developer_mode = %v", view.developer_mode)
@@ -105,20 +106,20 @@ column_named :: proc(name: string) -> (column: Table_Column, ok: bool) {
 }
 
 // Every key is optional, so that an older or a hand-edited file still reads; a key
-// Colophon does not know is left alone.
+// Colophon does not know is left alone, whatever valid TOML it holds.
 @(private = "file")
 read_preferences :: proc(text: string) -> (p: Preferences, ok: bool) {
 	p = DEFAULT_PREFERENCES
 	values := parse_toml(text) or_return
 	view := &p.view
-	read(values, "sidebar", &view.sidebar_visible) or_return
-	read(values, "inspector", &view.inspector_visible) or_return
-	read(values, "developer_mode", &view.developer_mode) or_return
+	read_bool(values, "sidebar", &view.sidebar_visible) or_return
+	read_bool(values, "inspector", &view.inspector_visible) or_return
+	read_bool(values, "developer_mode", &view.developer_mode) or_return
 	if names, found := read_strings(values, "columns") or_return; found {
 		view.columns = {}
 		for name in names {
-			column := column_named(name) or_continue
-			if column != .Title do view.columns += {Column(int(column) - 1)}
+			named := column_named(name) or_continue
+			if column, hideable := hideable_column(named); hideable do view.columns += {column}
 		}
 	}
 	if names, found := read_strings(values, "column_order") or_return; found {
@@ -126,7 +127,7 @@ read_preferences :: proc(text: string) -> (p: Preferences, ok: bool) {
 		for name in names do if column, known := column_named(name); known do append(&columns, column)
 		view.column_order = order_starting_with(columns[:])
 	}
-	if volume, found := read_number(values, "volume", max(u8)) or_return; found {
+	if volume, found := read_number(values, "volume", i64(max(u8))) or_return; found {
 		p.volume = min(volume, 100)
 	}
 	if version, found := read_text(values, "id3v2") or_return; found && version == "2.3" {
@@ -137,8 +138,8 @@ read_preferences :: proc(text: string) -> (p: Preferences, ok: bool) {
 	}
 	if found := read_table(values, "window") or_return; found {
 		// Both are needed, as 1.0.0 read them.
-		width, has_width := read_number(values, "window.width", max(u32)) or_return
-		height, has_height := read_number(values, "window.height", max(u32)) or_return
+		width, has_width := read_number(values, "window.width", i64(max(u32))) or_return
+		height, has_height := read_number(values, "window.height", i64(max(u32))) or_return
 		if !has_width || !has_height do return
 		view.window_size = Window_Size{width, height}
 	}
@@ -146,7 +147,7 @@ read_preferences :: proc(text: string) -> (p: Preferences, ok: bool) {
 		widths: Column_Widths
 		for name, column in COLUMN_NAMES {
 			key := strings.concatenate({"column_widths.", name}, context.temp_allocator)
-			widths[column], _ = read_number(values, key, max(u32)) or_return
+			widths[column], _ = read_number(values, key, i64(max(u32))) or_return
 		}
 		view.column_widths = widths
 	}
@@ -156,7 +157,7 @@ read_preferences :: proc(text: string) -> (p: Preferences, ok: bool) {
 // Each reader gives found false for a missing key, and ok false for a value of
 // another type.
 @(private = "file")
-read :: proc(values: map[string]Toml_Value, key: string, into: ^bool) -> (ok: bool) {
+read_bool :: proc(values: map[string]Toml_Value, key: string, into: ^bool) -> (ok: bool) {
 	value, found := values[key]
 	if !found do return true
 	into^ = value.(bool) or_return
@@ -167,7 +168,7 @@ read :: proc(values: map[string]Toml_Value, key: string, into: ^bool) -> (ok: bo
 read_number :: proc(
 	values: map[string]Toml_Value,
 	key: string,
-	limit: $T,
+	limit: i64,
 ) -> (
 	n: int,
 	found, ok: bool,
@@ -175,7 +176,7 @@ read_number :: proc(
 	value, has := values[key]
 	if !has do return 0, false, true
 	number := value.(i64) or_return
-	if number < 0 || number > i64(limit) do return
+	if number < 0 || number > limit do return
 	return int(number), true, true
 }
 

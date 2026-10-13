@@ -17,6 +17,7 @@ View_State :: struct {
 	window_size:       Maybe(Window_Size),
 }
 
+// Both panels, the columns of the mockup, the table sharing its width.
 DEFAULT_VIEW :: View_State {
 	sidebar_visible   = true,
 	inspector_visible = true,
@@ -24,7 +25,7 @@ DEFAULT_VIEW :: View_State {
 	column_order      = DEFAULT_COLUMN_ORDER,
 }
 
-// A window's size, in logical pixels.
+// A window's size, in logical pixels, from 0 to max(u32) as the file holds it.
 Window_Size :: struct {
 	width, height: int,
 }
@@ -35,11 +36,15 @@ Playback :: struct {
 	volume: f32,
 }
 
+// Nothing plays, at 80 percent.
 DEFAULT_PLAYBACK :: Playback {
 	volume = 0.8,
 }
 
+// Shows or hides the sidebar.
 Toggle_Sidebar :: struct {}
+
+// Shows or hides the inspector.
 Toggle_Inspector :: struct {}
 
 // Shows the tools for people who write ID3 readers and writers.

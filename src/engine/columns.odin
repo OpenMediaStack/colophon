@@ -42,6 +42,7 @@ Table_Column :: enum u8 {
 // The order of the table's columns, each of them once.
 Column_Order :: distinct [len(Table_Column)]Table_Column
 
+// Title, then the columns of Column in their order.
 DEFAULT_COLUMN_ORDER :: Column_Order {
 	.Title,
 	.Artist,
@@ -84,24 +85,26 @@ table_column :: proc(column: Column) -> Table_Column {
 	return Table_Column(int(column) + 1)
 }
 
+// The hideable column a table column is; false for the title, which always shows.
+hideable_column :: proc(column: Table_Column) -> (Column, bool) {
+	if column == .Title do return {}, false
+	return Column(int(column) - 1), true
+}
+
 // An order that starts with these columns, each once; those they leave out follow in
 // their default order.
 order_starting_with :: proc(columns: []Table_Column) -> (order: Column_Order) {
 	placed: bit_set[Table_Column]
 	count := 0
-	add :: proc(
-		order: ^Column_Order,
-		placed: ^bit_set[Table_Column],
-		count: ^int,
-		column: Table_Column,
-	) {
-		if column in placed^ do return
-		placed^ += {column}
-		order[count^] = column
-		count^ += 1
+	defaults := DEFAULT_COLUMN_ORDER
+	for list in ([2][]Table_Column{columns, defaults[:]}) {
+		for column in list {
+			if column in placed do continue
+			placed += {column}
+			order[count] = column
+			count += 1
+		}
 	}
-	for column in columns do add(&order, &placed, &count, column)
-	for column in DEFAULT_COLUMN_ORDER do add(&order, &placed, &count, column)
 	return
 }
 
@@ -109,12 +112,20 @@ order_starting_with :: proc(columns: []Table_Column) -> (order: Column_Order) {
 @(private)
 move_column :: proc(order: ^Column_Order, column: Table_Column, before: Maybe(Table_Column)) {
 	if before == column do return
-	columns := make([dynamic]Table_Column, 0, len(Table_Column), context.temp_allocator)
-	for other in order do if other != column do append(&columns, other)
-	place := len(columns)
-	if b, ok := before.?; ok {
-		for other, i in columns do if other == b do place = i
+	others: [len(Table_Column) - 1]Table_Column
+	count := 0
+	for other in order {
+		if other == column do continue
+		others[count] = other
+		count += 1
 	}
-	inject_at(&columns, place, column)
-	order^ = order_starting_with(columns[:])
+	place := count
+	if b, ok := before.?; ok {
+		for other, i in others[:count] do if other == b do place = i
+	}
+	moved: Column_Order
+	copy(moved[:place], others[:place])
+	moved[place] = column
+	copy(moved[place + 1:], others[place:count])
+	order^ = moved
 }
