@@ -1,17 +1,20 @@
 package ui
 
+import "base:runtime"
 import "core:strings"
 
 // Runs frames of a Ui without a window, with scripted input, for tests: the renderer
 // records draw lists that nothing draws. Make it with harness_init, free it with
 // harness_destroy; the Ui points into it, so it must not be copied once made.
 Harness :: struct {
-	renderer: Renderer,
-	ui:       Ui,
+	renderer:  Renderer,
+	ui:        Ui,
 	// Draws one frame of what is tested.
-	frame:    proc(ui: ^Ui, data: rawptr),
-	data:     rawptr,
-	scale:    f32,
+	frame:     proc(ui: ^Ui, data: rawptr),
+	data:      rawptr,
+	scale:     f32,
+	// What the Ui copies to its clipboard and pastes from it.
+	clipboard: strings.Builder,
 }
 
 // Makes a harness that runs frame with data, in the theme of kind.
@@ -27,10 +30,23 @@ harness_init :: proc(
 	h.frame = frame
 	h.data = data
 	h.scale = 1
+	h.clipboard = strings.builder_make(allocator)
+	h.ui.clipboard = {
+		data = &h.clipboard,
+		get = proc(data: rawptr, allocator: runtime.Allocator) -> string {
+			return strings.clone(strings.to_string((^strings.Builder)(data)^), allocator)
+		},
+		set = proc(data: rawptr, text: string) {
+			b := (^strings.Builder)(data)
+			strings.builder_reset(b)
+			strings.write_string(b, text)
+		},
+	}
 }
 
 // Frees what harness_init made.
 harness_destroy :: proc(h: ^Harness) {
+	strings.builder_destroy(&h.clipboard)
 	ui_destroy(&h.ui)
 	renderer_destroy(&h.renderer)
 }
@@ -87,6 +103,12 @@ release :: proc(h: ^Harness, button := Mouse_Button.Left) {
 // Presses a key with modifiers, and runs a frame.
 press_key :: proc(h: ^Harness, key: Key, modifiers := Modifiers{}) {
 	append(&h.ui.input.keys, Key_Press{key, modifiers, false})
+	run_frame(h)
+}
+
+// Lets time pass, as the caret's blink sees it.
+wait :: proc(h: ^Harness, seconds: f64) {
+	h.ui.input.time += seconds
 	run_frame(h)
 }
 

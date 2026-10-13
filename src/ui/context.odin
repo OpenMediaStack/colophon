@@ -248,6 +248,15 @@ Ui :: struct {
 	tab:          Maybe(Tab),
 	widgets:      [dynamic]Widget_Info,
 	cursor:       Cursor,
+	// The text of the focused text field, which owns it, and how far it is scrolled.
+	edit:         Text_Edit,
+	edit_owner:   Widget_Id,
+	// Where a click that asked for a text field's focus was, in its value.
+	edit_click:   Maybe(int),
+	edit_scroll:  f32,
+	// When the caret last moved, so that it shows at once and then blinks.
+	caret_time:   f64,
+	clipboard:    Clipboard,
 }
 
 // widgets and the input's lists use allocator.
@@ -259,6 +268,7 @@ ui_init :: proc(ui: ^Ui, renderer: ^Renderer, theme: Theme, allocator := context
 	ui.input.text = strings.builder_make(allocator)
 	ui.widgets = make([dynamic]Widget_Info, allocator)
 	ui.parents = make([dynamic]Widget_Id, allocator)
+	text_edit_init(&ui.edit, allocator)
 }
 
 // Frees what ui_init made.
@@ -267,6 +277,7 @@ ui_destroy :: proc(ui: ^Ui) {
 	delete(ui.input.keys)
 	strings.builder_destroy(&ui.input.text)
 	delete(ui.widgets)
+	text_edit_destroy(&ui.edit)
 	ui^ = {}
 }
 
