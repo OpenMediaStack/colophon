@@ -11,9 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/OpenMediaStack/colophon/actions/workflows/rust.yml"><img src="https://github.com/OpenMediaStack/colophon/actions/workflows/rust.yml/badge.svg" alt="CI" /></a>
-  <img src="https://img.shields.io/badge/rust-1.99-CE422B?logo=rust" alt="Rust 1.99" />
-  <img src="https://img.shields.io/badge/slint-1.18-2379F4" alt="Slint 1.18" />
+  <img src="https://img.shields.io/badge/odin-dev--2026--10-3882D2" alt="Odin dev-2026-10" />
+  <img src="https://img.shields.io/badge/SDL-3.4-1D4E89" alt="SDL 3.4" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
 </p>
 
@@ -103,55 +102,44 @@ Some distributions need FUSE 2 for AppImages (`libfuse2` on Debian and Ubuntu).
 
 ## Development
 
+This branch, `odin-migration`, rebuilds Colophon 1.0.0 in [Odin](https://odin-lang.org) with
+SDL3. The plan and its progress are in [`docs/odin-migration.md`](docs/odin-migration.md), and how
+the work runs is in [`AGENTS.md`](AGENTS.md). The commands below arrive with the plan's first slice.
+
 ### Prerequisites
 
-- Rust 1.99, which [rustup](https://rustup.rs) installs from
-  [`rust-toolchain.toml`](rust-toolchain.toml)
-- On Linux, the libraries of Slint and ALSA:
+- Odin `dev-2026-10`
+- SDL3 3.4 (`brew install sdl3` on macOS)
+- The [odid3](https://github.com/OpenMediaStack/odid3) submodule:
 
   ```bash
-  sudo apt-get install libfontconfig-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libasound2-dev
+  git submodule update --init
   ```
 
 ### Run and test
 
 ```bash
-cargo run -p colophon                                   # Build and start the app
-cargo test --workspace                                  # Every test, the interface's captures included
-cargo clippy --workspace --all-targets -- -D warnings   # What the CI lints
-cargo fmt
+./scripts/build.sh && ./build/colophon   # Build and start the app
+./scripts/test.sh                        # Every test, the interface's captures included
+./scripts/check.sh                       # What the CI checks: vet, strict style, formatting
 ```
-
-The interface tests compare the window with the captures of
-[`crates/ui-slint/tests/references`](crates/ui-slint/tests/references): after a change of the
-interface, `UPDATE_REFERENCES=1 cargo test -p colophon-ui` writes them again. The screenshots
-above come from `cargo test -p colophon-ui --test screenshots -- --ignored`.
 
 ### Layout
 
 | Folder | What it holds |
 |---|---|
-| [`apps/colophon`](apps/colophon) | The application: the window, the system's dialogs, and what macOS needs |
-| [`crates/ui-slint`](crates/ui-slint) | The interface, in [Slint](https://slint.dev), its French translation, and its bridge to the engine |
-| [`crates/engine`](crates/engine) | The application state and every command: selection, edits, undo, sorting, preferences |
-| [`crates/library`](crates/library) | Finding the audio files of a folder, reading and saving them |
-| [`crates/tags`](crates/tags) | Reading and writing ID3v2, ID3v1 and APE tags |
-| [`crates/player`](crates/player) | Playing tracks and drawing their waveform |
-
-### Third-party licenses
-
-The About dialog lists the licenses of every crate Colophon ships, from
-[`crates/ui-slint/licenses/third-party.json`](crates/ui-slint/licenses/third-party.json). After a
-change of dependencies, [cargo-about](https://github.com/EmbarkStudios/cargo-about) writes it again,
-which the CI checks:
-
-```bash
-cargo about generate -m apps/colophon/Cargo.toml --frozen about.hbs -o crates/ui-slint/licenses/third-party.json
-```
+| `src/app` | The application: the window, the event loop and the screens |
+| `src/ui` | The interface toolkit: drawing, text, widgets, the table, translations |
+| `src/engine` | The application state and every command: selection, edits, undo, sorting, preferences |
+| `src/library` | Finding the audio files of a folder, reading and saving them |
+| `src/mpa` | The MPEG audio properties: duration, bitrate, sample rate |
+| `src/audio` | Playing tracks and drawing their waveform |
+| `src/platform` | What differs by platform: menus, accessibility, folders, language |
+| `libs/odid3` | [odid3](https://github.com/OpenMediaStack/odid3), which reads and writes the ID3 tags |
 
 ---
 
 ## License
 
-MIT. Colophon ships open-source fonts, icons and crates under their own licenses, listed in its
+MIT. Colophon ships open-source fonts, icons and libraries under their own licenses, listed in its
 About dialog.

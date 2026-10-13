@@ -1,6 +1,8 @@
 # Colophon
 
-A native audio tag editor written in Rust. It reads and rewrites the tags of MP3 files (ID3v2 and ID3v1), plays tracks, draws their waveform and spectrum, and edits whole albums at once. The interface is a dense, fast tool UI, dark and light, built with Slint, in the spirit of Blick. It also aims to be a workbench for people who implement ID3 in other languages: in developer mode it writes any tag version on demand (ID3v2.2, 2.3, 2.4, ID3v1.0, 1.1) to produce test files. Open source under the MIT license.
+A native audio tag editor written in Odin. It reads and rewrites the tags of MP3 files (ID3v2 and ID3v1), plays tracks, draws their waveform, and edits whole albums at once. The interface is a dense, fast tool UI, dark and light, drawn entirely by Colophon on top of SDL3, in the spirit of Blick. It also aims to be a workbench for people who implement ID3 in other languages: in developer mode it writes any tag version on demand (ID3v2.2, 2.3, 2.4, ID3v1.0, 1.1) to produce test files. Open source under the MIT license.
+
+**The migration.** Colophon 1.0.0 was written in Rust with Slint; it is on `main`. The branch `odin-migration` rebuilds it in Odin, slice by slice, until it does everything 1.0.0 does: [`docs/odin-migration.md`](docs/odin-migration.md) is the plan, the parity list and the record of what is done. Rust 1.0.0 is the reference for behaviour: when this file or the plan says nothing, do what 1.0.0 does (read its code with `git show origin/main:<path>` or in `~/Code/colophon`), and port its tests as the spec. When the migration is complete, Florent merges `odin-migration` into `main`.
 
 **Scope.** The first versions handle MP3 only. Other formats (FLAC, Ogg, M4A, WAV, AIFF) come in later versions, so the code stays open to them from the start: see [Open to other formats](#open-to-other-formats).
 
@@ -8,73 +10,86 @@ A native audio tag editor written in Rust. It reads and rewrites the tags of MP3
 
 Florent decides, the agents build.
 
-- **Florent** sets the direction, writes or approves the spec of each change, defines what "done" means, and reviews every diff before it lands.
-- **The agents** plan, implement, test and verify. They propose; they never decide product questions alone. When a choice is genuinely Florent's (a behaviour, a dependency, a file format trade-off), ask.
-- **Small slices.** One change does one thing and can be reviewed in a few minutes. A larger feature is cut into slices first, and the plan is shown before any code.
-- **Plan first** for anything that touches more than one crate, adds a dependency, or changes a file format: a short plan with the files involved, the approach, and how it will be verified.
-- **One branch and one pull request per change.** Branches are named after the Conventional Commits type and the change, in English (`feat/engine-view-commands`, `fix/...`, `docs/...`, `chore/...`). `main` only takes squash merges, so the pull request title, a Conventional Commit, becomes the commit on `main`. Nothing is pushed to `main` directly.
-- **Florent merges.** A pull request is merged once Florent approves it and the CI passes.
-- **Florent keeps learning.** When a change relies on a concept that is not obvious (a wgpu bind group, how Slint re-evaluates a property binding when a value it reads changes, ID3 unsynchronisation, a lock-free ring buffer), the summary explains it in two or three sentences with a link to the reference. No lectures, just enough to review with understanding.
-- Talk to Florent in French. Code, comments, docs, commit messages and pull requests (title, description, review comments) are in English.
+- **Florent** sets the direction, writes or approves the spec of each change, defines what "done" means, and reviews the changes after they are merged.
+- **The agents** plan, implement, test and verify. They propose; they never decide product questions alone. When a choice is genuinely Florent's (a behaviour that differs from 1.0.0, a dependency, a file format trade-off, a spike that fails its go or no-go), ask, and record the answer in the plan's [Decisions](docs/odin-migration.md#decisions).
+- **Small slices.** One change does one thing and can be reviewed in a few minutes. Each slice of the plan ends on something that runs and is tested. A slice that turns out bigger than planned is cut, and the plan is updated in the same pull request.
+- **Plan first** for anything that adds a dependency, changes a file format or departs from the plan: a short note in the pull request description with the files involved, the approach, and how it will be verified, and a question to Florent when the departure is his to decide.
+- **One branch and one pull request per change.** Branches start from an up-to-date `origin/odin-migration` and are named after the Conventional Commits type and the change, in English (`feat/engine-listing`, `fix/...`, `docs/...`, `chore/...`, `test/...`, `ci/...`), and are never renamed. Pull requests target `odin-migration`, which only takes squash merges, so the pull request title, a Conventional Commit, becomes the commit on the branch. Nothing is pushed to `odin-migration` or `main` directly.
+- **The CI runs on every pull request**: checks, tests, formatting and lint on macOS, Windows and Linux (see [Definition of done](#definition-of-done)).
+- **A second agent reviews every pull request.** Once a pull request is open, the agent that opened it has another agent review the diff against this file (correctness, [Rules that are never bent](#rules-that-are-never-bent), parity with 1.0.0, tests, idiomatic Odin, comments). The agent that opened it applies the review comments it agrees with, pushes them to the same pull request, and lists in the description the ones it set aside, with the reason.
+- **The agent merges once the CI is green.** After the review, when every check of its pull request passes, the agent that opened it ticks the slice in [`docs/odin-migration.md`](docs/odin-migration.md) (in the same pull request), squash-merges it and deletes its branch; the next slice starts from the updated `origin/odin-migration`. A pull request waiting on a question for Florent is not merged until he answers. Florent reviews the merged changes and asks for fixes, which come as new pull requests. Merging `odin-migration` into `main` and tagging a release stay Florent's call.
+- **odid3.** Tags are read and written by [odid3](https://github.com/OpenMediaStack/odid3), Open Media Stack's ID3 library, cloned in `~/Code/openmediastack/odid3`. When Colophon needs something odid3 lacks, or hits a bug in it, and only when a workaround in Colophon would be wrong or costly, open a pull request on odid3 that follows odid3's own `AGENTS.md`, then move Colophon's submodule to the commit or tag that has it. Say in Colophon's pull request which odid3 change it waits for.
+- **Florent keeps learning.** When a change relies on a concept that is not obvious (an immediate mode UI's hot and active widgets, a glyph atlas, a lock-free ring buffer, an Objective-C message send from Odin, a min/max waveform pyramid), the summary explains it in two or three sentences with a link to the reference. No lectures, just enough to review with understanding.
+- Talk to Florent in French. Everything written in the repository or on GitHub is in English: code, comments, docs, commit messages, pull request titles and descriptions, review comments.
 - No em dashes or en dashes anywhere: code, comments, docs, commits, pull requests. Use a comma, a colon, parentheses or a new sentence.
 
 ## Code style
 
-- Idiomatic Rust, following the [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/): errors as `Result` with `?`, iterators rather than index loops, borrowing rather than cloning, `From` and `TryFrom` for conversions, enums rather than boolean flags, newtypes for values that must not be mixed up.
-- The code reads without comments: clear names, small functions, types that carry the meaning. A comment, in English, only says what the code cannot (why a workaround exists, a quirk of the ID3 spec with its reference), never what the next line does.
+Idiomatic Odin, following the [overview](https://odin-lang.org/docs/overview/), the [FAQ](https://odin-lang.org/docs/faq/) and the conventions of Odin's own `core:` library.
 
-## Slint practices
+- **Names.** Types in `Ada_Case`, procedures and variables in `snake_case`, constants in `SCREAMING_SNAKE_CASE`, enum values in `Ada_Case`, packages in short lowercase names (`engine`, `library`).
+- **Public and private.** A package exposes only what other packages need. Every helper is `@(private)` (package) or `@(private = "file")`.
+- **Errors are values**: an `Error` enum or union per package, propagated with `or_return`, handled with `switch` or `or_else`. No `panic`, `assert` or `unreachable` that data from a file or the user can reach.
+- **Types carry the meaning.** Enums and `bit_set`s rather than boolean flags, `distinct` types for values that must not be mixed up (`Track_Id :: distinct int`, `Millis :: distinct i64`), enumerated arrays where the keys are known (`[Field]string`), `union`s for things that are one of several kinds.
+- **Allocators are explicit.** A procedure that allocates takes `allocator := context.allocator`, and its doc comment says what the caller owns and how to free it (`delete` or `destroy`). Free right after acquiring with `defer` when the lifetime is local. `context.temp_allocator` holds per-frame scratch memory only, freed once per frame by the app loop; a package never keeps temp memory beyond the call that made it.
+- **No global mutable state.** State lives in structs passed by pointer (`^Engine`, `^Ui`, `^App`), so every procedure can be tested without a window. Read-only tables are `@(rodata)` constants. The only exception is the `userdata` a C callback receives, which is a pointer to such a struct.
+- **Small procedures** that do one thing and are easy to test, rather than long ones with flags.
+- **Platform code** lives in files suffixed with the platform (`menu_darwin.odin`, `menu_windows.odin`, `menu_linux.odin`), with the same procedures in each, rather than `when ODIN_OS` blocks scattered through the code. A short `when` stays fine for a one-line difference.
+- **Comments.** The code reads without comments: clear names, small procedures, types that carry the meaning. A comment, in English, only says what the code cannot (why a workaround exists, a quirk of a format or a platform with its reference), never what the next line does.
+- **Doc comments** on every declaration another package uses, for `odin doc`: what the caller must know (ownership, errors, threads), not a restatement of the name.
+- **Formatting.** `odinfmt` with the repository's `odinfmt.json`; the CI checks that it changes nothing.
 
-From Slint's [best practices](https://docs.slint.dev/latest/docs/slint/guide/development/best-practices/) and its language reference, plus what the spike confirmed.
+## Odin and UI practices
 
-- **Layout of `crates/ui-slint`.** `.slint` files in `ui/`, with `ui/app-window.slint` as the entry point; images in `ui/images/`, fonts in `ui/fonts/`, translations in `translations/`.
-- **Logic in Rust, presentation in Slint.** A `.slint` file declares what the UI looks like for a given state; the decisions live in the engine. Prefer bindings, which stay correct when their inputs change, to imperative assignments in callbacks.
-- **Properties are a component's interface.** `in` for what the parent sets, `out` for what it reads, `in-out` only when both sides write, and everything else private.
-- **Accessibility from the start.** Every component of our own declares `accessible-role`, `accessible-label` and its actions (`accessible-action-default`…). Screen readers need them, and the tests find elements through them.
-- **One `global Theme`**, re-exported from `app-window.slint` so Rust can reach it. Components read colours and sizes from `Theme` only.
-- **States and animations.** Hover, pressed and focus looks are bindings or `states`, with `animate` kept under 150 ms (see the brief's principles).
-- **Long lists.** A `for` placed directly in our own `ListView` (a `Flickable` with `visible-width` and `visible-height`) is virtualised. Rows come from Rust as a `ModelRc`; change a model through its methods (`set_row_data`, `push`…) so that only the affected rows update.
-- **Desktop scrolling.** A mouse drag never pans a list (`mouse-drag-pan-enabled: false`), it selects; the wheel, the trackpad and our own scroll bars scroll.
-- **Other threads** never touch the UI: they hand results back with `Weak::upgrade_in_event_loop` or `slint::invoke_from_event_loop`.
-- **Generated code.** `slint::include_modules!()` goes in its own module with `#![allow(clippy::unwrap_used, clippy::expect_used)]`, because Slint's generated code unwraps internally. For the same reason the workspace denies `unsafe_code` rather than forbidding it: a Slint macro allows it locally.
-- **Formatting.** `slint-lsp format -i` formats `.slint` files. The formatter is still young: check its output in the diff.
+- **Immediate mode UI.** The interface is redrawn from the application state on every frame that needs it: widgets are procedures that draw and return what happened (`clicked`, `changed`, `committed`), identified by a stable `Widget_Id` built from a name and an index. Hover is resolved from the previous frame, so a widget drawn later (an overlay) takes the mouse from what lies under it. Keyboard focus moves only between frames, and a widget losing the focus never cancels another one's request for it in the same frame.
+- **One `Ui` context**, passed by pointer to every widget: input of the frame, hot, active and focused widgets, the draw lists, the theme. Screens are procedures `(ui: ^Ui, app: ^App, rect: Rect)`.
+- **Logic in the engine, drawing in the UI.** A screen reads engine state and calls engine commands; it never decides a behaviour. The UI keeps only what is about presentation (scroll offsets, which field has the focus, the text being typed).
+- **Text being typed is a pending change.** A field applies its text on Enter, Tab or a click elsewhere, but while it is typed it already counts as unsaved, and saving or quitting applies it first, to the tracks it was started on.
+- **One `Theme`** struct whose fields are named like the brief's tokens (`surface_0`, `text_secondary`, `accent_selection`). Widgets read colours and sizes from it, never from a literal.
+- **Rendering.** Every shape, glyph and icon samples one alpha atlas tinted by vertex colour, drawn with `SDL_RenderGeometry`; covers are the only other textures. The draw lists are plain data, so tests can inspect them without a window. Rounded rects are anti-aliased with a one pixel feather ring.
+- **Frames only when needed.** The loop waits for events; it draws continuously only while something moves (playback, a scan, a caret blink, a transition under 150 ms).
+- **Other threads never touch the UI.** Scanning, reading tags, saving, decoding audio and computing waveforms run on worker threads, which hand results back through a channel or a mutex-guarded queue and wake the loop with an SDL user event. Packages below the UI do not know SDL: they take a `wake` callback.
+- **Accessibility from the start.** Every widget of our own declares its role, label and actions to the accessibility tree (see the plan's accessibility spike). Tests find widgets through the same labels.
+- **Desktop scrolling.** A mouse drag never pans a list, it selects; the wheel, the trackpad and our own scroll bars scroll.
 
 ## Definition of done
 
 A change is done when all of this holds, and the summary says which checks ran:
 
-- `cargo fmt --all --check` passes.
-- `cargo clippy --workspace --all-targets -- -D warnings` passes.
-- `cargo test --workspace` passes, with new tests for the new behaviour.
-- UI changes: the app was run, and the summary includes a screenshot (`screencapture`) or a Slint reference capture of the result (see [Testing](#testing)).
-- The CI passes on the pull request: format, Clippy and tests on Linux, plus YAML lint.
+- `./scripts/check.sh` passes: `odin check` on every package with `-vet -strict-style -warnings-as-errors`, and `odinfmt` leaves every file unchanged.
+- `./scripts/test.sh` passes: `odin test` on every package with `-define:ODIN_TEST_FAIL_ON_BAD_MEMORY=true`, with new tests for the new behaviour, and no leak or bad free reported.
+- UI changes: the app was run, and the pull request shows the result, from the reference captures the change adds or updates (see [Testing](#testing)) or a screenshot taken with the app's `--screenshot` option.
+- The CI passes on the pull request: checks and tests on macOS, Windows and Linux, formatting, YAML lint, and the dash check.
+- The review agent ran, and its comments are applied or answered in the description.
 - Anything not verified is named as such. Never claim a check that did not run.
 
 ## Rules that are never bent
 
-- **User files are sacred.** Writing tags never touches audio bytes. A write goes to a temporary file in the same directory, is flushed, then renamed over the original. Tests never write to a real user file: they copy fixtures into a temporary directory.
-- **No panic on untrusted input.** Audio files are untrusted. Truncated, corrupted or lying files give an error or a partial result, never a panic. No `unwrap` or `expect` on data that comes from a file.
-- **The UI thread never blocks.** Scanning folders, reading tags, decoding audio and computing waveforms run off the UI thread and report back through channels.
+- **User files are sacred.** Writing tags never touches audio bytes: it goes through odid3's `write_file`, which writes a temporary file in the same directory, flushes it, then renames it over the original. Tests never write to a real user file: they copy fixtures into a temporary directory.
+- **No panic on untrusted input.** Audio files are untrusted. Truncated, corrupted or lying files give an error or a partial result, never a panic. Every length read from a file is checked before slicing, and no bounds check is turned off on data that comes from a file.
+- **The UI thread never blocks.** Scanning folders, reading tags, saving, decoding audio and computing waveforms run off the UI thread.
 - **Engine first.** Every user action is a command in the engine, which the UI calls. The logic lives in the engine and is tested there, without a window. A behaviour that only exists in the UI is a bug.
-- **Business logic is tested.** Every change to `engine`, `tags`, `audio` or `library` comes with tests for the behaviour it adds or fixes. The UI is tested too whenever it can be, with Slint's testing backend (see [Testing](#testing)); what cannot be tested is checked by running the app and named as such in the summary.
-- **Dependencies point down.** `engine`, `tags`, `audio` and `library` never depend on `slint`.
+- **Business logic is tested.** Every change to `engine`, `library`, `mpa` or `audio` comes with tests for the behaviour it adds or fixes. The UI is tested too whenever it can be, by running frames with scripted input against a `Ui` without a window (see [Testing](#testing)); what cannot be tested is checked by running the app and named as such in the summary.
+- **Dependencies point down.** `engine`, `library`, `mpa` and `audio` never import `vendor:sdl3` nor the `ui` package; `engine` imports no `vendor:` package at all.
 
 ## Architecture
 
-A Cargo workspace, in the style of PhotoCraft (`github.com/storytold/photocraft`): a pure-data engine with a thin Slint UI on top.
+One Odin package per folder under `src/`, built into one binary.
 
-| Crate | Role |
+| Package | Role |
 | --- | --- |
-| `crates/tags` | Read and write metadata through `lofty` (https://docs.rs/lofty), which covers every format Colophon targets (MP3, FLAC, WAV, AIFF, M4A, Ogg, APE…), writes ID3v2.3 or 2.4 (`WriteOptions::use_id3v23`) with a chosen padding (`preferred_padding`), writes ID3v1, and gives the audio properties (bitrate, sample rate, duration). Colophon adds validation and safe writing. For the few developer-mode writes `lofty` does not do (ID3v2.2, unsynchronisation, compression, forcing ID3v1.0 rather than 1.1), check first, then use the `id3` crate's `Encoder` behind developer mode only. |
-| `crates/audio` | Decoding with `symphonia`, playback with `cpal`, the min/max waveform pyramid, the FFT (`realfft`). |
-| `crates/library` | Scanning folders, the track model, caching tag reads. |
-| `crates/engine` | Application state: open library, selection, pending edits, undo and redo, the commands, each with a stable id. No UI types. |
-| `crates/ui-slint` | The Slint frontend: the `.slint` files (the `global Theme`, Colophon's own components, the panels), compiled by `slint-build` in its `build.rs`, and the Rust bridge that turns engine state into Slint properties and models, and Slint callbacks into engine commands. It reads engine state and issues commands, nothing else. |
-| `apps/colophon` | The desktop app: the Slint application, which wires `ui-slint` to the engine. |
+| `src/engine` | Application state: the open library, the track model, the views (sources, filter, sort), selection, pending edits, undo and redo, the commands with their stable ids, inspection of the selection, warnings, preferences. Plain data, no `vendor:` import, no I/O except through what `library` gives it. |
+| `src/library` | Scanning folders on worker threads, reading tags through odid3 and audio properties through `mpa`, saving pending edits through odid3, reading and writing the preferences file. |
+| `src/mpa` | MPEG audio properties: the first valid frame header, the Xing, Info and VBRI headers, duration, bitrate (constant or variable), sample rate, channels. Ported from the prototype. |
+| `src/audio` | Decoding and playback with `vendor:miniaudio`, the min/max waveform pyramid. |
+| `src/ui` | The toolkit: the `Ui` context, input, layout helpers, the renderer (atlas, shapes, text, icons) and its SDL3 backend, the theme, the widgets, the table, menus, dialogs, toasts, translations. |
+| `src/platform` | What differs by platform: native menus, accessibility, the preferences folder, the system language, opening a file's folder. |
+| `src/app` | The `main` package: the window, the event loop, the screens, and the wiring of the UI to the engine and to the workers. |
+| `libs/odid3` | odid3, a git submodule pinned to a tag, imported by its relative path (`import id3 "../../libs/odid3"`). |
 
-Add a crate only when a real boundary appears, never upfront.
+Add a package only when a real boundary appears, never upfront. Assets live in `assets/` (fonts, icons, the app icon) and are embedded with `#load`; translations in `translations/`.
 
-Throwaway experiments live in `spikes/`: standalone crates outside the workspace, ignored locally through `.git/info/exclude`, never committed.
+Throwaway experiments and spikes live in `spikes/`, ignored locally through `.git/info/exclude`, never committed; what a spike teaches goes into the plan's [Decisions](docs/odin-migration.md#decisions).
 
 ## Open to other formats
 
@@ -90,77 +105,44 @@ Each container has its own tag system, so ID3 is not the general case:
 
 Rules that keep the door open while v1 ships MP3 only:
 
-- The engine and the UI speak a generic track model (title, artist, album, track and total, disc, year, genre, comment, cover). Nothing outside `crates/tags` names an ID3 frame.
-- Format-specific details (tag versions, the developer mode's "Tag format" section, raw frames) hang off the generic model as an optional per-format extension, never as fields of the generic model.
+- The engine and the UI speak a generic track model (title, artist, album, track and total, disc, year, genre, comment, cover). Nothing outside `library` names an ID3 frame or imports odid3.
+- Format-specific details (tag versions, the developer mode's "Tag format" section, raw frames) hang off the generic model as an optional per-format extension, a `union` of per-format structs, never as fields of the generic model.
 - The scanner accepts a list of extensions; v1 lists `.mp3` only.
 - Fields do not map one to one (`TRCK` = `3/12` against `TRACKNUMBER` and `TRACKTOTAL`, dates, multiple artists). When a later version adds a format, a conversion that loses information is flagged in the inspector, never silent.
-- For WAV, a policy like the ID3v1 one will be needed (ID3 chunk as the main tag, RIFF INFO kept where it exists). Decide it when WAV is planned.
+- Other formats will come from Open Media Stack libraries like odid3, one per tag system, and their decoding from `vendor:miniaudio` (MP3, FLAC, WAV, Vorbis) or a decoder still to choose for AAC.
 
 ## Stack
 
-- Rust 1.99, pinned in `rust-toolchain.toml` and set as the workspace's `rust-version`; edition 2024. Workspace-wide versions and lints in the root `Cargo.toml`.
-- `slint` for the UI (1.18 at the time of writing), with `slint-build` to compile the `.slint` files at build time. Colophon draws its own components rather than using the std-widgets styles (see the design brief).
-- **Slint's license.** Colophon's own code is under the MIT license. Slint is used under its Royalty-free License 2.0, which allows that for a desktop application on one condition: show the `AboutSlint` widget in an About dialog reachable from the app's top-level menu, or show the "Made with Slint" badge on the public page where Colophon is downloaded. The About dialog must exist before the first build anyone else downloads. The same license forbids distributing an application that exposes Slint's own APIs, so Slint's debugging MCP server (`slint/mcp`) never ships in a release build.
-- `lofty` for tags and audio properties (`id3` only for the developer-mode writes `lofty` lacks), `symphonia` for decoding, `cpal` for output, `realfft` for spectra, `rfd` for native file dialogs.
-- Check crates.io for the current version before adding a dependency, and say in the plan why it is needed.
+- **Odin** `dev-2026-10`, the version the CI installs with `laytan/setup-odin`. Change it in the CI and in this file together.
+- **SDL3** 3.4 (`vendor:sdl3`): window, input, text input and IME, clipboard, drag and drop, file dialogs (the desktop portal on Linux), the system theme, and the 2D renderer (Metal on macOS, Direct3D on Windows, OpenGL or Vulkan on Linux). Linked dynamically and shipped next to the binary.
+- **odid3** for ID3 tags, as a git submodule in `libs/odid3`.
+- `vendor:miniaudio` for decoding and playback, `vendor:fontstash` with `vendor:stb/truetype` for text, `vendor:stb/image` for covers. Whatever the spikes add (text shaping, accessibility) is recorded in the plan's decisions.
+- Nothing else without Florent's agreement. Say in the plan why a dependency is needed, and check its license: the About dialog lists every third-party component and its license.
 
 ## Testing
 
-- **Where tests live.** A private detail is tested in its own file, in a `#[cfg(test)] mod tests` at the bottom (it sees private items through `use super::*`). Behaviour seen from outside the crate is tested in `tests/`, where each file is a separate crate that only sees the public API; helpers shared by several files go in `tests/common/mod.rs`. See [Test Organization](https://doc.rust-lang.org/book/ch11-03-test-organization.html).
-- **Fixtures** are generated by `testdata/make.sh` with ffmpeg (`-id3v2_version 3` or `4`, `-write_id3v1 1`) plus hand-made byte files for edge cases, from generated silence or a sine, never third-party audio. The script documents what each file holds. The files are committed with ffprobe's output for each one (`testdata/ffprobe/`), so reading them needs no ffmpeg: rerun the script after changing it. Third-party test files stay out of the repo until their license is checked.
-- **Parity:** values read by `tags` match `ffprobe -show_format -show_streams` on the fixtures, within the duration and bitrate tolerances `crates/tags/tests/parity.rs` explains.
-- **Round trips:** `crates/tags/tests/versions.rs` writes every tag version Colophon writes and reads each file back with Colophon, ffprobe and the `id3` crate. ffprobe runs there, so the tests need ffmpeg installed; the CI installs it.
-- **Round trips:** write then read gives the same tags, and a hash of the audio bytes is unchanged.
-- **Robustness:** a corpus of truncated and mutated fixtures, generated in a temporary directory, runs without a single panic.
-- **UI:** Slint's testing backend (`i-slint-backend-testing`) runs the UI without a window. Tests find elements by accessible label (`ElementHandle::find_by_accessible_label`), so every component sets `accessible-role` and `accessible-label`, and drive them through accessibility actions or simulated clicks, with mocked time for animations. Its API is preliminary and does not follow semver: pin it to the exact `slint` version (`=1.18.x`) and update both together. Element lookups need the compiler's debug info, which `build.rs` turns on for debug builds (`CompilerConfiguration::with_debug_info`). Tests select their language (`slint::select_bundled_translation`) so they do not depend on the machine's language.
-- **Reference captures:** for the panels that matter, the testing backend renders with Slint's software renderer, `Window::take_snapshot()` returns the pixels, and the test compares them with a stored PNG. Fonts are embedded so a capture does not depend on the machine.
+- **Where tests live.** A private detail is tested in a `<file>_test.odin` beside the code, in the same package (Odin compiles `_test.odin` files only for `odin test`). Behaviour seen from outside a package is tested in its `tests/` folder, a separate package that uses only the public API. Helpers shared by several test files go in a `helpers_test.odin`.
+- **Fixtures** are generated by `testdata/make.sh` with ffmpeg plus hand-made byte files for edge cases, from generated silence or a sine, never third-party audio. The script documents what each file holds. The files are committed with ffprobe's output for each one (`testdata/ffprobe/`), so reading them needs no ffmpeg. Tag reading and writing themselves are odid3's to test; Colophon tests what it does with them.
+- **Parity:** the audio properties `mpa` reads match `ffprobe -show_format -show_streams` on the fixtures, within the duration and bitrate tolerances its tests explain.
+- **Round trips:** saving through the engine and the library, then reading back, gives the same fields, and a hash of the audio bytes is unchanged.
+- **Robustness:** a corpus of truncated and mutated fixtures, generated in a temporary directory, scans without a single panic.
+- **UI without a window.** Tests run frames of the `Ui` with scripted input (mouse moves, clicks, keys, typed text) against the real screens and engine, with the renderer recording draw lists instead of drawing. They find widgets by their accessible label and check what happened in the engine and what was drawn.
+- **Reference captures** for the screens and components that matter: the app renders one frame offscreen (SDL's `offscreen` video driver and the software renderer, so pixels do not depend on the GPU), and the test compares it with a stored PNG in `tests/references/`, within a small tolerance. Fonts are embedded so a capture does not depend on the machine. `UPDATE_REFERENCES=1` writes them again after an intended change.
 
 ## Design
 
-[`docs/design/brief.md`](docs/design/brief.md) is the reference, and [`docs/design/`](docs/design/README.md) holds the mockup screens: one visual identity on every platform, small platform adaptations (window controls, menus, shortcuts, dialog button order, file dialogs), dense pro-tool layout, draft tokens, components and their states.
+[`docs/design/brief.md`](docs/design/brief.md) is the reference, with the mockup screens in [`docs/design/`](docs/design/README.md): one visual identity on every platform, small platform adaptations (window controls, menus, shortcuts, dialog button order, file dialogs), dense pro-tool layout, tokens, components and their states. The folder is kept out of git (`.git/info/exclude`): read it in `~/Code/colophon/docs/design`, or through the symbolic link a worktree may have.
 
-- Until a mockup is approved, the tokens in the brief are drafts. Do not invent other colours, sizes or radii: add a token to the brief first.
-- Once the main screen exists in the app and Florent approves it, the app becomes the source of truth and the mockup is no longer updated.
-- All theme values live in a `global Theme` in `crates/ui-slint`, named like the tokens in the brief. Components read their colours from `Theme`, never from a literal.
+- The brief's "Implementation" column names the Rust stack. The Odin equivalents are in [Stack](#stack) and in the plan.
+- Do not invent other colours, sizes or radii: add a token to the brief first, with Florent.
+- The screenshots of Colophon 1.0.0 (`docs/assets/`) and its reference captures (`git show origin/main:crates/ui-slint/tests/references/<name>.png`) show what the app looks like today. The Odin version matches them.
 
 ## Translations
 
 Colophon is translatable from the first screen. v1 ships English and French.
 
-- Every user-facing text is written in English in the `.slint` files with `@tr("...")`, plurals included (`@tr("{n} track" | "{n} tracks" % count)`).
-- Translations are gettext `.po` files in `crates/ui-slint/translations/<lang>/LC_MESSAGES/`, bundled into the binary by `slint-build` (`with_bundled_translations`). `slint-tr-extractor` extracts the strings, `msgmerge` updates each `.po`.
-- At startup Slint picks the system language (the exact locale, then the language alone) and falls back to English.
-- The engine never returns sentences for the user: it returns typed values and errors, and the UI turns them into translated text. Numbers and dates are formatted for the user's language by Colophon, since `@tr` does not do it.
+- Every user-facing text is written in English in the code through `tr("...")`, plurals through `tr_n("{n} track", "{n} tracks", count)`.
+- Translations are the gettext `.po` files of `translations/`, the French one carried over from 1.0.0. They are embedded with `#load` and parsed at startup. `scripts/extract-strings.sh` lists the strings the code uses into `translations/colophon.pot`, and `msgmerge` updates each `.po`.
+- At startup Colophon picks the system language (the exact locale, then the language alone) and falls back to English.
+- The engine never returns sentences for the user: it returns typed values and errors, and the UI turns them into translated text. Numbers and dates are formatted for the user's language by Colophon.
 - Layouts leave room for longer translations: a column, a button or a label sized for the English text cuts the French one.
-
-## Roadmap
-
-Each step ends on something Florent can run. Cut a step into slices before starting it.
-
-1. **Skeleton.**
-   - **Slint spike, first, before anything else.** It validates:
-     - a smooth 10 000-row table that scrolls horizontally, with the status, number and title columns pinned on the left (two lists with synchronised scrolling);
-     - the context menu on the column header (the column chooser);
-     - a fake waveform displayed from an image buffer (`SharedPixelBuffer` shown by an `Image`);
-     - switching between the dark and the light theme;
-     - translations: texts marked with `@tr`, a French `.po` bundled into the binary, the system language picked at startup with English as fallback;
-     - a test with Slint's testing backend that finds an element by its accessible label and activates it, and a reference capture of one panel rendered with the software renderer (`Window::take_snapshot()`), compared with a stored PNG.
-
-     If a point blocks, stop and discuss it with Florent before going further.
-   - Then the skeleton itself: the workspace, the Slint window with the `global Theme` (dark and light), the English and French translations, and the layout chosen in the design brief in grey boxes, the collapsible sidebar and inspector with their buttons and shortcuts.
-2. **Library.** Open a folder with the native dialog, scan MP3 files in the background, a virtualised track list that stays smooth with 10 000 entries and scrolls horizontally, every column included, when its columns do not fit.
-3. **Read tags.** The `tags` crate, fixtures, ffprobe parity, no panic on the corrupted corpus. The edit panel shows the values, read only, the column chooser (right click on the header), and the Tags column, off by default, which shows the tag formats present in each file (`ID3v2.3, ID3v1.1`).
-4. **Edit and save.** Editable fields, pending edits, undo and redo through commands, safe writing, round-trip tests. Writes ID3v2.4 by default. ID3v1 is kept where it exists and rewritten from the new values, with a warning when a value does not fit its 30 Latin-1 characters. Removing an ID3v1 tag always goes through a confirmation dialog.
-5. **Tag versions and developer mode.** The developer mode switch, the inspector's "Tag format" section (ID3v2 none, 2.2, 2.3, 2.4; ID3v1 none, 1.0, 1.1), and round-trip tests for every version, checked against ffprobe and against a second reader.
-6. **Cover art.** Display, replace by drag and drop or file dialog, extract to a file.
-7. **Player.** Play, pause, seek, a playhead that stays in sync over a 6 minute track.
-8. **Waveform and spectrum.** The min/max pyramid for instant zoom and scrub, the spectrum, then a multi-band waveform.
-9. **Album batch edit.** Edit the fields shared by every track of an album at once.
-10. **Polish.** Command palette, keyboard shortcuts, hover transitions, icons, empty and error states. Preferences kept between launches in a settings file: the columns shown and their widths, the panels, the window size.
-11. **Advanced developer tools.** Padding size, unsynchronisation, compression, text encoding per frame, and a raw frame view with each frame's ID, offset, size, flags and decoded value. `lofty` covers padding and the text encoding of ID3v2 frames; the rest goes through the `id3` crate or a small reader of our own. Check before planning.
-
-Later versions:
-
-- **Other formats**, all through `lofty`: FLAC and Ogg, M4A, WAV, AIFF. Mostly scanning, the inspector fields each format supports, the conversions that lose information, and fixtures. The Tags column shows `Vorbis`, `MP4` or `RIFF INFO, ID3v2.4`.
-- A web build.
-
