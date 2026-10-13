@@ -191,8 +191,10 @@ Entry :: struct {
 	type: os.File_Type,
 }
 
-// The entries of folder. An entry that cannot be read, a file removed during the
-// scan say, is reported alone; a folder that cannot be read is reported, and false.
+// The entries of folder. An entry that cannot be read, a file removed during the scan
+// say, is reported alone, under the folder as given; a folder that cannot be opened is
+// reported, and false. On Linux, core:os skips an entry it cannot open and keeps only
+// the last such error: that one is reported.
 @(private = "file")
 read_folder :: proc(w: ^Walk, folder: string) -> (entries: [dynamic]Entry, ok: bool) {
 	entries = make([dynamic]Entry, w.allocator)
@@ -204,23 +206,39 @@ read_folder :: proc(w: ^Walk, folder: string) -> (entries: [dynamic]Entry, ok: b
 	defer os.close(f)
 	it := os.read_directory_iterator_create(f)
 	defer os.read_directory_iterator_destroy(&it)
-	reported: Scan_Error
+	// The last error reported, copied: the iterator writes the next one over its own.
+	last_path: string
+	last_error: os.Error
+	defer delete(last_path, w.allocator)
 	for info in os.read_directory_iterator(&it) {
-		// The iterator gives an empty entry for one it could not read, and keeps the error.
+		// macOS and the BSDs give an empty entry for one they could not read.
 		if info.name == "" {
 			path, err := os.read_directory_iterator_error(&it)
-			reported = {path, err}
-			w.report(Scan_Error{strings.clone(path, w.allocator), err}, w.data)
+			report_entry(w, folder, filepath.base(path), err)
+			delete(last_path, w.allocator)
+			last_path, last_error = strings.clone(path, w.allocator), err
 			continue
 		}
 		append(&entries, Entry{strings.clone(info.name, w.allocator), info.type})
 	}
-	// An error the loop did not report stopped the reading of the folder itself.
-	if path, err := os.read_directory_iterator_error(&it);
-	   err != nil && (path != reported.path || err != reported.error) {
-		w.report(Scan_Error{strings.clone(folder, w.allocator), err}, w.data)
+	path, err := os.read_directory_iterator_error(&it)
+	if err != nil && (path != last_path || err != last_error) {
+		if strings.index_any(path, "/\\") < 0 {
+			// Linux's skipped entry, by its bare name.
+			report_entry(w, folder, path, err)
+		} else {
+			// The reading of the folder itself stopped.
+			w.report(Scan_Error{strings.clone(folder, w.allocator), err}, w.data)
+		}
 	}
 	return entries, true
+}
+
+// Reports the entry name of folder, under the folder as given rather than the path the
+// system resolves, so that the error stays inside its root.
+@(private = "file")
+report_entry :: proc(w: ^Walk, folder, name: string, err: os.Error) {
+	w.report(Scan_Error{child_path(folder, name, w.allocator), err}, w.data)
 }
 
 // The path of name in folder, with one separator between them even when folder is a
