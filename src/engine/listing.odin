@@ -3,6 +3,7 @@ package engine
 import "core:path/filepath"
 import "core:slice"
 import "core:strings"
+import "core:time"
 
 import lib "../library"
 
@@ -26,8 +27,8 @@ Artist :: struct {
 	name: string,
 }
 
-// Where the table's tracks come from: what the sidebar chose. nil lists every track.
-Source :: union {
+// Where the table's tracks come from: what the sidebar chose, every track at first.
+Source :: union #no_nil {
 	All_Tracks,
 	Recently_Changed,
 	Unreadable,
@@ -57,12 +58,13 @@ Sort :: struct {
 	descending: bool,
 }
 
-// Lists the tracks of a source in the table.
+// Lists the tracks of a source in the table. The engine keeps a copy of the source.
 Show_Source :: struct {
 	source: Source,
 }
 
-// Lists only the tracks whose title, artist, album or file name holds this text.
+// Lists only the tracks whose title, artist, album or file name holds this text,
+// ignoring case and the spaces around it. The engine keeps a copy of the text.
 Filter :: struct {
 	text: string,
 }
@@ -79,6 +81,7 @@ Groups :: struct {
 	artists: [dynamic]Artist_Count,
 }
 
+// An album of the sidebar.
 Album :: struct {
 	key:         Album_Key,
 	tracks:      int,
@@ -86,6 +89,7 @@ Album :: struct {
 	cover_track: Maybe(Track_Id),
 }
 
+// An artist of the sidebar.
 Artist_Count :: struct {
 	name:   string,
 	tracks: int,
@@ -102,69 +106,87 @@ album_key :: proc(tags: ^lib.Tags) -> (key: Album_Key, ok: bool) {
 // Groups the readable tracks by album and by artist, from their files' tags. The
 // strings belong to the tracks: the groups stay valid until the library changes.
 groups :: proc(e: ^Engine, allocator := context.allocator) -> (g: Groups) {
-	g.albums = make([dynamic]Album, allocator)
-	g.artists = make([dynamic]Artist_Count, allocator)
+	Album_Entry :: struct {
+		folded:    string,
+		key:       Album_Key,
+		track:     Track_Id,
+		has_cover: bool,
+	}
+	Artist_Entry :: struct {
+		folded, name: string,
+	}
+	albums := make([dynamic]Album_Entry, context.temp_allocator)
+	artists := make([dynamic]Artist_Entry, context.temp_allocator)
 	for &track, i in e.library.tracks {
 		if track.error != .None do continue
 		tags := &track.metadata.tags
 		if key, ok := album_key(tags); ok {
-			album := find_album(&g.albums, key)
-			album.tracks += 1
-			if album.cover_track == nil && tags.has_cover do album.cover_track = Track_Id(i)
+			append(&albums, Album_Entry{lower(key.title), key, Track_Id(i), tags.has_cover})
 		}
-		if artist, ok := tags.artist.?; ok {
-			count_artist(&g.artists, artist)
-		}
+		if artist, ok := tags.artist.?; ok do append(&artists, Artist_Entry{lower(artist), artist})
 	}
-	slice.sort_by(g.albums[:], proc(a, b: Album) -> bool {
-		return compare_names(a.key.title, b.key.title, artist_name(a.key), artist_name(b.key)) < 0
+	// Sorted so that the tracks of an album or an artist follow each other, in library
+	// order: one pass then counts them.
+	slice.sort_by_cmp(albums[:], proc(a, b: Album_Entry) -> slice.Ordering {
+		order := compare_names(a.folded, b.folded, a.key.title, b.key.title)
+		if order == .Equal do order = compare_artists(a.key.artist, b.key.artist)
+		if order == .Equal do order = slice.cmp(a.track, b.track)
+		return order
 	})
-	slice.sort_by(g.artists[:], proc(a, b: Artist_Count) -> bool {
-		return compare_names(a.name, b.name, "", "") < 0
+	slice.sort_by_cmp(artists[:], proc(a, b: Artist_Entry) -> slice.Ordering {
+		return compare_names(a.folded, b.folded, a.name, b.name)
 	})
+	g.albums = make([dynamic]Album, allocator)
+	for entry, i in albums {
+		if i == 0 || entry.key != albums[i - 1].key do append(&g.albums, Album{key = entry.key})
+		album := &g.albums[len(g.albums) - 1]
+		album.tracks += 1
+		if album.cover_track == nil && entry.has_cover do album.cover_track = entry.track
+	}
+	g.artists = make([dynamic]Artist_Count, allocator)
+	for entry, i in artists {
+		if i == 0 || entry.name != artists[i - 1].name do append(&g.artists, Artist_Count{entry.name, 0})
+		g.artists[len(g.artists) - 1].tracks += 1
+	}
 	return
 }
 
+// Frees the lists of groups, whose strings belong to the tracks.
 destroy_groups :: proc(g: ^Groups) {
 	delete(g.albums)
 	delete(g.artists)
 	g^ = {}
 }
 
+// Alphabetical, ignoring case, from the names lowered once; names equal but for case
+// keep a fixed order.
 @(private = "file")
-find_album :: proc(albums: ^[dynamic]Album, key: Album_Key) -> ^Album {
-	for &album in albums do if album.key == key do return &album
-	append(albums, Album{key = key})
-	return &albums[len(albums) - 1]
+compare_names :: proc(a_folded, b_folded, a, b: string) -> slice.Ordering {
+	if order := slice.Ordering(strings.compare(a_folded, b_folded)); order != .Equal do return order
+	return slice.Ordering(strings.compare(a, b))
 }
 
+// An album without an artist comes before those with one, as in 1.0.0.
 @(private = "file")
-count_artist :: proc(artists: ^[dynamic]Artist_Count, name: string) {
-	for &artist in artists {
-		if artist.name == name {
-			artist.tracks += 1
-			return
-		}
-	}
-	append(artists, Artist_Count{name, 1})
-}
-
-@(private = "file")
-artist_name :: proc(key: Album_Key) -> string {
-	return key.artist.? or_else ""
-}
-
-// Alphabetical, ignoring case; names equal but for case keep a fixed order.
-@(private = "file")
-compare_names :: proc(a, b, a_tie, b_tie: string) -> int {
-	if c := strings.compare(lower(a), lower(b)); c != 0 do return c
-	if c := strings.compare(a, b); c != 0 do return c
-	return strings.compare(a_tie, b_tie)
+compare_artists :: proc(a, b: Maybe(string)) -> slice.Ordering {
+	x, has_x := a.?
+	y, has_y := b.?
+	if has_x != has_y do return has_x ? .Greater : .Less
+	return slice.Ordering(strings.compare(x, y))
 }
 
 @(private = "file")
 lower :: proc(s: string) -> string {
 	return strings.to_lower(s, context.temp_allocator)
+}
+
+// Lowers s for the filter to find it whatever its case. Greek has two lowercase
+// sigmas, ς at the end of a word and σ elsewhere: both become σ, so that "ΟΔΟΣ"
+// lowered to "οδοσ" is found by "οδος".
+@(private = "file")
+fold :: proc(s: string) -> string {
+	folded, _ := strings.replace_all(lower(s), "ς", "σ", context.temp_allocator)
+	return folded
 }
 
 // Lists the tracks of the source again, filtered and sorted: those whose title,
@@ -173,7 +195,7 @@ lower :: proc(s: string) -> string {
 @(private)
 relist :: proc(e: ^Engine) {
 	clear(&e.listed)
-	filter := lower(strings.trim_space(e.filter))
+	filter := fold(strings.trim_space(e.filter))
 	for _, i in e.library.tracks {
 		id := Track_Id(i)
 		if in_source(e, id, e.source) && (len(filter) == 0 || matches(e, id, filter)) do append(&e.listed, id)
@@ -182,25 +204,29 @@ relist :: proc(e: ^Engine) {
 	if !sorted do return
 	keyed := make([]Keyed, len(e.listed), context.temp_allocator)
 	for id, i in e.listed do keyed[i] = {sort_key(e, id, sort.column), id}
-	context.user_ptr = &sort
-	slice.sort_by(keyed, proc(a, b: Keyed) -> bool {
-		sort := (^Sort)(context.user_ptr)
-		order := compare_values(a.key.primary, b.key.primary)
-		if sort.descending do order = -order
-		if order == 0 do order = compare_values(a.key.album, b.key.album)
-		if order == 0 do order = compare_ints(a.key.disc, b.key.disc)
-		if order == 0 do order = compare_ints(a.key.track, b.key.track)
-		if order == 0 do order = compare_ints(int(a.id), int(b.id))
-		return order < 0
-	})
+	slice.sort_by_cmp_with_data(keyed, compare_keyed, &sort)
 	for k, i in keyed do e.listed[i] = k.id
+}
+
+// The order of the table: the sort's column, up or down, then the order of an
+// album, then the library's.
+@(private = "file")
+compare_keyed :: proc(a, b: Keyed, data: rawptr) -> slice.Ordering {
+	sort := (^Sort)(data)
+	order := compare_values(a.key.primary, b.key.primary)
+	if sort.descending do order = slice.Ordering(-int(order))
+	if order == .Equal do order = compare_values(a.key.album, b.key.album)
+	if order == .Equal do order = slice.cmp(a.key.disc, b.key.disc)
+	if order == .Equal do order = slice.cmp(a.key.track, b.key.track)
+	if order == .Equal do order = slice.cmp(a.id, b.id)
+	return order
 }
 
 @(private = "file")
 in_source :: proc(e: ^Engine, id: Track_Id, source: Source) -> bool {
 	track := &e.library.tracks[id]
 	switch s in source {
-	case nil, All_Tracks:
+	case All_Tracks:
 		return true
 	case Recently_Changed:
 		return is_changed(e, id)
@@ -224,7 +250,7 @@ in_source :: proc(e: ^Engine, id: Track_Id, source: Source) -> bool {
 matches :: proc(e: ^Engine, id: Track_Id, filter: string) -> bool {
 	holds :: proc(value: Maybe(string), filter: string) -> bool {
 		s, ok := value.?
-		return ok && strings.contains(lower(s), filter)
+		return ok && strings.contains(fold(s), filter)
 	}
 	if holds(filepath.base(e.library.tracks[id].path), filter) do return true
 	tags := shown_tags(e, id) or_return
@@ -254,8 +280,9 @@ Keyed :: struct {
 	id:  Track_Id,
 }
 
+// Numbers before text, and nothing last.
 @(private = "file")
-compare_values :: proc(a, b: Value) -> int {
+compare_values :: proc(a, b: Value) -> slice.Ordering {
 	rank :: proc(v: Value) -> int {
 		switch _ in v {
 		case u64:
@@ -265,20 +292,14 @@ compare_values :: proc(a, b: Value) -> int {
 		}
 		return 2
 	}
-	if c := compare_ints(rank(a), rank(b)); c != 0 do return c
+	if order := slice.cmp(rank(a), rank(b)); order != .Equal do return order
 	#partial switch x in a {
 	case u64:
-		y := b.(u64)
-		return x < y ? -1 : (x > y ? 1 : 0)
+		return slice.cmp(x, b.(u64))
 	case string:
-		return strings.compare(x, b.(string))
+		return slice.Ordering(strings.compare(x, b.(string)))
 	}
-	return 0
-}
-
-@(private = "file")
-compare_ints :: proc(a, b: int) -> int {
-	return a < b ? -1 : (a > b ? 1 : 0)
+	return .Equal
 }
 
 @(private = "file")
@@ -310,10 +331,13 @@ sort_key :: proc(e: ^Engine, id: Track_Id, column: Sort_Column) -> (key: Sort_Ke
 		key.primary = number(tags.year)
 	case .Genre:
 		key.primary = text(tags.genre)
+	// A duration or a bitrate of 0 is unknown, as 1.0.0 read it.
 	case .Time:
-		if readable do key.primary = u64(track.metadata.audio.duration / 1_000_000)
+		duration := track.metadata.audio.duration
+		if readable && duration > 0 do key.primary = u64(duration / time.Millisecond)
 	case .Bitrate:
-		if readable do key.primary = u64(track.metadata.audio.bitrate_kbps)
+		bitrate := track.metadata.audio.bitrate_kbps
+		if readable && bitrate > 0 do key.primary = u64(bitrate)
 	case .Tags:
 		formats :=
 			readable ? lib.tag_formats_string(track.metadata.formats, context.temp_allocator) : ""

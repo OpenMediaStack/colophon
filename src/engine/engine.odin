@@ -158,13 +158,16 @@ execute :: proc(e: ^Engine, command: Command) {
 		open(e, paths[:], folders[:])
 	case Stop_Scan:
 		stop_scans(e)
+	// Copied before the old value is freed: the command may hold the engine's own.
 	case Show_Source:
+		source := clone_source(c.source)
 		destroy_source(&e.source)
-		e.source = clone_source(c.source)
+		e.source = source
 		relist(e)
 	case Filter:
+		text := strings.clone(c.text)
 		delete(e.filter)
-		e.filter = strings.clone(c.text)
+		e.filter = text
 		relist(e)
 	case Sort_By:
 		descending := false
@@ -174,7 +177,8 @@ execute :: proc(e: ^Engine, command: Command) {
 	}
 }
 
-// The tags a track shows, or false when it could not be read.
+// The tags a track shows, or false when it could not be read. The pointer is valid
+// until the library changes: poll may move the tracks.
 shown_tags :: proc(e: ^Engine, id: Track_Id) -> (^lib.Tags, bool) {
 	track := &e.library.tracks[id]
 	if track.error != .None do return nil, false
@@ -189,10 +193,10 @@ is_changed :: proc(e: ^Engine, id: Track_Id) -> bool {
 @(private = "file")
 clone_source :: proc(source: Source) -> Source {
 	switch s in source {
-	case nil, All_Tracks, Recently_Changed, Unreadable:
+	case All_Tracks, Recently_Changed, Unreadable:
 		return source
 	case Folder:
-		return Folder{strings.clone(s.path)}
+		return Folder{strings.clone(opened_path(s.path))}
 	case Album_Key:
 		artist: Maybe(string)
 		if a, ok := s.artist.?; ok do artist = strings.clone(a)
@@ -200,13 +204,13 @@ clone_source :: proc(source: Source) -> Source {
 	case Artist:
 		return Artist{strings.clone(s.name)}
 	}
-	return nil
+	return All_Tracks{}
 }
 
 @(private = "file")
 destroy_source :: proc(source: ^Source) {
 	switch s in source {
-	case nil, All_Tracks, Recently_Changed, Unreadable:
+	case All_Tracks, Recently_Changed, Unreadable:
 	case Folder:
 		delete(s.path)
 	case Album_Key:
@@ -215,7 +219,7 @@ destroy_source :: proc(source: ^Source) {
 	case Artist:
 		delete(s.name)
 	}
-	source^ = nil
+	source^ = All_Tracks{}
 }
 
 // Takes in what the running scans reported since the last call, and says whether

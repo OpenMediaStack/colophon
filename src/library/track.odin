@@ -154,9 +154,19 @@ ID3V1_NAMES := [Id3v1_Version]string {
 // The tag formats a file holds, as the Tags column shows them: "ID3v2.3, ID3v1.1",
 // "" without any. Allocated with allocator.
 tag_formats_string :: proc(f: Tag_Formats, allocator := context.allocator) -> string {
-	names := make([dynamic]string, 0, 3, context.temp_allocator)
-	if v, ok := f.id3v2.?; ok do append(&names, ID3V2_NAMES[v])
-	if v, ok := f.id3v1.?; ok do append(&names, ID3V1_NAMES[v])
-	if f.ape do append(&names, "APE")
-	return strings.join(names[:], ", ", allocator)
+	names: [3]string
+	count := 0
+	if v, ok := f.id3v2.?; ok {
+		names[count] = ID3V2_NAMES[v]
+		count += 1
+	}
+	if v, ok := f.id3v1.?; ok {
+		names[count] = ID3V1_NAMES[v]
+		count += 1
+	}
+	if f.ape {
+		names[count] = "APE"
+		count += 1
+	}
+	return strings.join(names[:count], ", ", allocator)
 }
