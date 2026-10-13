@@ -193,3 +193,24 @@ edit_commands_keep_the_ids_of_1_0 :: proc(t: ^testing.T) {
 	}
 	for id in ids do testing.expect_value(t, id[0], id[1])
 }
+
+@(test)
+a_track_unlike_the_rest_of_its_album_is_warned_about :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := folder_with_fixtures(t, {{"v23_full.mp3", "1.mp3"}, {"v23_full.mp3", "2.mp3"}})
+	defer remove_folder(folder)
+	engine_reading(t, &e, folder)
+	defer engine.destroy(&e)
+	none := engine.warnings(&e, context.temp_allocator)
+	testing.expect_value(t, len(none), 0)
+	one := track_named(&e, "1.mp3")
+
+	engine.execute(&e, engine.Select{one})
+	engine.execute(&e, engine.Apply_Edit{{.Album_Artist, "Marlowe Kite"}})
+	engine.execute(&e, engine.Apply_Edit{{.Track, nil}})
+
+	// One album artist each: neither is the usual one.
+	w := engine.warnings(&e, context.temp_allocator)
+	testing.expect_value(t, len(w), 1)
+	testing.expect_value(t, w[one], engine.Warnings{.Missing_Number})
+}

@@ -85,7 +85,7 @@ Each slice is one pull request, in this order unless a slice says it can move. A
 - [x] **9. `feat(engine): selection`.** Single, toggle, range, all, keyboard moves. Port `selection.rs` and its tests, and the listing test of select all and the arrows. Selecting an album comes with slice 10, since its 1.0.0 test edits the album first.
 - [x] **10. `feat(engine): edits, undo and redo`.** Pending edits per track and field, edits on several tracks, numbering an album, selecting an album, commands with stable ids, undo and redo, the tag versions chosen per track. Port `edits.rs` and its tests. The tests of `tests/edits.rs` that need the inspection, the warnings or saving come with slices 11, 12 and 16; cover edits come with slice 36; the write policy command with slice 13; `losing_id3v1_to_policy`, `versions_keeping_id3v1` and saving the pending tracks in library order with slice 16; `rewrite` and the settling that ends a revert with slice 39; the genres to suggest with slice 21.
 - [x] **11. `feat(engine): inspection`.** Values across the selection, multiple values, file information, what saving will write and what ID3v1 will lose. Port `inspection.rs` and its tests, and those of `tests/edits.rs` that need it. The cover comes with slice 36.
-- [ ] **12. `feat(engine): warnings`.** Port `warnings.rs` and its tests.
+- [x] **12. `feat(engine): warnings`.** A track without a number in a numbered album, an album artist unlike most of its album's, an album being the tracks of one folder with one album title. Port `warnings.rs` and its tests, and the one of `tests/edits.rs`.
 - [ ] **13. `feat(engine): columns and preferences`.** Visible columns, widths, order, defaults (Tags off, Title always shown), write policies, volume, panels; `preferences.toml` read and written as 1.0.0 does (a small reader and writer for the subset of TOML it uses), what is missing keeping its default. Port `columns.rs`, `preferences.rs` and their tests, and `tests/view.rs` (panels, columns, preferences; its developer mode test with slice 39).
 - [ ] **14. `feat(engine): playback state`.** Port `playback.rs` and its tests.
 - [x] **15. `feat(library): scan`.** Done in slice 7.
@@ -116,7 +116,7 @@ Each screen matches 1.0.0's reference captures (`crates/ui-slint/tests/reference
 - [ ] **32. `feat(app): inspector`.** Cover, fields, multiple values, the File section, unreadable files explained, genre suggestions. Port `inspector.rs`, `unreadable.rs`, `genres.rs`.
 - [ ] **33. `feat(app): editing`.** Inspector and table editing through engine commands, undo and redo, numbering an album, selecting an album. Port `editing.rs`, `table_editing.rs`, `selection.rs`.
 - [ ] **34. `feat(app): saving`.** Save buttons, unsaved markers, toasts, write errors, the unsaved changes dialog. Port `saving.rs`, `toasts.rs`, `unsaved_changes.rs`.
-- [ ] **35. `feat(app): warnings`.** In the table and the inspector.
+- [ ] **35. `feat(app): warnings`.** In the table and the inspector, computed once after each change to the library or the edits (4 to 6 ms for 10,000 tracks), not every frame.
 - [ ] **36. `feat(app): cover art`.** Port `covers.rs`. Cover edits in the engine, the inspection's shared cover, saving covers, and the cover test of `tests/edits.rs`.
 - [ ] **37. `feat(app): command palette and shortcuts`.** Port `palette.rs`.
 - [ ] **38. `feat(app): settings`.** Port `settings.rs`, `tag_removal.rs`.
