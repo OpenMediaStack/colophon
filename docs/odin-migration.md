@@ -19,7 +19,13 @@ A prototype built in a day (Odin, SDL3, every pixel drawn by the app) matched th
 | 2026-10-13 | Colophon keeps reading and writing 1.0.0's `preferences.toml`, in the same folder, so users keep their settings. |
 | 2026-10-13 | The French translation of 1.0.0 is kept as a gettext `.po` file, embedded and parsed by Colophon. |
 
+| 2026-10-14 | Accessibility spike (slice 3): **go on macOS**. AccessKit 0.23.1's C API, bound from Odin with a few `foreign` declarations, exposes a tree built each frame from the UI's own state to the system's accessibility API. Checked in-process through `NSAccessibility`, the way VoiceOver asks: the window's content view lists the buttons (`AXButton`, with their labels as titles), the text field (`AXTextField`, with its value), a static text and the focused element; `accessibilityPerformPress` on a button reaches the app's action handler, which hands it to the SDL event loop through a user event, and the updated tree shows the result. Hooking it to SDL3 takes the `NSWindow` from the window's `SDL.window.cocoa.window` property and a focus forwarder on SDL's `SDL3Window` class. Not checked: VoiceOver speaking (the session could not grant assistive access to a script), Narrator and Orca (prebuilt libraries exist for Windows and Linux x86_64, not tried). |
+
 The spikes of [Phase 0](#phase-0-foundations-and-spikes) add their results here.
+
+## Open questions for Florent
+
+- **AccessKit as a dependency** (from the accessibility spike): AccessKit is MIT or Apache 2.0, ships prebuilt C libraries for macOS, Windows and Linux (static: 46 MB for macOS arm64, 10 MB for Linux x86_64, linked down to what is used; a 360 KB DLL on Windows), and is what Slint used for 1.0.0. Slice 45 needs it, vendored in `libs/accesskit` with its license. Yes or no?
 
 ## Parity with 1.0.0
 
@@ -59,7 +65,7 @@ Each slice is one pull request, in this order unless a slice says it can move. A
 
 - [x] **1. `chore: odin skeleton, odid3 and CI`.** The `src/app` package, whose `main` opens the window at 1.0.0's size (1280 by 800, at least 960 by 600), `libs/odid3` at `v1.0.0`, `odinfmt.json` and `ols.json`, `scripts/check.sh`, `scripts/test.sh` and `scripts/build.sh`, an `--screenshot` option that renders one frame without a window (SDL's `dummy` video driver and the software renderer) and saves it. CI workflow `odin.yml` on macOS, Windows and Linux: Odin with `laytan/setup-odin`; SDL3 from Homebrew on macOS, and the same release on Windows (the official DLL, with the import library Odin ships) and Linux (built from source and cached); then check, test, a frame rendered without a window uploaded as an artifact, formatting and the dash check. Building Odin's C vendor libraries comes with the first package that needs them (slice 2). `release.yml` comes back in slice 47. The README's development section. Done when the CI is green on the three systems.
 - [ ] **2. `feat(ui): renderer`.** The prototype's drawing layer, restructured: draw lists as plain data, one alpha atlas (fontstash glyphs, icons, a white texel), anti-aliased rounded rects and strokes, gradients, images, clipping, layers, and the SDL3 backend. The Lucide icons rasterized once into committed alpha masks by `scripts/icons.sh`. A reference capture of a test card (shapes, text in the five font styles, icons) on the three systems.
-- [ ] **3. Spike: accessibility.** AccessKit's C API bound from Odin, fed by an immediate mode tree; VoiceOver reads and activates a button and edits a field. Narrator and Orca as far as they can be checked. Result and go or no-go in [Decisions](#decisions), for Florent to decide on if it fails.
+- [x] **3. Spike: accessibility.** AccessKit's C API bound from Odin, fed by an immediate mode tree; VoiceOver reads and activates a button and edits a field. Narrator and Orca as far as they can be checked. Result and go or no-go in [Decisions](#decisions), for Florent to decide on if it fails.
 - [ ] **4. Spike: text.** Shaping with `vendor:kb_text_shape` (Arabic, Hebrew, combining marks), fallback fonts from the system (CoreText, DirectWrite, fontconfig) for CJK and symbols, the IME composition with SDL3's text editing events. Result in [Decisions](#decisions).
 - [ ] **5. Spike: menus.** The macOS menu bar with `NSMenu` through Odin's Objective-C support, the Windows menu bar on the SDL window's `HWND`, the drawn Linux menu bar, native context menus. Result in [Decisions](#decisions).
 
@@ -129,7 +135,7 @@ Each screen matches 1.0.0's reference captures (`crates/ui-slint/tests/reference
 
 ## Risks
 
-- **Accessibility** has no Odin library: AccessKit's C API is the only path found so far. Spike 3 decides early; if it fails, Florent decides whether to ship without screen readers or to keep looking.
+- **Accessibility** has no Odin library: AccessKit's C API works from Odin on macOS (spike 3). Windows and Linux are still to be tried, in slice 45 at the latest.
 - **SDL3 on Linux** has no package on the CI's Ubuntu image: it is built from source and cached.
 - **Pixel captures across systems** can differ slightly even with the software renderer: the comparison has a tolerance, and a capture that differs only on one system is investigated, not regenerated blindly.
 - **Text** beyond Latin, Greek and Cyrillic needs shaping and fallback fonts (spike 4); until then such titles may show as boxes.
