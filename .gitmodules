@@ -1,0 +1,3 @@
+[submodule "libs/odid3"]
+	path = libs/odid3
+	url = https://github.com/OpenMediaStack/odid3

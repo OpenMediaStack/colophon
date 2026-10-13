@@ -104,12 +104,16 @@ Some distributions need FUSE 2 for AppImages (`libfuse2` on Debian and Ubuntu).
 
 This branch, `odin-migration`, rebuilds Colophon 1.0.0 in [Odin](https://odin-lang.org) with
 SDL3. The plan and its progress are in [`docs/odin-migration.md`](docs/odin-migration.md), and how
-the work runs is in [`AGENTS.md`](AGENTS.md). The commands below arrive with the plan's first slice.
+the work runs is in [`AGENTS.md`](AGENTS.md).
 
 ### Prerequisites
 
 - Odin `dev-2026-10`
-- SDL3 3.4 (`brew install sdl3` on macOS)
+- SDL3 3.4: `brew install sdl3` on macOS; on Windows, Odin ships it; on Linux, your
+  distribution's `libsdl3-dev` or a build from source, found through `SDL3_LIB_DIR` when it is not
+  in the system's library folders
+- `odinfmt`, built from [OLS](https://github.com/DanielGavin/ols) (`tools/odinfmt`), for
+  `scripts/check.sh` to check the formatting
 - The [odid3](https://github.com/OpenMediaStack/odid3) submodule:
 
   ```bash
@@ -128,14 +132,10 @@ the work runs is in [`AGENTS.md`](AGENTS.md). The commands below arrive with the
 
 | Folder | What it holds |
 |---|---|
-| `src/app` | The application: the window, the event loop and the screens |
-| `src/ui` | The interface toolkit: drawing, text, widgets, the table, translations |
-| `src/engine` | The application state and every command: selection, edits, undo, sorting, preferences |
-| `src/library` | Finding the audio files of a folder, reading and saving them |
-| `src/mpa` | The MPEG audio properties: duration, bitrate, sample rate |
-| `src/audio` | Playing tracks and drawing their waveform |
-| `src/platform` | What differs by platform: menus, accessibility, folders, language |
+| `src/app` | The application: the window and the event loop |
 | `libs/odid3` | [odid3](https://github.com/OpenMediaStack/odid3), which reads and writes the ID3 tags |
+
+The other packages arrive with the slices of the plan.
 
 ---
 
