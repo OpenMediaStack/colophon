@@ -4,7 +4,7 @@ import "core:strings"
 
 // Runs frames of a Ui without a window, with scripted input, for tests: the renderer
 // records draw lists that nothing draws. Make it with harness_init, free it with
-// harness_destroy.
+// harness_destroy; the Ui points into it, so it must not be copied once made.
 Harness :: struct {
 	renderer: Renderer,
 	ui:       Ui,
@@ -14,6 +14,7 @@ Harness :: struct {
 	scale:    f32,
 }
 
+// Makes a harness that runs frame with data, in the theme of kind.
 harness_init :: proc(
 	h: ^Harness,
 	frame: proc(ui: ^Ui, data: rawptr),
@@ -28,6 +29,7 @@ harness_init :: proc(
 	h.scale = 1
 }
 
+// Frees what harness_init made.
 harness_destroy :: proc(h: ^Harness) {
 	ui_destroy(&h.ui)
 	renderer_destroy(&h.renderer)

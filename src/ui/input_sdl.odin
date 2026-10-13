@@ -6,17 +6,40 @@ import sdl "vendor:sdl3"
 // How far one notch of a mouse wheel scrolls.
 WHEEL_POINTS :: 40
 
-// Adds what an SDL event says to input, and true when it was input at all. Mouse
-// positions are in the window's points, as SDL gives them.
-input_from_sdl :: proc(input: ^Input, event: ^sdl.Event) -> bool {
+// What input_from_sdl did with an event.
+Event_Use :: enum u8 {
+	// Not input: a window or a system event, left to the app.
+	Other,
+	// Added to the input of this frame.
+	Taken,
+	// A button that changes after the mouse moved, or a second change of a button, in
+	// this frame: keep the event for the next frame, so that each frame sees one change
+	// and the hover has settled where the click is.
+	Wait,
+}
+
+// Adds what an SDL event says to input. SDL gives mouse positions in points on macOS
+// and Wayland but in pixels on Windows and X11: points_per_unit, which is the window's
+// pixel density divided by its display scale, turns them into points.
+input_from_sdl :: proc(input: ^Input, event: ^sdl.Event, points_per_unit: f32 = 1) -> Event_Use {
 	#partial switch event.type {
 	case .MOUSE_MOTION:
-		input.mouse = {event.motion.x, event.motion.y}
+		if input.changed != {} do return .Wait
+		input.mouse = {event.motion.x, event.motion.y} * points_per_unit
+		input.moved = true
 	case .MOUSE_BUTTON_DOWN, .MOUSE_BUTTON_UP:
 		e := event.button
 		button, known := mouse_button(e.button)
-		if !known do return false
-		input.mouse = {e.x, e.y}
+		if !known do return .Other
+		input.modifiers = modifiers_of(sdl.GetModState())
+		// A Control click is a right click on macOS.
+		if ODIN_OS == .Darwin && button == .Left && .Control in input.modifiers {
+			button = .Right
+			input.modifiers -= {.Control}
+		}
+		if input.moved || button in input.changed do return .Wait
+		input.mouse = [2]f32{e.x, e.y} * points_per_unit
+		input.changed += {button}
 		if e.down {
 			input.down += {button}
 			input.pressed += {button}
@@ -26,10 +49,10 @@ input_from_sdl :: proc(input: ^Input, event: ^sdl.Event) -> bool {
 			input.released += {button}
 		}
 	case .MOUSE_WHEEL:
+		// SDL gives the direction the user set, natural scrolling included.
 		e := event.wheel
-		flip: f32 = e.direction == .FLIPPED ? -1 : 1
-		input.wheel += {e.x * flip, -e.y * flip} * WHEEL_POINTS
-		input.mouse = {e.mouse_x, e.mouse_y}
+		input.wheel += {e.x, -e.y} * WHEEL_POINTS
+		input.mouse = {e.mouse_x, e.mouse_y} * points_per_unit
 	case .KEY_DOWN:
 		e := event.key
 		input.modifiers = modifiers_of(e.mod)
@@ -39,11 +62,23 @@ input_from_sdl :: proc(input: ^Input, event: ^sdl.Event) -> bool {
 		input.modifiers = modifiers_of(event.key.mod)
 	case .TEXT_INPUT:
 		strings.write_string(&input.text, string(event.text.text))
+	case .WINDOW_MOUSE_LEAVE:
+		// The pointer is gone: nothing is under it, unless a drag holds a button.
+		if input.down == {} do input.mouse = OUTSIDE
+		return .Other
+	case .WINDOW_FOCUS_LOST:
+		// Another window may take the release: the buttons count as up, without a click.
+		input.down = {}
+		input.lost_focus = true
+		return .Other
 	case:
-		return false
+		return .Other
 	}
-	return true
+	return .Taken
 }
+
+// Where the mouse is when it is not over the window.
+OUTSIDE :: [2]f32{-1e6, -1e6}
 
 @(private = "file")
 mouse_button :: proc(button: u8) -> (Mouse_Button, bool) {

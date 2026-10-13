@@ -1,5 +1,7 @@
 package ui
 
+import "core:math"
+
 // A rectangle in points: the unit of layout, which the renderer turns into pixels.
 Rect :: struct {
 	x, y, w, h: f32,
@@ -59,5 +61,5 @@ rect_center :: proc(r: Rect) -> [2]f32 {
 
 // A rectangle of size w by h in the middle of r, on whole points so that it stays sharp.
 centered :: proc(r: Rect, w, h: f32) -> Rect {
-	return {r.x + f32(int((r.w - w) / 2)), r.y + f32(int((r.h - h) / 2)), w, h}
+	return {r.x + math.floor((r.w - w) / 2), r.y + math.floor((r.h - h) / 2), w, h}
 }
