@@ -156,7 +156,7 @@ destroy :: proc(e: ^Engine) {
 	delete(e.filter)
 	delete(e.listed)
 	delete(e.saved)
-	selection_destroy(&e.selection)
+	destroy_selection(&e.selection)
 	e^ = {}
 }
 
@@ -190,23 +190,23 @@ execute :: proc(e: ^Engine, command: Command) {
 		delete(e.filter)
 		e.filter = text
 		relist(e)
-	case Select:
-		if has_track(e, c.track) do select_one(&e.selection, c.track)
-	case Toggle_Selected:
-		if has_track(e, c.track) do toggle(&e.selection, c.track)
-	case Select_Range:
-		if has_track(e, c.track) do select_range(&e.selection, c.track, e.listed[:])
-	case Select_All:
-		select_all(&e.selection, e.listed[:])
-	case Move_Selection:
-		step(&e.selection, c.step, e.listed[:], false)
-	case Extend_Selection:
-		step(&e.selection, c.step, e.listed[:], true)
 	case Sort_By:
 		descending := false
 		if sort, ok := e.sort.?; ok do descending = sort.column == c.column && !sort.descending
 		e.sort = Sort{c.column, descending}
 		relist(e)
+	case Select:
+		if has_track(e, c.track) do select_one(&e.selection, c.track)
+	case Toggle_Selected:
+		if has_track(e, c.track) do toggle_selected(&e.selection, c.track)
+	case Select_Range:
+		if has_track(e, c.track) do select_range(&e.selection, c.track, e.listed[:])
+	case Select_All:
+		select_all(&e.selection, e.listed[:])
+	case Move_Selection:
+		move_selection(&e.selection, c.step, e.listed[:])
+	case Extend_Selection:
+		extend_selection(&e.selection, c.step, e.listed[:])
 	}
 }
 

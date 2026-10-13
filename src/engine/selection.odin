@@ -32,6 +32,7 @@ Select_Range :: struct {
 	track: Track_Id,
 }
 
+// Every track the table lists becomes the selection.
 Select_All :: struct {}
 
 // An arrow key: the selection moves to the previous or next track.
@@ -44,13 +45,15 @@ Extend_Selection :: struct {
 	step: Step,
 }
 
+// Whether the track is selected. It searches tracks, which only the engine changes,
+// keeping them sorted and each once.
 is_selected :: proc(s: ^Selection, track: Track_Id) -> bool {
 	_, found := slice.binary_search(s.tracks[:], track)
 	return found
 }
 
 @(private)
-selection_destroy :: proc(s: ^Selection) {
+destroy_selection :: proc(s: ^Selection) {
 	delete(s.tracks)
 	s^ = {}
 }
@@ -66,7 +69,7 @@ select_one :: proc(s: ^Selection, track: Track_Id) {
 
 // The track joins the selection or leaves it.
 @(private)
-toggle :: proc(s: ^Selection, track: Track_Id) {
+toggle_selected :: proc(s: ^Selection, track: Track_Id) {
 	if at, found := slice.binary_search(s.tracks[:], track); found {
 		ordered_remove(&s.tracks, at)
 	} else {
@@ -108,15 +111,27 @@ select_all :: proc(s: ^Selection, order: []Track_Id) {
 	set_tracks(s, order)
 }
 
-// An arrow key in order, the tracks as the table lists them: the selection moves to
-// the next track, or grows and shrinks from the anchor when extend. It starts from
-// the first or the last track.
+// An arrow key: the selection moves to the track stepped to.
 @(private)
-step :: proc(s: ^Selection, direction: Step, order: []Track_Id, extend: bool) {
+move_selection :: proc(s: ^Selection, direction: Step, order: []Track_Id) {
+	if track, ok := stepped(s, direction, order); ok do select_one(s, track)
+}
+
+// A Shift arrow: the selection grows or shrinks from the anchor to the track stepped to.
+@(private)
+extend_selection :: proc(s: ^Selection, direction: Step, order: []Track_Id) {
+	if track, ok := stepped(s, direction, order); ok do select_range(s, track, order)
+}
+
+// The track an arrow key goes to in order, the tracks as the table lists them: the
+// previous or next one from the focus, stopping at the ends, else the first or the
+// last. False when order is empty.
+@(private = "file")
+stepped :: proc(s: ^Selection, direction: Step, order: []Track_Id) -> (track: Track_Id, ok: bool) {
 	if len(order) == 0 do return
 	last := len(order) - 1
 	place := -1
-	if focus, ok := s.focus.?; ok {
+	if focus, has_focus := s.focus.?; has_focus {
 		if at, listed := slice.linear_search(order, focus); listed do place = at
 	}
 	switch {
@@ -129,11 +144,7 @@ step :: proc(s: ^Selection, direction: Step, order: []Track_Id, extend: bool) {
 	case:
 		place = min(place + 1, last)
 	}
-	if extend {
-		select_range(s, order[place], order)
-	} else {
-		select_one(s, order[place])
-	}
+	return order[place], true
 }
 
 @(private = "file")
