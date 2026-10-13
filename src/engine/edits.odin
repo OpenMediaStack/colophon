@@ -2,6 +2,7 @@ package engine
 
 import "base:runtime"
 import "core:slice"
+import "core:strconv"
 import "core:strings"
 
 import lib "../library"
@@ -21,6 +22,7 @@ Field :: enum u8 {
 	Comment,
 }
 
+// Several fields, such as those with values waiting to be saved.
 Fields :: bit_set[Field]
 
 // A new value for one field: text for text fields, a number for number fields; nil,
@@ -30,6 +32,9 @@ Edit :: struct {
 	value: Edit_Value,
 }
 
+// The value of an edit: text for the text fields, a number from 1 for the number
+// fields, a year from 1 to 9999. An edit whose value does not fit its field changes
+// nothing.
 Edit_Value :: union {
 	string,
 	int,
@@ -42,10 +47,12 @@ Version_Choice :: union {
 	Id3v1_Choice,
 }
 
+// The ID3v2 version to write, or nil to remove the ID3v2 tag.
 Id3v2_Choice :: struct {
 	version: Maybe(lib.Id3v2_Version),
 }
 
+// The ID3v1 version to write, or nil to remove the ID3v1 tag.
 Id3v1_Choice :: struct {
 	version: Maybe(lib.Id3v1_Version),
 }
@@ -136,7 +143,8 @@ edits_destroy :: proc(edits: ^Edits) {
 	edits^ = {}
 }
 
-// The tags to write into a track, if saving would change its file.
+// The tags to write into a track, if saving would change its file. The pointer is
+// valid until the edits change.
 pending_tags :: proc(e: ^Engine, track: Track_Id) -> (^lib.Tags, bool) {
 	return &e.edits.pending[track]
 }
@@ -149,10 +157,12 @@ versions_of :: proc(e: ^Engine, track: Track_Id) -> (versions: lib.Tag_Versions,
 	return lib.versions_following(e.edits.policy, saved.formats), true
 }
 
+// Whether there is a step to undo.
 can_undo :: proc(e: ^Engine) -> bool {
 	return len(e.edits.undo) > 0
 }
 
+// Whether there is an undone step to redo.
 can_redo :: proc(e: ^Engine) -> bool {
 	return len(e.edits.redo) > 0
 }
@@ -196,11 +206,50 @@ differs :: proc(field: Field, a, b: ^lib.Tags) -> bool {
 	return false
 }
 
+// The edit that text typed in field makes: trimmed digits for a number, nothing to
+// empty the field. false when the text is no value of the field: not a number, 0, or a
+// year outside 1 to 9999.
+parse_edit :: proc(field: Field, text: string) -> (edit: Edit, ok: bool) {
+	edit.field = field
+	switch field {
+	case .Title, .Artist, .Album_Artist, .Album, .Genre, .Comment:
+		if len(text) > 0 do edit.value = text
+		return edit, true
+	case .Year, .Track, .Track_Total, .Disc, .Disc_Total:
+		digits := strings.trim_space(text)
+		if len(digits) == 0 do return edit, true
+		for c in digits do if c < '0' || c > '9' do return
+		n := strconv.parse_int(digits, 10) or_return
+		edit.value = n
+		return edit, fits(edit)
+	}
+	return
+}
+
+// Whether the value of edit fits its field, as described for Edit_Value.
+@(private)
+fits :: proc(edit: Edit) -> bool {
+	switch v in edit.value {
+	case nil:
+		return true
+	case string:
+		return edit.field in TEXT_FIELDS
+	case int:
+		if edit.field == .Year do return v >= 1 && v <= 9999
+		return edit.field not_in TEXT_FIELDS && v >= 1 && v <= int(max(u32))
+	}
+	return false
+}
+
+@(private = "file")
+TEXT_FIELDS :: Fields{.Title, .Artist, .Album_Artist, .Album, .Genre, .Comment}
+
 // Applies edit to each of these tracks whose tags could be read. When continues, the
 // edit goes on with the latest step, if that step edited the same field of the same
 // tracks: typing a word makes one step, and typing back the old value makes none.
 @(private)
 edit_tracks :: proc(e: ^Engine, tracks: []Track_Id, edit: Edit, continues: bool) {
+	if !fits(edit) do return
 	changes := make([dynamic]Change)
 	for track in tracks {
 		change := begin_change(e, track) or_continue
@@ -219,12 +268,11 @@ number_tracks :: proc(e: ^Engine, ordered: []Track_Id) {
 	Placed :: struct {
 		track: Track_Id,
 		disc:  int,
-		at:    int,
 	}
 	placed := make([dynamic]Placed, context.temp_allocator)
-	for track, at in ordered {
+	for track in ordered {
 		tags := shown_tags(e, track) or_continue
-		append(&placed, Placed{track, tags.disc.? or_else 1, at})
+		append(&placed, Placed{track, tags.disc.? or_else 1})
 	}
 	slice.stable_sort_by(placed[:], proc(a, b: Placed) -> bool {return a.disc < b.disc})
 	changes := make([dynamic]Change)
@@ -245,6 +293,7 @@ number_tracks :: proc(e: ^Engine, ordered: []Track_Id) {
 // Writes these tracks in the version chosen for one tag, the other tag keeping its own.
 @(private)
 choose_versions :: proc(e: ^Engine, tracks: []Track_Id, choice: Version_Choice) {
+	if choice == nil do return
 	changes := make([dynamic]Change)
 	for track in tracks {
 		change := begin_change(e, track) or_continue
@@ -302,18 +351,13 @@ settle :: proc(e: ^Engine, track: Track_Id) {
 }
 
 // What the user wants for a track: the pending tags, or else its file's, and the
-// versions they chose, cloned with allocator.
+// versions they chose, cloned.
 @(private)
-wanted_of :: proc(
-	e: ^Engine,
-	track: Track_Id,
-	allocator := context.allocator,
-) -> (
-	wanted: Wanted,
-	ok: bool,
-) {
+wanted_of :: proc(e: ^Engine, track: Track_Id) -> (wanted: Wanted, ok: bool) {
+	// A track whose file cannot be read takes no change, pending tags or not.
+	saved_metadata(e, track) or_return
 	tags := shown_tags(e, track) or_return
-	wanted.tags = lib.clone_tags(tags^, allocator)
+	wanted.tags = lib.clone_tags(tags^)
 	if versions, chosen := e.edits.chosen[track]; chosen do wanted.versions = versions
 	return wanted, true
 }
@@ -408,12 +452,16 @@ continue_last :: proc(e: ^Engine, field: Field, changes: ^[dynamic]Change) -> bo
 // Takes ownership of changes.
 @(private = "file")
 record :: proc(e: ^Engine, field: Maybe(Field), changes: ^[dynamic]Change) {
-	for i := len(changes) - 1; i >= 0; i -= 1 {
-		if same_wanted(changes[i].before, changes[i].after) {
-			destroy_change(&changes[i])
-			ordered_remove(changes, i)
+	kept := 0
+	for &c in changes {
+		if same_wanted(c.before, c.after) {
+			destroy_change(&c)
+			continue
 		}
+		changes[kept] = c
+		kept += 1
 	}
+	resize(changes, kept)
 	if len(changes) == 0 {
 		delete(changes^)
 		return

@@ -162,3 +162,34 @@ selecting_the_album_selects_every_listed_track_of_it :: proc(t: ^testing.T) {
 	testing.expect(t, engine.is_selected(&e.selection, one))
 	testing.expect(t, engine.is_selected(&e.selection, two))
 }
+
+@(test)
+recently_changed_lists_the_pending_tracks :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := two_tracks(t, &e)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	two := track_named(&e, "2.mp3")
+	engine.execute(&e, engine.Select{two})
+	engine.execute(&e, engine.Apply_Edit{{.Genre, "Ambient"}})
+
+	engine.execute(&e, engine.Show_Source{engine.Recently_Changed{}})
+
+	testing.expect_value(t, len(e.listed), 1)
+	if len(e.listed) == 1 do testing.expect_value(t, e.listed[0], two)
+}
+
+@(test)
+edit_commands_keep_the_ids_of_1_0 :: proc(t: ^testing.T) {
+	ids := [?][2]string {
+		{engine.command_id(engine.Apply_Edit{}), "tags.edit"},
+		{engine.command_id(engine.Continue_Edit{}), "tags.continue_edit"},
+		{engine.command_id(engine.Undo{}), "edit.undo"},
+		{engine.command_id(engine.Redo{}), "edit.redo"},
+		{engine.command_id(engine.Revert{}), "tags.revert"},
+		{engine.command_id(engine.Number_Tracks{}), "tags.number_tracks"},
+		{engine.command_id(engine.Select_Album{}), "selection.select_album"},
+		{engine.command_id(engine.Choose_Version{}), "tags.choose_version"},
+	}
+	for id in ids do testing.expect_value(t, id[0], id[1])
+}

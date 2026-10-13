@@ -282,13 +282,26 @@ select_albums :: proc(e: ^Engine) {
 		tags := shown_tags(e, track) or_continue
 		if key, ok := album_key(tags); ok do append(&albums, key)
 	}
+	// Sorted, so that each listed track finds its album by a binary search.
+	slice.sort_by_cmp(albums[:], compare_album_keys)
 	tracks := make([dynamic]Track_Id, context.temp_allocator)
 	for track in e.listed {
 		tags := shown_tags(e, track) or_continue
 		key := album_key(tags) or_continue
-		if slice.contains(albums[:], key) do append(&tracks, track)
+		if _, found := slice.binary_search_by(albums[:], key, compare_album_keys); found {
+			append(&tracks, track)
+		}
 	}
 	add_to_selection(&e.selection, tracks[:])
+}
+
+@(private = "file")
+compare_album_keys :: proc(a, b: Album_Key) -> slice.Ordering {
+	if order := slice.Ordering(strings.compare(a.title, b.title)); order != .Equal do return order
+	x, has_x := a.artist.?
+	y, has_y := b.artist.?
+	if has_x != has_y do return has_x ? .Greater : .Less
+	return slice.Ordering(strings.compare(x, y))
 }
 
 @(private = "file")

@@ -52,6 +52,6 @@ formats_after_write :: proc(
 id3v1_track :: proc(tags: ^Tags, version: Id3v1_Version) -> Maybe(int) {
 	if version == .V1_0 do return nil
 	track, ok := tags.track.?
-	if !ok || track < 0 || track > 255 do return nil
+	if !ok || track < 1 || track > 255 do return nil
 	return track
 }

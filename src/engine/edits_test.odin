@@ -259,3 +259,65 @@ numbering_counts_disc_by_disc :: proc(t: ^testing.T) {
 	testing.expect_value(t, tags.track, 1)
 	testing.expect_value(t, tags.track_total, 1)
 }
+
+@(test)
+typed_text_makes_the_edit_of_its_field :: proc(t: ^testing.T) {
+	Case :: struct {
+		field: Field,
+		text:  string,
+		edit:  Maybe(Edit),
+	}
+	cases := [?]Case {
+		{.Title, "New", Edit{.Title, "New"}},
+		{.Title, "", Edit{.Title, nil}},
+		{.Track, " 7 ", Edit{.Track, 7}},
+		{.Track, "", Edit{.Track, nil}},
+		{.Track, "0", nil},
+		{.Track, "7a", nil},
+		{.Track, "-3", nil},
+		{.Year, "2024", Edit{.Year, 2024}},
+		{.Year, "10000", nil},
+	}
+	for c in cases {
+		edit, ok := parse_edit(c.field, c.text)
+		want, valid := c.edit.?
+		testing.expectf(t, ok == valid, "%v %q: %v", c.field, c.text, ok)
+		if ok && valid do testing.expectf(t, edit == want, "%v %q: %v", c.field, c.text, edit)
+	}
+}
+
+@(test)
+an_edit_whose_value_does_not_fit_changes_nothing :: proc(t: ^testing.T) {
+	e: Engine
+	engine_of(&e, {"a"})
+	defer destroy(&e)
+	edit_tracks(&e, {0}, {.Title, 5}, false)
+	edit_tracks(&e, {0}, {.Year, "2024"}, false)
+	edit_tracks(&e, {0}, {.Track, -3}, false)
+	edit_tracks(&e, {0}, {.Year, 0}, false)
+	testing.expect_value(t, len(e.edits.pending), 0)
+	testing.expect(t, !can_undo(&e))
+}
+
+@(test)
+no_version_choice_changes_nothing :: proc(t: ^testing.T) {
+	e: Engine
+	engine_of(&e, {"a"})
+	defer destroy(&e)
+	choose_versions(&e, {0}, nil)
+	testing.expect(t, !can_undo(&e))
+	testing.expect_value(t, len(e.edits.chosen), 0)
+}
+
+@(test)
+a_track_whose_file_cannot_be_read_takes_no_change :: proc(t: ^testing.T) {
+	e: Engine
+	engine_of(&e, {"a"})
+	defer destroy(&e)
+	set_title(&e, {0}, "New")
+	e.library.tracks[0].error = .Damaged
+	revert_tracks(&e, {0})
+	choose_versions(&e, {0}, Id3v1_Choice{.V1_1})
+	set_title(&e, {0}, "Newer")
+	testing.expect_value(t, len(e.edits.undo), 1)
+}
