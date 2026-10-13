@@ -6,8 +6,9 @@ import "core:strings"
 import sdl "vendor:sdl3"
 
 APP_NAME :: "Colophon"
-APP_ID :: "org.openmediastack.colophon"
-VERSION :: "2.0.0-dev"
+// The identifier of Colophon 1.0.0, which SDL hands to the system (the Wayland app id).
+APP_ID :: "io.github.openmediastack.colophon"
+VERSION :: "1.0.0"
 
 // The brief's surface_0 in the dark theme, until the theme arrives with the renderer.
 WINDOW_BACKGROUND :: [4]f32{0x12 / 255.0, 0x12 / 255.0, 0x14 / 255.0, 1}
@@ -16,8 +17,8 @@ main :: proc() {
 	options, err := parse_options(os.args[1:])
 	if err != .None {
 		fmt.eprintfln(
-			"colophon: %v. Usage: colophon [--size=WIDTHxHEIGHT] [--screenshot=FILE.png]",
-			err,
+			"colophon: %s. Usage: colophon [--size=WIDTHxHEIGHT] [--screenshot=FILE.png]",
+			option_error_message(err),
 		)
 		os.exit(2)
 	}
@@ -30,8 +31,9 @@ run :: proc(options: Options) -> bool {
 	if headless {
 		// The dummy video driver with the software renderer: no window shows, and the pixels do
 		// not depend on the GPU, so screenshots can be compared across machines.
-		if !sdl.SetHint(sdl.HINT_VIDEO_DRIVER, "dummy") do return sdl_failed("SDL_SetHint")
-		if !sdl.SetHint(sdl.HINT_RENDER_DRIVER, "software") do return sdl_failed("SDL_SetHint")
+		// Overriding, so the SDL_VIDEO_DRIVER and SDL_RENDER_DRIVER variables cannot change it.
+		if !sdl.SetHintWithPriority(sdl.HINT_VIDEO_DRIVER, "dummy", .OVERRIDE) do return sdl_failed("SDL_SetHintWithPriority")
+		if !sdl.SetHintWithPriority(sdl.HINT_RENDER_DRIVER, "software", .OVERRIDE) do return sdl_failed("SDL_SetHintWithPriority")
 	}
 	if !sdl.SetAppMetadata(APP_NAME, VERSION, APP_ID) do sdl_failed("SDL_SetAppMetadata")
 	if !sdl.Init({.VIDEO, .EVENTS}) do return sdl_failed("SDL_Init")
@@ -95,7 +97,8 @@ save_screenshot :: proc(renderer: ^sdl.Renderer, path: string) -> bool {
 	surface := sdl.RenderReadPixels(renderer, nil)
 	if surface == nil do return sdl_failed("SDL_RenderReadPixels")
 	defer sdl.DestroySurface(surface)
-	cpath := strings.clone_to_cstring(path, context.temp_allocator)
+	cpath := strings.clone_to_cstring(path)
+	defer delete(cpath)
 	if !sdl.SavePNG(surface, cpath) do return sdl_failed("SDL_SavePNG")
 	return true
 }

@@ -18,7 +18,7 @@ mkdir -p build
 out=build/colophon
 if is_windows; then
 	out=build/colophon.exe
-	cp "$(odin_root)/vendor/sdl3/SDL3.dll" build/
+	cp "$(sdl3_dll)" build/
 fi
 # shellcheck disable=SC2046
 odin build src/app -out:"$out" "${ODIN_FLAGS[@]}" "${flags[@]}" $(linker_flags)

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # What the CI checks: every package with vet and strict style, then formatting.
-# odinfmt rewrites what it would change, and the script fails if it changed anything.
+# odinfmt rewrites what it would change, and the script fails if it changed anything,
+# committed or not.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/common.sh
@@ -15,9 +16,13 @@ for package in $(packages); do
 done
 
 if command -v odinfmt >/dev/null; then
+	sums() { find src -name '*.odin' -exec cksum {} + | sort; }
+	before=$(sums)
 	odinfmt -path:src -w >/dev/null
-	if ! git diff --exit-code --stat -- src; then
-		echo "odinfmt changed the files above: review and commit them" >&2
+	after=$(sums)
+	if [ "$before" != "$after" ]; then
+		diff <(echo "$before") <(echo "$after") | sed -n 's/^> [0-9]* [0-9]* /formatted: /p' >&2
+		echo "odinfmt changed the files above: review them" >&2
 		exit 1
 	fi
 else

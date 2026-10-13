@@ -20,8 +20,14 @@ concurrency:
 
 env:
   ODIN_RELEASE: dev-2026-10
-  # SDL3 is built from source on Linux, where the runner's Ubuntu has no package of it.
+  # SDL3 is built from source on Linux, where the runner's Ubuntu has no package of it, and
+  # taken from the official release on Windows, so both run the same version.
   SDL3_VERSION: 3.4.18
+  # Enough for the dummy video driver the tests and captures use; the packages of slice 47
+  # need a build with X11 and Wayland.
+  SDL3_CMAKE_FLAGS: >-
+    -DCMAKE_BUILD_TYPE=Release -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
+    -DSDL_UNIX_CONSOLE_BUILD=ON
   # odinfmt is built from this OLS commit, checked to build with ODIN_RELEASE.
   OLS_COMMIT: a2cb00fadb49b0d79ca5089c8f700ab94cfb08ba
 
@@ -57,17 +63,17 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/sdl3
-          key: sdl3-${{ env.SDL3_VERSION }}-${{ runner.os }}-${{ runner.arch }}-headless
+          # The flags are part of the key, so changing them builds SDL3 again.
+          key: sdl3-${{ env.SDL3_VERSION }}-${{ runner.os }}-${{ runner.arch }} ${{ env.SDL3_CMAKE_FLAGS }}
       - name: Build SDL3 (Linux)
         if: runner.os == 'Linux' && steps.sdl3-cache.outputs.cache-hit != 'true'
         run: |
           curl --silent --show-error --location --fail \
             "https://github.com/libsdl-org/SDL/releases/download/release-$SDL3_VERSION/SDL3-$SDL3_VERSION.tar.gz" \
             | tar -xz -C "$RUNNER_TEMP"
+          # shellcheck disable=SC2086
           cmake -S "$RUNNER_TEMP/SDL3-$SDL3_VERSION" -B "$RUNNER_TEMP/sdl3-build" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$HOME/sdl3" -DCMAKE_INSTALL_LIBDIR=lib \
-            -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF \
-            -DSDL_X11=OFF -DSDL_WAYLAND=OFF -DSDL_KMSDRM=OFF
+            -DCMAKE_INSTALL_PREFIX="$HOME/sdl3" -DCMAKE_INSTALL_LIBDIR=lib $SDL3_CMAKE_FLAGS
           cmake --build "$RUNNER_TEMP/sdl3-build" --parallel
           cmake --install "$RUNNER_TEMP/sdl3-build"
       - name: Point the linker at SDL3 (Linux)
@@ -75,6 +81,13 @@ jobs:
         run: |
           echo "SDL3_LIB_DIR=$HOME/sdl3/lib" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$HOME/sdl3/lib" >> "$GITHUB_ENV"
+      - name: Download SDL3 (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          curl --silent --show-error --location --fail --output "$RUNNER_TEMP/sdl3.zip" \
+            "https://github.com/libsdl-org/SDL/releases/download/release-$SDL3_VERSION/SDL3-$SDL3_VERSION-win32-x64.zip"
+          unzip -q -o "$RUNNER_TEMP/sdl3.zip" -d "$RUNNER_TEMP/sdl3"
+          echo "SDL3_DLL=$RUNNER_TEMP/sdl3/SDL3.dll" >> "$GITHUB_ENV"
       - name: Check
         run: ./scripts/check.sh
       - name: Test

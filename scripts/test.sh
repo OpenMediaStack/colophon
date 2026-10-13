@@ -6,13 +6,16 @@ source scripts/common.sh
 
 mkdir -p build/tests
 if is_windows; then
-	cp "$(odin_root)/vendor/sdl3/SDL3.dll" build/tests/
+	cp "$(sdl3_dll)" build/tests/
 fi
 
 run_tests() {
 	local dir=$1
 	local name
 	name=$(echo "$dir" | tr '/' '-')
+	if is_windows; then
+		name="$name.exe"
+	fi
 	echo "test $dir"
 	# shellcheck disable=SC2046
 	odin test "$dir" "${ODIN_FLAGS[@]}" -define:ODIN_TEST_FAIL_ON_BAD_MEMORY=true \

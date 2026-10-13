@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared by the scripts of this folder: sourced, not run.
 
 # The flags every build, check and test uses.
@@ -23,6 +24,12 @@ odin_root() {
 		root=$(cygpath -u "$root")
 	fi
 	echo "${root%/}"
+}
+
+# The SDL3 library Windows loads at run time: SDL3_DLL when set (the CI takes the
+# official release, the same version as Linux), else the one Odin ships.
+sdl3_dll() {
+	echo "${SDL3_DLL:-$(odin_root)/vendor/sdl3/SDL3.dll}"
 }
 
 # The packages under src/, one per folder.
