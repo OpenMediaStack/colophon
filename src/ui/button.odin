@@ -31,6 +31,8 @@ Button_Options :: struct {
 	// A shortcut hint after the label, dimmed, for primary buttons.
 	shortcut: string,
 	disabled: bool,
+	// Left and right of the content, in points; 12 when 0, the brief's inner padding.
+	padding:  f32,
 }
 
 // Heights of the brief: buttons and inputs 28, a toolbar button 28 square.
@@ -66,7 +68,14 @@ button :: proc(
 	draw_button(ui.renderer, ui.theme, rect, label, options, states)
 	declare(
 		ui,
-		{id = id, role = .Button, label = label, rect = rect, states = widget_states(states)},
+		{
+			id = id,
+			role = .Button,
+			label = label,
+			rect = rect,
+			states = widget_states(states),
+			focusable = !options.disabled,
+		},
 	)
 	return activated
 }
@@ -75,31 +84,42 @@ button :: proc(
 button_width :: proc(r: ^Renderer, label: string, options := Button_Options{}) -> f32 {
 	style :=
 		options.kind == .Primary || options.kind == .Destructive ? Text_Style.Body_Strong : Text_Style.Body
-	width := 2 * BUTTON_PADDING + text_width(r, label, style)
+	width :=
+		2 * (options.padding > 0 ? options.padding : BUTTON_PADDING) + text_width(r, label, style)
 	if _, has_icon := options.icon.?; has_icon do width += 16 + ICON_GAP
 	if options.shortcut != "" do width += SHORTCUT_GAP + text_width(r, options.shortcut, .Small)
 	return width
 }
 
 // A toolbar button: an icon in a 28 by 28 square, its label read by screen readers and
-// shown in its tooltip. checked shows a toggle that is on.
+// shown in its tooltip. A toggle, such as a panel's, says whether it is on: nil for a
+// button that is not one.
 toolbar_button :: proc(
 	ui: ^Ui,
 	id: Widget_Id,
 	rect: Rect,
 	icon: Icon,
 	label: string,
-	checked := false,
+	checked: Maybe(bool) = nil,
 	disabled := false,
 ) -> (
 	clicked: bool,
 ) {
 	states, activated := button_states(ui, id, rect, disabled)
-	if checked do states += {.Checked}
+	if checked == true do states += {.Checked}
 	draw_toolbar_button(ui.renderer, ui.theme, rect, icon, states)
+	declared := widget_states(states)
+	if checked != nil do declared += {.Checkable}
 	declare(
 		ui,
-		{id = id, role = .Button, label = label, rect = rect, states = widget_states(states)},
+		{
+			id = id,
+			role = .Button,
+			label = label,
+			rect = rect,
+			states = declared,
+			focusable = !disabled,
+		},
 	)
 	return activated
 }
@@ -151,14 +171,15 @@ draw_button :: proc(
 	if border.a > 0 do stroke_rect(r, rect, border, RADIUS)
 	if .Focused in states && !disabled do draw_focus_ring(r, th, rect, RADIUS)
 
-	content := button_width(r, label, options) - 2 * BUTTON_PADDING
-	x := rect.x + max((rect.w - content) / 2, BUTTON_PADDING)
+	padding := options.padding > 0 ? options.padding : BUTTON_PADDING
+	content := button_width(r, label, options) - 2 * padding
+	x := rect.x + max((rect.w - content) / 2, padding)
 	middle := rect.y + rect.h / 2
 	if icon, has_icon := options.icon.?; has_icon {
 		draw_icon(r, icon, {x, middle - 8, 16, 16}, text)
 		x += 16 + ICON_GAP
 	}
-	room := rect.x + rect.w - BUTTON_PADDING - x
+	room := rect.x + rect.w - padding - x
 	draw_text_fit(r, label, x, middle, room, style, text)
 	if options.shortcut != "" {
 		x += text_width(r, label, style) + SHORTCUT_GAP
@@ -212,6 +233,8 @@ button_states :: proc(
 	activated: bool,
 ) {
 	if disabled {
+		// It still takes the clicks meant for it, which must not reach what lies under it.
+		block_mouse(ui, rect)
 		release_focus(ui, id)
 		return {.Disabled}, false
 	}
@@ -221,8 +244,9 @@ button_states :: proc(
 	if has_focus(ui, id) {
 		states += {.Focused}
 		activated = take_key(ui, .Enter) || take_key(ui, .Space)
+		if take_key(ui, .Tab) do move_focus(ui, .Forward)
+		if take_key(ui, .Tab, {.Shift}) do move_focus(ui, .Back)
 	}
-	if .Hovered in result do ui.cursor = .Pointer
 	return states, activated || .Clicked in result
 }
 
@@ -236,8 +260,12 @@ widget_states :: proc(states: Button_States) -> (w: Widget_States) {
 	return
 }
 
-// A colour 10 percent lighter, for the hover of a colour that has no hover token.
+// A colour 10 percent brighter, as 1.0.0's Slint made the hover of a colour with no
+// hover token: its HSV value times 1.1, which scales every channel alike.
 @(private = "file")
 lighter :: proc(c: Color) -> Color {
-	return {c.r + (1 - c.r) * 0.1, c.g + (1 - c.g) * 0.1, c.b + (1 - c.b) * 0.1, c.a}
+	value := max(c.r, c.g, c.b)
+	if value <= 0 do return c
+	k := min(value * 1.1, 1) / value
+	return {c.r * k, c.g * k, c.b * k, c.a}
 }

@@ -173,3 +173,49 @@ draw_button_sheet :: proc(r: ^Renderer, area: Rect, th: Theme) {
 	width := button_width(r, "Open folder…", options)
 	draw_button(r, th, {area.x + 12, y, width, 32}, "Open folder…", options, {})
 }
+
+@(test)
+tab_goes_through_the_buttons_that_are_enabled :: proc(t: ^testing.T) {
+	h: Harness
+	b := Buttons {
+		disabled = true,
+	}
+	buttons_harness(&h, &b)
+	defer destroy_buttons(&h)
+	request_focus(&h.ui, widget_id("Revert"))
+	ui_end_frame(&h.ui)
+	run_frame(&h)
+	press_key(&h, .Tab)
+	testing.expect(t, has_focus(&h.ui, widget_id("Sidebar")))
+	press_key(&h, .Tab)
+	// The disabled Save is skipped.
+	testing.expect(t, has_focus(&h.ui, widget_id("Revert")))
+	press_key(&h, .Tab, {.Shift})
+	testing.expect(t, has_focus(&h.ui, widget_id("Sidebar")))
+}
+
+@(test)
+a_disabled_button_keeps_its_clicks_from_what_lies_under_it :: proc(t: ^testing.T) {
+	h: Harness
+	clicked := false
+	harness_init(&h, proc(ui: ^Ui, data: rawptr) {
+			if button(ui, widget_id("Under"), {0, 0, 200, 100}, "Under") do (^bool)(data)^ = true
+			button(ui, widget_id("Over"), {10, 10, 80, 28}, "Over", {disabled = true})
+		}, &clicked)
+	defer harness_destroy(&h)
+	run_frame(&h)
+	click(&h, "Over")
+	testing.expect(t, !clicked)
+}
+
+@(test)
+a_toggle_says_it_is_one_even_when_off :: proc(t: ^testing.T) {
+	h: Harness
+	b: Buttons
+	buttons_harness(&h, &b)
+	defer destroy_buttons(&h)
+	info, _ := find_widget(&h.ui, "Sidebar")
+	testing.expect(t, .Checkable in info.states && .Checked not_in info.states)
+	revert, _ := find_widget(&h.ui, "Revert")
+	testing.expect(t, .Checkable not_in revert.states)
+}
