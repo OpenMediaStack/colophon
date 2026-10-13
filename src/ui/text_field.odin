@@ -103,7 +103,7 @@ text_field :: proc(
 			offset_in(ui.renderer, value, text_rect, style, ui.input.mouse.x, 0),
 		}
 	}
-	if focused do result = edit_field(ui, id, rect, text_rect, style, interaction)
+	if focused && !keys_blocked(ui) do result = edit_field(ui, id, rect, text_rect, style, interaction)
 	draw_text_field(ui, rect, text_rect, value, style, options, interaction, focused)
 	shown := focused ? edit_text(&ui.edit) : value
 	declare(
@@ -274,9 +274,12 @@ draw_text_field :: proc(
 	}
 	if len(s) == 0 do draw_field_value(r, th, text_rect, "", style, options)
 	draw_text(r, s, x, middle, style, th.text_primary)
-	if math.mod(ui.input.time - ui.caret_time, 2 * BLINK) < BLINK {
+	since := ui.input.time - ui.caret_time
+	if math.mod(since, 2 * BLINK) < BLINK {
 		fill_rect(r, {x + caret_x, middle - 8, CARET_WIDTH, 16}, th.text_primary)
 	}
+	// The next time the caret shows or hides.
+	wake_at(ui, ui.caret_time + (math.floor(since / BLINK) + 1) * BLINK)
 }
 
 // The background and border of a field in its states: the text field, the number

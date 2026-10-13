@@ -213,3 +213,31 @@ set_font_state :: proc(r: ^Renderer, style: Text_Style) {
 	fs.SetAlignHorizontal(&r.atlas.fonts, .LEFT)
 	fs.SetAlignVertical(&r.atlas.fonts, .MIDDLE)
 }
+
+// text cut into lines no wider than width, at spaces where it can, inside words where
+// a word alone is wider. The lines are slices of text, in a list allocated with
+// allocator.
+wrap_text :: proc(
+	r: ^Renderer,
+	text: string,
+	style: Text_Style,
+	width: f32,
+	allocator := context.allocator,
+) -> []string {
+	lines := make([dynamic]string, allocator)
+	rest := text
+	for len(rest) > 0 {
+		length, cut := text_fit(r, rest, style, width + text_width(r, ELLIPSIS, style))
+		if !cut {
+			append(&lines, rest)
+			break
+		}
+		// Back to the last space that fits, if any.
+		end := length
+		if space := strings.last_index_byte(rest[:length], ' '); space > 0 do end = space
+		if end == 0 do end = max(length, 1)
+		append(&lines, strings.trim_right_space(rest[:end]))
+		rest = strings.trim_left_space(rest[end:])
+	}
+	return lines[:]
+}

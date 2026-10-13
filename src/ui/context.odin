@@ -281,6 +281,20 @@ Ui :: struct {
 	scroll_hot_next: [2]Widget_Id,
 	// What a drag started from: a scroll bar's offset when its thumb was pressed.
 	drag_from:       f32,
+	// The modal dialog shown last frame, and this frame's: while one is shown, only its
+	// widgets take the keys.
+	modal:           Widget_Id,
+	modal_next:      Widget_Id,
+	in_modal:        bool,
+	// When the widget under the mouse became so, for tooltips.
+	hot_since:       f64,
+	// The window's area, in points: overlays stay inside it.
+	viewport:        Rect,
+	// When the Ui needs a frame without input, a tooltip to show or a caret to blink:
+	// the app's loop waits for events until then.
+	wake_at:         f64,
+	// The context menu open, and its state.
+	menu:            Menu_State,
 	// The combo box whose suggestions are open, and its list's state.
 	combo:           Combo_State,
 }
@@ -290,6 +304,8 @@ ui_init :: proc(ui: ^Ui, renderer: ^Renderer, theme: Theme, allocator := context
 	ui.allocator = allocator
 	ui.renderer = renderer
 	ui.theme = theme
+	ui.viewport = {0, 0, 1e6, 1e6}
+	ui.wake_at = max(f64)
 	ui.input.keys = make([dynamic]Key_Press, allocator)
 	ui.input.text = strings.builder_make(allocator)
 	ui.widgets = make([dynamic]Widget_Info, allocator)
@@ -316,8 +332,12 @@ ui_destroy :: proc(ui: ^Ui) {
 // Starts a frame drawn at scale pixels per point: the hover found last frame takes
 // effect, and the renderer's lists start empty.
 ui_begin_frame :: proc(ui: ^Ui, scale: f32) {
+	if ui.hot_next != ui.hot do ui.hot_since = ui.input.time
 	ui.hot = ui.hot_next
 	ui.hot_next = 0
+	ui.modal = ui.modal_next
+	ui.modal_next = 0
+	ui.wake_at = max(f64)
 	ui.hot_layer = .Base
 	ui.active_seen = false
 	ui.focus_seen = false
@@ -488,6 +508,7 @@ has_focus :: proc(ui: ^Ui, id: Widget_Id) -> bool {
 // press is taken: the widgets drawn after it, and the shortcuts handled at the end of
 // the frame, do not see it.
 take_key :: proc(ui: ^Ui, key: Key, modifiers := Modifiers{}, repeats := false) -> bool {
+	if keys_blocked(ui) do return false
 	for press, i in ui.input.keys {
 		if press.key != key || press.modifiers != modifiers || (press.repeat && !repeats) do continue
 		ordered_remove(&ui.input.keys, i)
@@ -559,7 +580,7 @@ tab_target :: proc(ui: ^Ui, direction: Tab) -> (target: Widget_Id, found: bool) 
 	focusable := make([dynamic]Widget_Id, context.temp_allocator)
 	at := -1
 	for w in ui.widgets {
-		if !w.focusable do continue
+		if !w.focusable || (ui.modal != 0 && w.parent != ui.modal) do continue
 		if w.id == ui.focus do at = len(focusable)
 		append(&focusable, w.id)
 	}
@@ -576,20 +597,39 @@ Edit_Click :: struct {
 	offset: int,
 }
 
-// Starts drawing a popup at rect: a list of suggestions, a menu. Its widgets take the
-// mouse before those under it from the next frame on, whatever the order they are
-// drawn in. End it with end_popup.
-begin_popup :: proc(ui: ^Ui, rect: Rect) {
+// Starts drawing a popup at rect: a list of suggestions, a menu, a dialog's scrim. Its
+// widgets take the mouse before those under it from the next frame on, whatever the
+// order they are drawn in, and it is not clipped by what it is drawn in, but for a
+// margin around it for its shadow. End it with end_popup.
+begin_popup :: proc(ui: ^Ui, rect: Rect, layer := Layer.Overlay) {
 	ui.popup_next = rect
 	ui.in_popup = true
-	ui.popup_layer = set_layer(ui.renderer, .Overlay)
+	ui.popup_layer = set_layer(ui.renderer, layer)
 	block_mouse(ui, rect)
+	SHADOW_MARGIN :: 64
+	push_clip(
+		ui.renderer,
+		rect_inset(rect, -SHADOW_MARGIN, -SHADOW_MARGIN),
+		inside_current = false,
+	)
 }
 
 // Ends the popup begin_popup started.
 end_popup :: proc(ui: ^Ui) {
+	pop_clip(ui.renderer)
 	ui.in_popup = false
 	set_layer(ui.renderer, ui.popup_layer)
+}
+
+// Whether the keys belong to a modal dialog the widget drawn now is not part of.
+keys_blocked :: proc(ui: ^Ui) -> bool {
+	return ui.modal != 0 && !ui.in_modal
+}
+
+// Asks for a frame at time at the latest, without input: a tooltip to show, a caret to
+// blink.
+wake_at :: proc(ui: ^Ui, at: f64) {
+	ui.wake_at = min(ui.wake_at, at)
 }
 
 // Whether the mouse is over the popup open in the last frame.

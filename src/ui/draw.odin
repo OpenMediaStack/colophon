@@ -117,9 +117,9 @@ set_layer :: proc(r: ^Renderer, layer: Layer) -> (previous: Layer) {
 }
 
 // Clips what follows to rect, in points, within the current clip.
-push_clip :: proc(r: ^Renderer, rect: Rect) {
+push_clip :: proc(r: ^Renderer, rect: Rect, inside_current := true) {
 	clip := rect
-	if current, ok := current_clip(r); ok do clip = rect_intersect(clip, current)
+	if current, ok := current_clip(r); ok && inside_current do clip = rect_intersect(clip, current)
 	append(&r.clips, clip)
 }
 
@@ -400,4 +400,42 @@ stitch_rings :: proc(list: ^Draw_List, a, b: i32) {
 		push_triangle(list, a + i, b + i, b + j)
 		push_triangle(list, a + i, b + j, a + j)
 	}
+}
+
+// The soft shadow of a floating layer of rect, cast offset_y down and blurred over
+// blur points, as CSS's box-shadow draws it: rings of fading alpha around the shape.
+draw_shadow :: proc(r: ^Renderer, rect: Rect, radius, offset_y, blur: f32, color: Color) {
+	if color.a <= 0 do return
+	x0, y0, x1, y1 := snap(r, {rect.x, rect.y + offset_y, rect.w, rect.h})
+	if x1 <= x0 || y1 <= y0 do return
+	b := blur * r.scale
+	rad := min(radius * r.scale, (x1 - x0) / 2, (y1 - y0) / 2)
+	// A gaussian blur's falloff in steps, half its strength at the shape's edge. The
+	// rings inside the shape keep a radius of a pixel at least: a ring of points all in
+	// one place makes triangles of no area, which SDL's software renderer mishandles.
+	Step :: struct {
+		offset, alpha: f32,
+	}
+	steps := [?]Step{{-b / 2, 0.9}, {-b / 4, 0.75}, {0, 0.5}, {b / 4, 0.25}, {b / 2, 0.09}, {b, 0}}
+	list := begin_command(r, ATLAS_TEXTURE)
+	uv := white_uv(&r.atlas)
+	first := make([dynamic]i32, 0, len(steps), context.temp_allocator)
+	previous_offset := min(f32)
+	for step in steps {
+		offset := max(step.offset, 1 - rad)
+		if offset <= previous_offset do continue
+		previous_offset = offset
+		append(&first, vertex_count(list))
+		for p in ring(x0, y0, x1, y1, rad, offset) {
+			push_vertex(list, p, {color.r, color.g, color.b, color.a * step.alpha}, uv)
+		}
+	}
+	// The middle, filled from the innermost ring, as a fan around its centre.
+	center := [2]f32{(x0 + x1) / 2, (y0 + y1) / 2}
+	center_index := vertex_count(list)
+	push_vertex(list, center, {color.r, color.g, color.b, color.a * steps[0].alpha}, uv)
+	for i in 0 ..< i32(RING_POINTS) {
+		push_triangle(list, center_index, first[0] + i, first[0] + (i + 1) % RING_POINTS)
+	}
+	for k in 0 ..< len(first) - 1 do stitch_rings(list, first[k], first[k + 1])
 }

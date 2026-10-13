@@ -236,6 +236,7 @@ draw_suggestions :: proc(
 	defer end_popup(ui)
 	if mouse_over(ui, list) do combo.scroll += ui.input.wheel.y
 	combo.scroll = clamp(combo.scroll, 0, most)
+	draw_shadow(r, list, 6, 8, 24, th.shadow_menu)
 	fill_rect(r, list, th.surface_2, 6)
 	stroke_rect(r, list, th.border_subtle, 6)
 	list_id := child_id(id, "suggestions")
