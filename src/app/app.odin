@@ -1,7 +1,6 @@
 package main
 
 import "core:os"
-import "core:path/filepath"
 import "core:strings"
 
 import "../engine"
@@ -100,7 +99,7 @@ drop_end :: proc(app: ^App) {
 		switch {
 		case os.is_directory(path):
 			execute(app, engine.Open_Folder{path})
-		case is_audio_file(path):
+		case lib.is_audio_file(path):
 			append(&files, path)
 		}
 	}
@@ -111,14 +110,6 @@ drop_end :: proc(app: ^App) {
 forget_dropped :: proc(app: ^App) {
 	for path in app.drop.paths do delete(path, app.engine.allocator)
 	clear(&app.drop.paths)
-}
-
-// Whether a path names a file Colophon reads, by its extension.
-@(private = "file")
-is_audio_file :: proc(path: string) -> bool {
-	extension := strings.trim_prefix(filepath.ext(path), ".")
-	for known in lib.AUDIO_EXTENSIONS do if strings.equal_fold(extension, known) do return true
-	return false
 }
 
 // How a shortcut is written for the user: Command on macOS, Control elsewhere.

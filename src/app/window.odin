@@ -256,6 +256,11 @@ handle_event :: proc(w: ^Window, app: ^App, event: ^sdl.Event) -> Event_Outcome 
 		return .Other
 	}
 	if u32(event.type) == w.wake_type do return .Other
+	// A drag that SDL loses on macOS, of what is neither a file nor text, ends without
+	// a word: the mouse moving again means the drag is over.
+	if app.drop.hovering && (event.type == .MOUSE_MOTION || event.type == .MOUSE_BUTTON_DOWN) {
+		drop_end(app)
+	}
 	if u32(event.type) == w.chosen_type {
 		take_chosen(app, (^Chosen)(event.user.data1))
 		return .Other
@@ -342,11 +347,18 @@ system_theme :: proc() -> ui.Theme_Kind {
 	return sdl.GetSystemTheme() == .LIGHT ? .Light : .Dark
 }
 
-// What a dialog's user chose, on its way to the loop through an event.
+// What a dialog's user chose, on its way to the loop through an event. Made on the
+// dialog's thread with the default allocator, freed on the UI thread with the same.
 @(private = "file")
 Chosen :: struct {
-	paths:  [dynamic]string,
-	folder: bool,
+	paths: [dynamic]string,
+	kind:  Dialog_Kind,
+}
+
+@(private = "file")
+Dialog_Kind :: enum u8 {
+	Folder,
+	Files,
 }
 
 @(private = "file")
@@ -365,24 +377,28 @@ show_files_dialog :: proc(app: ^App, data: rawptr) {
 
 @(private = "file")
 folder_chosen :: proc "c" (userdata: rawptr, filelist: [^]cstring, filter: c.int) {
-	dialog_answered(userdata, filelist, true)
+	dialog_answered(userdata, filelist, .Folder)
 }
 
 @(private = "file")
 files_chosen :: proc "c" (userdata: rawptr, filelist: [^]cstring, filter: c.int) {
-	dialog_answered(userdata, filelist, false)
+	dialog_answered(userdata, filelist, .Files)
 }
 
 // A dialog answered, on whatever thread SDL calls from: what was chosen goes to the
 // loop through an event, copied, since the list is SDL's only for the call. A nil list
 // is an error, an empty one a dialog cancelled: nothing to open either way.
 @(private = "file")
-dialog_answered :: proc "c" (userdata: rawptr, filelist: [^]cstring, folder: bool) {
+dialog_answered :: proc "c" (userdata: rawptr, filelist: [^]cstring, kind: Dialog_Kind) {
 	context = runtime.default_context()
-	if filelist == nil || filelist[0] == nil do return
+	if filelist == nil {
+		sdl_failed("the dialog")
+		return
+	}
+	if filelist[0] == nil do return
 	w := (^Window)(userdata)
 	chosen := new(Chosen)
-	chosen.folder = folder
+	chosen.kind = kind
 	for i := 0; filelist[i] != nil; i += 1 {
 		append(&chosen.paths, strings.clone(string(filelist[i])))
 	}
@@ -397,18 +413,20 @@ dialog_answered :: proc "c" (userdata: rawptr, filelist: [^]cstring, folder: boo
 take_chosen :: proc(app: ^App, chosen: ^Chosen) {
 	if chosen == nil do return
 	defer free_chosen(chosen)
-	if chosen.folder {
+	switch chosen.kind {
+	case .Folder:
 		for path in chosen.paths do execute(app, engine.Open_Folder{path})
-	} else {
+	case .Files:
 		execute(app, engine.Open_Files{chosen.paths[:]})
 	}
 }
 
 @(private = "file")
 free_chosen :: proc(chosen: ^Chosen) {
-	for path in chosen.paths do delete(path)
+	allocator := runtime.default_allocator()
+	for path in chosen.paths do delete(path, allocator)
 	delete(chosen.paths)
-	free(chosen)
+	free(chosen, allocator)
 }
 
 // Called from the engine's threads: an event wakes the loop, which polls the engine.

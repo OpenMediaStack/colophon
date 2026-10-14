@@ -90,8 +90,9 @@ an_unreadable_folder_is_reported :: proc(t: ^testing.T) {
 	defer screen_destroy(&s)
 	append(&s.answers.folders, "/this/folder/does/not/exist")
 	ui.click(&s.h, "Open folder")
-	wait_until_shown(t, &s, "1 file could not be read")
-	testing.expect(t, shows(&s, "0 tracks"))
+	// The scan reports its error, then its end: the count shows once it ended.
+	wait_until_shown(t, &s, "0 tracks")
+	testing.expect(t, shows(&s, "1 file could not be read"))
 }
 
 // A folder with two albums of one track each.

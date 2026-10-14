@@ -251,6 +251,13 @@ child_path :: proc(folder, name: string, allocator: runtime.Allocator) -> string
 	return strings.concatenate({folder, filepath.SEPARATOR_STRING, name}, allocator)
 }
 
+// Whether a path names a file Colophon reads, by its extension: what a scan takes in,
+// and what a drop opens.
+is_audio_file :: proc(path: string) -> bool {
+	extensions := AUDIO_EXTENSIONS
+	return has_extension(path, extensions[:])
+}
+
 @(private = "file")
 has_extension :: proc(path: string, extensions: []string) -> bool {
 	extension := strings.trim_prefix(filepath.ext(path), ".")

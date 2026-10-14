@@ -68,10 +68,7 @@ screen_destroy :: proc(s: ^Screen) {
 wait_until_shown :: proc(t: ^testing.T, s: ^Screen, label: string) {
 	start := time.tick_now()
 	for !shows(s, label) {
-		if time.tick_since(start) > PATIENCE {
-			testing.expectf(t, false, "%q did not show in time", label)
-			return
-		}
+		if time.tick_since(start) > PATIENCE do testing.fail_now(t, fmt.tprintf("%q did not show in time", label))
 		engine.poll(&s.app.engine)
 		ui.run_frame(&s.h)
 		time.sleep(time.Millisecond)
