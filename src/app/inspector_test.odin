@@ -337,14 +337,12 @@ the_inspector_matches_its_references :: proc(t: ^testing.T) {
 			t,
 			&s,
 			{
-				{"v23_full.mp3", "Music/01.mp3"},
-				{"v23_full.mp3", "Music/02.mp3"},
-				{"v24_full.mp3", "Music/03.mp3"},
-				{"tiny_tag.mp3", "Music/track07.mp3"},
+				{"v23_full.mp3", "01.mp3"},
+				{"v23_full.mp3", "02.mp3"},
+				{"v24_full.mp3", "03.mp3"},
+				{"tiny_tag.mp3", "track07.mp3"},
 			},
 			kind,
-			// A folder named the same on every run, since the sidebar shows its name.
-			subfolder = "Music",
 		)
 		defer remove_folder(folder)
 		defer screen_destroy(&s)

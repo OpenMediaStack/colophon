@@ -134,21 +134,22 @@ the_sidebar_matches_its_references :: proc(t: ^testing.T) {
 		s: Screen
 		screen_init(&s, {1440, 900}, kind)
 		defer screen_destroy(&s)
-		// A folder named the same on every run, since the sidebar shows its name.
+		// The folder shows as the home, "~": the same on every platform, where a subfolder
+		// would show the system's separator.
 		folder := folder_with_fixtures(
 			t,
 			{
-				{"v23_full.mp3", "Music/1.mp3"},
-				{"v23_full.mp3", "Music/2.mp3"},
-				{"v23_unicode.mp3", "Music/3.mp3"},
-				{"v24_full.mp3", "Music/4.mp3"},
-				{"tiny_tag.mp3", "Music/5.mp3"},
+				{"v23_full.mp3", "1.mp3"},
+				{"v23_full.mp3", "2.mp3"},
+				{"v23_unicode.mp3", "3.mp3"},
+				{"v24_full.mp3", "4.mp3"},
+				{"tiny_tag.mp3", "5.mp3"},
 			},
 		)
 		defer remove_folder(folder)
 		delete(s.app.home)
 		s.app.home = strings.clone(folder)
-		open_folder_of(t, &s, fmt.tprintf("%s/Music", folder))
+		open_folder_of(t, &s, folder)
 		wait_until_shown(t, &s, "5 tracks")
 		testing.expect(t, ui.click(&s.h, "Artists"))
 		testing.expect(t, ui.click(&s.h, "Small Hours"))
