@@ -1,0 +1,137 @@
+package main
+
+import "core:fmt"
+import "core:os"
+import "core:strings"
+import "core:testing"
+
+import lib "../library"
+import ui "../ui"
+
+// The main screen over a track with a cover, "With a cover", and one without, "Paper
+// Satellites", in a Music folder, with the cover written beside as cover.png for the
+// image dialog to answer, and notes.txt, which is no image.
+@(private = "file")
+screen_with_covers :: proc(
+	t: ^testing.T,
+	s: ^Screen,
+	kind := ui.Theme_Kind.Dark,
+) -> (
+	folder: string,
+) {
+	screen_init(s, {1440, 900}, kind)
+	folder = folder_with_fixtures(
+		t,
+		{{"v23_cover.mp3", "Music/1.mp3"}, {"v23_full.mp3", "Music/2.mp3"}},
+	)
+	cover, found := lib.read_cover(fmt.tprintf("%s/Music/1.mp3", folder), context.temp_allocator)
+	testing.expect(t, found)
+	testing.expect(t, os.write_entire_file(fmt.tprintf("%s/cover.png", folder), cover.data) == nil)
+	testing.expect(
+		t,
+		os.write_entire_file(
+			fmt.tprintf("%s/notes.txt", folder),
+			transmute([]u8)string("not an image"),
+		) ==
+		nil,
+	)
+	delete(s.app.home)
+	s.app.home = strings.clone(folder)
+	open_folder_of(t, s, fmt.tprintf("%s/Music", folder))
+	wait_until_shown(t, s, "2 tracks")
+	return
+}
+
+@(private = "file")
+well_label :: proc(s: ^Screen) -> string {
+	for w in s.h.ui.widgets do if w.id == ui.widget_id("Cover") do return w.label
+	return ""
+}
+
+@(test)
+a_track_shows_its_cover_and_several_tracks_say_they_differ :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	testing.expect(t, ui.click(&s.h, "With a cover"))
+	ui.run_frame(&s.h)
+	testing.expect_value(t, well_label(&s), "Cover")
+	shown, has := s.app.inspector.cover.?
+	testing.expect(t, has && shown.size.x > 0)
+	ui.press_key(&s.h, .A, ui.COMMAND)
+	ui.run_frame(&s.h)
+	testing.expect_value(t, well_label(&s), "Several covers")
+	testing.expect_value(t, s.app.inspector.cover, nil)
+	// A click on a selected track waits for a double click before the selection shrinks.
+	testing.expect(t, ui.click(&s.h, "Paper Satellites"))
+	ui.wait(&s.h, 0.6)
+	testing.expect_value(t, well_label(&s), "No cover")
+}
+
+@(test)
+replacing_the_cover_of_every_selected_track_waits_to_be_saved :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	s.answers.image = fmt.tprintf("%s/cover.png", folder)
+	testing.expect(t, ui.click(&s.h, "With a cover"))
+	ui.press_key(&s.h, .A, ui.COMMAND)
+	ui.run_frame(&s.h)
+	testing.expect(t, ui.click(&s.h, "Replace cover…"))
+	ui.run_frame(&s.h)
+	testing.expect_value(t, well_label(&s), "Cover")
+	// Both tracks change: a cover set from a file is not known to be the one a track
+	// already has, as the plan's decision says.
+	testing.expect_value(t, len(s.app.engine.edits.pending), 2)
+	ui.press_key(&s.h, .S, ui.COMMAND)
+	wait_for_save(t, &s)
+	testing.expect_value(t, len(s.app.engine.edits.pending), 0)
+	cover, found := lib.read_cover(fmt.tprintf("%s/Music/2.mp3", folder), context.temp_allocator)
+	testing.expect(t, found && cover.mime == "image/png")
+}
+
+@(test)
+a_cover_is_removed_from_the_wells_menu :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	testing.expect(t, ui.click(&s.h, "With a cover"))
+	ui.run_frame(&s.h)
+	testing.expect(t, ui.click(&s.h, "Cover", .Right))
+	testing.expect(t, ui.click(&s.h, "Remove Cover"))
+	ui.run_frame(&s.h)
+	testing.expect_value(t, well_label(&s), "No cover")
+	testing.expect_value(t, len(s.app.engine.edits.pending), 1)
+}
+
+@(test)
+an_image_that_cannot_be_read_is_told :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	s.answers.image = fmt.tprintf("%s/notes.txt", folder)
+	testing.expect(t, ui.click(&s.h, "With a cover"))
+	testing.expect(t, ui.click(&s.h, "Replace cover…"))
+	ui.run_frame(&s.h)
+	testing.expect(t, shows(&s, "“notes.txt” is not a JPEG or PNG image"))
+	testing.expect_value(t, len(s.app.engine.edits.pending), 0)
+}
+
+// The cover of a track in the well, in both themes.
+@(test)
+the_cover_well_matches_its_references :: proc(t: ^testing.T) {
+	for kind in ui.Theme_Kind {
+		s: Screen
+		folder := screen_with_covers(t, &s, kind)
+		defer remove_folder(folder)
+		defer screen_destroy(&s)
+		testing.expect(t, ui.click(&s.h, "With a cover"))
+		ui.move_mouse(&s.h, {0, 0})
+		ui.run_frame(&s.h)
+		expect_screen(t, &s, kind == .Dark ? "cover-dark.png" : "cover-light.png")
+	}
+}

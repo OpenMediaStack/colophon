@@ -279,6 +279,8 @@ Ui :: struct {
 	// When the caret last moved, so that it shows at once and then blinks.
 	caret_time:       f64,
 	clipboard:        Clipboard,
+	// How textures are made of the images drawn.
+	images:           Images,
 	// The popups drawn in the last frame, and in this one, in the order they were drawn:
 	// the widgets under one do not take the mouse, whatever their order. Only the
 	// popup's own widgets do, and those of the popups drawn above it.

@@ -41,6 +41,18 @@ capture_init :: proc(cap: ^Capture, size: [2]f32, scale: f32) -> (ok: bool) {
 	return true
 }
 
+// Makes the capture's textures of the images a harness kept, with the ids the Ui
+// drew them by: a forgotten image leaves a clear texel in its place.
+capture_textures :: proc(cap: ^Capture, h: ^Harness) -> bool {
+	clear := [4]u8{0, 0, 0, 0}
+	for image in h.images {
+		rgba, w, hh := image.rgba, image.w, image.h
+		if rgba == nil do rgba, w, hh = clear[:], 1, 1
+		sdl_backend_create_texture(&cap.backend, rgba, w, hh) or_return
+	}
+	return true
+}
+
 // Draws what r holds into the capture's surface, over black.
 capture_draw :: proc(cap: ^Capture, r: ^Renderer) -> bool {
 	sdl.RenderClear(cap.sdl) or_return
