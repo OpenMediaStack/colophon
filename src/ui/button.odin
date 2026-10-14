@@ -36,6 +36,12 @@ Button_Options :: struct {
 	disabled: bool,
 	// Left and right of the content, in points; 12 when 0, the brief's inner padding.
 	padding:  f32,
+	// What assistive technologies call it when the label drawn says less, a shortcut
+	// hint such as the command palette's; the label when empty.
+	name:     string,
+	// The label in the small style and the secondary text colour: a key shown as a
+	// button.
+	small:    bool,
 }
 
 // Heights of the brief: buttons and inputs 28, a toolbar button 28 square.
@@ -74,7 +80,7 @@ button :: proc(
 		{
 			id = id,
 			role = .Button,
-			label = label,
+			label = options.name != "" ? options.name : label,
 			rect = rect,
 			states = widget_states(states),
 			focusable = !options.disabled,
@@ -85,7 +91,7 @@ button :: proc(
 
 // The width a button needs for its label, icon and shortcut.
 button_width :: proc(r: ^Renderer, label: string, options := Button_Options{}) -> f32 {
-	style := button_style(options.kind)
+	style := button_style(options)
 	width :=
 		2 * (options.padding > 0 ? options.padding : BUTTON_PADDING) + text_width(r, label, style)
 	if _, has_icon := options.icon.?; has_icon do width += 16 + ICON_GAP
@@ -137,7 +143,7 @@ draw_button :: proc(
 	states: Button_States,
 ) {
 	fill, border, text: Color
-	style := button_style(options.kind)
+	style := button_style(options)
 	disabled := .Disabled in states
 	switch options.kind {
 	case .Primary, .Destructive:
@@ -155,7 +161,7 @@ draw_button :: proc(
 		}
 	case .Secondary:
 		border = disabled ? th.border_subtle : th.border_strong
-		text = disabled ? th.text_disabled : th.text_primary
+		text = disabled ? th.text_disabled : (options.small ? th.text_secondary : th.text_primary)
 		if !disabled && .Pressed in states {
 			fill = th.border_strong
 		} else if !disabled && .Hovered in states {
@@ -198,15 +204,25 @@ draw_button :: proc(
 	}
 }
 
-// The weight of a button's label: medium for the actions that stand out.
+// The weight of a button's label: medium for the actions that stand out, small for a
+// key.
 @(private = "file")
-button_style :: proc(kind: Button_Kind) -> Text_Style {
-	return kind == .Ghost || kind == .Secondary ? .Body : .Body_Strong
+button_style :: proc(options: Button_Options) -> Text_Style {
+	if options.small do return .Small
+	return options.kind == .Ghost || options.kind == .Secondary ? .Body : .Body_Strong
 }
 
-// A small button with an icon alone, a toast's close: the icon 14 points in the
+// A small button with an icon alone, a toast's close: the icon size points in the
 // tertiary text colour, a fill on hover, its label read by screen readers.
-icon_button :: proc(ui: ^Ui, id: Widget_Id, rect: Rect, icon: Icon, label: string) -> bool {
+icon_button :: proc(
+	ui: ^Ui,
+	id: Widget_Id,
+	rect: Rect,
+	icon: Icon,
+	label: string,
+	size: f32 = 14,
+	focusable := true,
+) -> bool {
 	r := ui.renderer
 	th := ui.theme
 	states, activated := button_states(ui, id, rect, false)
@@ -217,7 +233,7 @@ icon_button :: proc(ui: ^Ui, id: Widget_Id, rect: Rect, icon: Icon, label: strin
 		fill_rect(r, rect, th.surface_3, RADIUS)
 	}
 	if .Focused in states do draw_focus_ring(r, th, rect, RADIUS)
-	draw_icon_centered(r, icon, rect, th.text_tertiary, 14)
+	draw_icon_centered(r, icon, rect, th.text_tertiary, size)
 	declare(
 		ui,
 		{
@@ -226,7 +242,7 @@ icon_button :: proc(ui: ^Ui, id: Widget_Id, rect: Rect, icon: Icon, label: strin
 			label = label,
 			rect = rect,
 			states = widget_states(states),
-			focusable = true,
+			focusable = focusable,
 		},
 	)
 	return activated

@@ -78,6 +78,10 @@ move_mouse :: proc(h: ^Harness, p: [2]f32) {
 click :: proc(h: ^Harness, label: string, button := Mouse_Button.Left, clicks := 1) -> bool {
 	p := widget_center(h, label) or_return
 	move_mouse(h, p)
+	// The widget may have moved since the frame it was found in: a state change earlier
+	// in that frame changed the width of a widget before it.
+	moved := widget_center(h, label) or_return
+	if moved != p do move_mouse(h, moved)
 	for i in 1 ..= clicks {
 		press(h, button, i)
 		release(h, button)

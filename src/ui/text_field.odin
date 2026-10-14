@@ -14,6 +14,9 @@ Field_Flag :: enum u8 {
 	Disabled,
 	// Numbers that line up: JetBrains Mono.
 	Numeric,
+	// On the toolbar, which is raised: the lower surface with the subtle border, as
+	// 1.0.0's filter.
+	Toolbar,
 }
 
 // How a text field looks besides its text.
@@ -26,6 +29,12 @@ Text_Field_Options :: struct {
 	flags:       Field_Flags,
 	// Room kept at the right for a button inside the field, in points.
 	trailing:    f32,
+	// Room kept at the left for an icon inside the field, in points.
+	leading:     f32,
+	// A button that empties the field, shown while it has text: the toolbar's filter.
+	clearable:   bool,
+	// What assistive technologies call its clear button; "Clear" when empty.
+	clear_label: string,
 }
 
 // What happened to a text field this frame.
@@ -43,6 +52,9 @@ Text_Field_Result :: struct {
 
 @(private = "file")
 FIELD_PADDING :: 8
+// The side of the clear button, which fits a field 28 high.
+@(private = "file")
+CLEAR_BUTTON :: 20
 @(private = "file")
 CARET_WIDTH :: 1.5
 // The caret shows this long, then hides as long.
@@ -66,7 +78,8 @@ text_field :: proc(
 	disabled := .Disabled in options.flags
 	style := .Numeric in options.flags ? Text_Style.Numeric : Text_Style.Body
 	text_rect := rect_inset(rect, FIELD_PADDING, 0)
-	text_rect.w = max(text_rect.w - options.trailing, 0)
+	text_rect.x += options.leading
+	text_rect.w = max(text_rect.w - options.trailing - options.leading, 0)
 	interaction: Interaction
 	if disabled {
 		release_focus(ui, id)
@@ -106,6 +119,23 @@ text_field :: proc(
 	if focused && !keys_blocked(ui) do result = edit_field(ui, id, rect, text_rect, style, interaction)
 	draw_text_field(ui, rect, text_rect, value, style, options, interaction, focused)
 	shown := focused ? edit_text(&ui.edit) : value
+	if options.clearable && len(shown) > 0 && !disabled {
+		// Inside the field's trailing room: a click on it is not a click elsewhere, and
+		// the field keeps the focus if it had it.
+		clear := Rect {
+			rect.x + rect.w - CLEAR_BUTTON - 4,
+			rect.y + (rect.h - CLEAR_BUTTON) / 2,
+			CLEAR_BUTTON,
+			CLEAR_BUTTON,
+		}
+		clear_label := options.clear_label != "" ? options.clear_label : "Clear"
+		if icon_button(ui, child_id(id, "clear"), clear, .X, clear_label, 12, focusable = false) {
+			if focused do edit_reset(&ui.edit, "", false)
+			result.changed = true
+			result.text = ""
+			shown = ""
+		}
+	}
 	declare(
 		ui,
 		{
@@ -119,6 +149,16 @@ text_field :: proc(
 		},
 	)
 	return
+}
+
+// Gives a field the focus with all its text selected, or selects all its text when it
+// has the focus already: a shortcut that reaches the filter.
+focus_field :: proc(ui: ^Ui, id: Widget_Id) {
+	if has_focus(ui, id) && ui.edit_owner == id {
+		edit_select_all(&ui.edit)
+		return
+	}
+	request_focus(ui, id, by_key = true)
 }
 
 // The keys, the typed text and the mouse on the focused field.
@@ -305,8 +345,9 @@ field_box :: proc(
 	hovered, focused: bool,
 ) {
 	disabled := .Disabled in flags
-	fill_rect(r, rect, disabled ? th.surface_1 : th.surface_2, 4)
-	border := th.border_strong
+	on_toolbar := .Toolbar in flags
+	fill_rect(r, rect, disabled || on_toolbar ? th.surface_1 : th.surface_2, 4)
+	border := on_toolbar ? th.border_subtle : th.border_strong
 	switch {
 	case disabled:
 		border = th.border_subtle

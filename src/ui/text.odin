@@ -32,6 +32,8 @@ Text_Style :: enum u8 {
 	Title,
 	Numeric,
 	Numeric_Strong,
+	// The empty state's words: 18, semibold.
+	Heading,
 }
 
 Text_Style_Info :: struct {
@@ -52,6 +54,7 @@ TEXT_STYLES := [Text_Style]Text_Style_Info {
 	.Title          = {.Inter_Semibold, 15, 0, false},
 	.Numeric        = {.Mono_Regular, 12, 0, false},
 	.Numeric_Strong = {.Mono_Medium, 12, 0, false},
+	.Heading        = {.Inter_Semibold, 18, 0, false},
 }
 
 Align :: enum u8 {

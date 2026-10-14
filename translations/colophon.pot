@@ -8,14 +8,155 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-14 17:48+0200\n"
+"POT-Creation-Date: 2026-10-14 18:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: src/app/empty_state.odin:15
+msgid "Open your music folder"
+msgstr ""
+
+#: src/app/empty_state.odin:17
+msgid "Colophon reads the tags of every MP3 in a folder and its subfolders. Nothing is written to your files until you save."
+msgstr ""
+
+#: src/app/empty_state.odin:20
+msgid "Open folder…"
+msgstr ""
+
+#: src/app/screen.odin:80
+msgid "Sidebar"
+msgstr ""
+
+#: src/app/screen.odin:91
+msgid "Inspector"
+msgstr ""
+
+#: src/app/status_bar.odin:18
+msgid "Status bar"
+msgstr ""
+
+#: src/app/status_bar.odin:29
+msgid "Stop"
+msgstr ""
+
+#: src/app/status_bar.odin:37
+msgid "Saving… {} of {}"
+msgstr ""
+
+#: src/app/status_bar.odin:41
+msgid "{n} file could not be saved"
+msgid_plural "{n} files could not be saved"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/app/status_bar.odin:45
+msgid "{n} file with unsaved changes"
+msgid_plural "{n} files with unsaved changes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/app/status_bar.odin:49
+msgid "{n} file could not be read"
+msgid_plural "{n} files could not be read"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/app/status_bar.odin:54
+msgid "Developer mode"
+msgstr ""
+
+#: src/app/status_bar.odin:91
+msgid "No folder open"
+msgstr ""
+
+#: src/app/status_bar.odin:93
+msgid "Reading… {n} track found"
+msgid_plural "Reading… {n} tracks found"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/app/status_bar.odin:95
+msgid "Reading stopped, {n} track"
+msgid_plural "Reading stopped, {n} tracks"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/app/status_bar.odin:97
+msgid "Could not read this folder"
+msgstr ""
+
+#: src/app/status_bar.odin:99
+msgid "{n} track"
+msgid_plural "{n} tracks"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/app/status_bar.odin:102
+msgid "{n} selected"
+msgid_plural "{n} selected"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/app/toolbar.odin:18
+msgid "Toolbar"
+msgstr ""
+
+#: src/app/toolbar.odin:29
+msgid "Open folder"
+msgstr ""
+
+#: src/app/toolbar.odin:43
+msgid "Undo"
+msgstr ""
+
+#: src/app/toolbar.odin:54
+msgid "Redo"
+msgstr ""
+
+#: src/app/toolbar.odin:67
+msgid "Command palette"
+msgstr ""
+
+#: src/app/toolbar.odin:81
+msgid "Toggle sidebar"
+msgstr ""
+
+#: src/app/toolbar.odin:92
+msgid "Toggle inspector"
+msgstr ""
+
+#: src/app/toolbar.odin:115
+msgid "Saving…"
+msgstr ""
+
+#: src/app/toolbar.odin:117
+msgid "Save"
+msgstr ""
+
+#: src/app/toolbar.odin:119
+msgid "Save {n} file"
+msgid_plural "Save {n} files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/app/toolbar.odin:144
+msgid "Filter by title, artist, album"
+msgstr ""
+
+#: src/app/toolbar.odin:149
+msgid "Clear the filter"
+msgstr ""
+
+#: src/app/toolbar.odin:151
+msgid "Filter"
+msgstr ""
 
 #: src/ui/combo_box.odin:119
 msgid "Show suggestions"
