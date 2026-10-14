@@ -22,6 +22,9 @@ App :: struct {
 	// a dialog's buttons: the system's, unless a test pins one so that its captures
 	// are the same everywhere.
 	platform: ui.Platform,
+	// The user's home folder, without a trailing separator, which the table shows as
+	// a tilde; empty when the system does not say.
+	home:     string,
 }
 
 // Runs a command of the engine, counting it for the loop.
@@ -52,12 +55,15 @@ app_init :: proc(app: ^App, wake := lib.Wake{}, allocator := context.allocator) 
 	engine.init(&app.engine, wake, allocator)
 	app.platform = ui.PLATFORM
 	app.drop.paths = make([dynamic]string, allocator)
+	home := os.get_env("HOME", context.temp_allocator)
+	app.home = strings.clone(strings.trim_right(home, "/\\"), allocator)
 }
 
 app_destroy :: proc(app: ^App) {
-	engine.destroy(&app.engine)
+	delete(app.home, app.engine.allocator)
 	forget_dropped(app)
 	delete(app.drop.paths)
+	engine.destroy(&app.engine)
 }
 
 // Draws the main screen in the window's area: a frame of the harness and of the loop.

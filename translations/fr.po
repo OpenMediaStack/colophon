@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-14 18:09+0200\n"
+"POT-Creation-Date: 2026-10-14 18:26+0200\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -153,62 +153,61 @@ msgstr "Effacer le filtre"
 msgid "Filter"
 msgstr "Filtre"
 
-#: src/app/tracks.odin:66
+#: src/app/tracks.odin:68
 msgid "Tracks"
 msgstr "Morceaux"
 
-#: src/app/tracks.odin:123 src/app/tracks.odin:141
+#: src/app/tracks.odin:126 src/app/tracks.odin:144
 msgid "Sort by {}"
 msgstr "Trier par {}"
 
-#: src/app/tracks.odin:153
+#: src/app/tracks.odin:156
 msgid "Title"
 msgstr "Titre"
 
-#: src/app/tracks.odin:155
+#: src/app/tracks.odin:158
 msgid "Artist"
 msgstr "Artiste"
 
-#: src/app/tracks.odin:157
+#: src/app/tracks.odin:160
 msgid "Album"
 msgstr "Album"
 
-#: src/app/tracks.odin:159
+#: src/app/tracks.odin:162
 msgid "Year"
 msgstr "Année"
 
-#: src/app/tracks.odin:161
+#: src/app/tracks.odin:164
 msgid "Genre"
 msgstr "Genre"
 
-#: src/app/tracks.odin:163
+#: src/app/tracks.odin:166
 msgid "Time"
 msgstr "Durée"
 
-#: src/app/tracks.odin:165
+#: src/app/tracks.odin:168
 msgid "Bitrate"
 msgstr "Débit"
 
-#: src/app/tracks.odin:167
+#: src/app/tracks.odin:170
 msgid "Tags"
 msgstr "Tags"
 
-#: src/app/tracks.odin:169
+#: src/app/tracks.odin:172
 msgid "File"
 msgstr "Fichier"
 
-#: src/app/tracks.odin:171
+#: src/app/tracks.odin:174
 msgid "Folder"
 msgstr "Dossier"
 
-#: src/app/tracks.odin:307
+#: src/app/tracks.odin:312
 msgid "Reset to default columns"
 msgstr "Rétablir les colonnes par défaut"
 
-#: src/app/tracks.odin:308
-#, fuzzy
+#: src/app/tracks.odin:313
 msgid "Columns"
-msgstr "Choisir les colonnes"
+msgstr "Colonnes"
 
 #: src/ui/combo_box.odin:119
 msgid "Show suggestions"

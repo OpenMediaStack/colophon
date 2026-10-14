@@ -2,7 +2,6 @@ package main
 
 import "core:fmt"
 import "core:math"
-import "core:os"
 import "core:path/filepath"
 import "core:strings"
 import "core:time"
@@ -15,10 +14,13 @@ import ui "../ui"
 // columns the engine names by their Table_Column.
 @(private = "file")
 NUMBER_COLUMN :: -1
+// The engine sorts by the number too: its sort columns are the table's, after the number.
+#assert(len(engine.Sort_Column) == len(engine.Table_Column) + 1)
+#assert(int(engine.Sort_Column.Folder) == int(engine.Table_Column.Folder) + 1)
 
 // The least width of each column, as the mockup, and the weights by which the text
 // columns share the room left when the user has not sized them.
-@(private = "file")
+@(private = "file", rodata)
 NATURAL_WIDTHS := [engine.Table_Column]f32 {
 	.Title   = 200,
 	.Artist  = 140,
@@ -31,7 +33,7 @@ NATURAL_WIDTHS := [engine.Table_Column]f32 {
 	.File    = 180,
 	.Folder  = 180,
 }
-@(private = "file")
+@(private = "file", rodata)
 WEIGHTS := [engine.Table_Column]f32 {
 	.Title   = 1.6,
 	.Artist  = 1.1,
@@ -66,12 +68,13 @@ track_table :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		ui.tr("Tracks"),
 	)
 	if press, pressed := result.press.?; pressed && press.row < len(e.listed) {
+		// Shift comes first, as in 1.0.0, when both are held.
 		track := e.listed[press.row]
 		switch {
-		case ui.COMMAND <= press.modifiers:
-			execute(app, engine.Toggle_Selected{track})
 		case .Shift in press.modifiers:
 			execute(app, engine.Select_Range{track})
+		case ui.COMMAND <= press.modifiers:
+			execute(app, engine.Toggle_Selected{track})
 		case:
 			execute(app, engine.Select{track})
 		}
@@ -174,8 +177,8 @@ column_name :: proc(column: engine.Table_Column) -> string {
 }
 
 // The text of a cell: the tags as they will be saved, the audio as it was read, and
-// the file's name and folder. Temporary.
-@(private = "file")
+// the file's name and folder. Allocated with the temporary allocator.
+@(private)
 track_cell :: proc(data: rawptr, row, column: int) -> string {
 	app := (^App)(data)
 	e := &app.engine
@@ -198,17 +201,18 @@ track_cell :: proc(data: rawptr, row, column: int) -> string {
 	case .File:
 		return filepath.base(track.path)
 	case .Folder:
-		return display_folder(filepath.dir(track.path))
+		return display_folder(filepath.dir(track.path), app.home)
 	case .Artist, .Album, .Genre, .Year, .Time, .Bitrate, .Tags:
 		if !readable do return ""
-		return tag_cell(tags, track.metadata, engine.Table_Column(column))
+		return tag_cell(tags, &track.metadata, engine.Table_Column(column))
 	}
 	return ""
 }
 
-// The text of a cell of a readable track, from its tags and its audio. Temporary.
+// The text of a cell of a readable track, from its tags and its audio. Allocated with
+// the temporary allocator.
 @(private = "file")
-tag_cell :: proc(tags: ^lib.Tags, metadata: lib.Metadata, column: engine.Table_Column) -> string {
+tag_cell :: proc(tags: ^lib.Tags, metadata: ^lib.Metadata, column: engine.Table_Column) -> string {
 	#partial switch column {
 	case .Artist:
 		return tags.artist.? or_else ""
@@ -231,7 +235,7 @@ tag_cell :: proc(tags: ^lib.Tags, metadata: lib.Metadata, column: engine.Table_C
 }
 
 // What a row is going through. The warnings come with slice 35.
-@(private = "file")
+@(private)
 track_states :: proc(data: rawptr, row: int) -> (states: ui.Row_States) {
 	app := (^App)(data)
 	e := &app.engine
@@ -270,7 +274,8 @@ sort_column :: proc(column: int) -> engine.Sort_Column {
 }
 
 // Every column's width after one was resized: the others keep the width they have,
-// shared or sized, and the hidden ones their least width, as 1.0.0 did.
+// shared or sized, and a hidden one the width it had, or its least width when it never
+// had one. 1.0.0 gave a hidden column its least width back on every resize.
 @(private = "file")
 widths_after :: proc(
 	app: ^App,
@@ -315,8 +320,8 @@ column_chooser :: proc(ctx: ^ui.Ui, app: ^App) {
 }
 
 // A duration as players show it: minutes and seconds, with hours from an hour on.
-// Temporary.
-@(private = "file")
+// Allocated with the temporary allocator.
+@(private)
 duration_text :: proc(duration: time.Duration) -> string {
 	seconds := int(duration / time.Second)
 	hours, minutes := seconds / 3600, seconds / 60 % 60
@@ -325,13 +330,13 @@ duration_text :: proc(duration: time.Duration) -> string {
 	return fmt.tprintf("%d:%02d", minutes, seconds)
 }
 
-// A folder as the user knows it: inside their home, from "~". Temporary.
-@(private = "file")
-display_folder :: proc(folder: string) -> string {
-	home := os.get_env("HOME", context.temp_allocator)
+// A folder as the user knows it: inside their home, from "~". Allocated with the
+// temporary allocator.
+@(private)
+display_folder :: proc(folder, home: string) -> string {
 	if len(home) == 0 || !strings.has_prefix(folder, home) do return folder
 	rest := folder[len(home):]
 	if len(rest) == 0 do return "~"
-	if rest[0] != '/' && rest[0] != '\\' do return folder
+	if rest[0] != filepath.SEPARATOR do return folder
 	return strings.concatenate({"~", rest}, context.temp_allocator)
 }

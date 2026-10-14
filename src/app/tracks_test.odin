@@ -1,8 +1,11 @@
 package main
 
 import "core:fmt"
+import "core:os"
 import "core:path/filepath"
+import "core:strings"
 import "core:testing"
+import "core:time"
 
 import "../engine"
 import ui "../ui"
@@ -78,7 +81,7 @@ a_track_shows_its_tags_in_the_default_columns :: proc(t: ^testing.T) {
 	folder := screen_with_a_track(t, &s)
 	defer remove_folder(folder)
 	defer screen_destroy(&s)
-	for value in ([]string{"03", "Paper Satellites", "Marlowe Kite", "Small Hours", "2019", "Folk"}) {
+	for value in ([]string{"03", "Paper Satellites", "Marlowe Kite", "Small Hours", "2019", "Folk", "0:00"}) {
 		testing.expectf(t, shows(&s, value), "%s is missing", value)
 	}
 	testing.expect(t, !shows(&s, "Unreadable"))
@@ -110,6 +113,12 @@ the_chooser_shows_and_hides_columns_but_the_title :: proc(t: ^testing.T) {
 	defer screen_destroy(&s)
 	choose(t, &s, "Tags")
 	testing.expect(t, shows(&s, "ID3v2.3"))
+	choose(t, &s, "Bitrate")
+	testing.expect(t, shows(&s, "64"))
+	choose(t, &s, "File")
+	testing.expect(t, shows(&s, "07.mp3"))
+	choose(t, &s, "Folder")
+	testing.expect(t, shows(&s, fmt.tprintf("%s/Small Hours", display_folder(folder, s.app.home))))
 	choose(t, &s, "Genre")
 	testing.expect(t, !shows(&s, "Folk"))
 	testing.expect(t, !shows(&s, "Sort by Genre"))
@@ -285,6 +294,97 @@ the_keyboard_moves_and_extends_the_selection :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(e.selection.tracks), 5)
 }
 
+@(test)
+durations_read_as_in_a_player :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	testing.expect_value(t, duration_text(5 * time.Second), "0:05")
+	testing.expect_value(t, duration_text(221 * time.Second), "3:41")
+	testing.expect_value(t, duration_text(3723 * time.Second), "1:02:03")
+}
+
+@(test)
+folders_inside_the_home_start_with_a_tilde :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	home, _ := filepath.join({"", "Users", "marlowe"}, context.temp_allocator)
+	music, _ := filepath.join({home, "Music"}, context.temp_allocator)
+	testing.expect_value(
+		t,
+		display_folder(music, home),
+		fmt.tprintf("~%cMusic", filepath.SEPARATOR),
+	)
+	testing.expect_value(t, display_folder(home, home), "~")
+	elsewhere, _ := filepath.join({"", "Volumes", "Music"}, context.temp_allocator)
+	testing.expect_value(t, display_folder(elsewhere, home), elsewhere)
+	// A folder whose name only starts like the home.
+	other, _ := filepath.join({"", "Users", "marlowe2", "Music"}, context.temp_allocator)
+	testing.expect_value(t, display_folder(other, home), other)
+	testing.expect_value(t, display_folder(music, ""), music)
+}
+
+// The text of a cell of the screen's table.
+@(private = "file")
+cell :: proc(s: ^Screen, row: int, column: engine.Table_Column) -> string {
+	return track_cell(&s.app, row, int(column))
+}
+
+@(test)
+the_cells_follow_the_file :: proc(t: ^testing.T) {
+	s: Screen
+	screen_init(&s, {1440, 900})
+	defer screen_destroy(&s)
+	// Without a title, with a variable bitrate, with every tag, unreadable.
+	folder := folder_with_fixtures(
+		t,
+		{{"no_tag.mp3", "a.mp3"}, {"vbr_mono.mp3", "b.mp3"}, {"v23_full.mp3", "c.mp3"}},
+	)
+	defer remove_folder(folder)
+	testing.expect(
+		t,
+		os.write_entire_file(fmt.tprintf("%s/d.mp3", folder), transmute([]u8)string("ID3")) == nil,
+	)
+	open_folder_of(t, &s, folder)
+	wait_until_shown(t, &s, "4 tracks")
+	testing.expect_value(t, cell(&s, 0, .Title), "a")
+	testing.expect_value(t, track_cell(&s.app, 0, -1), "")
+	testing.expect_value(t, cell(&s, 0, .Artist), "")
+	testing.expect(t, .Placeholder in track_states(&s.app, 0))
+	testing.expect(t, strings.has_prefix(cell(&s, 1, .Bitrate), "VBR "))
+	testing.expect_value(t, track_cell(&s.app, 2, -1), "03")
+	testing.expect_value(t, cell(&s, 2, .Bitrate), "64")
+	testing.expect_value(t, cell(&s, 2, .Tags), "ID3v2.3")
+	testing.expect_value(t, cell(&s, 2, .File), "c.mp3")
+	testing.expect_value(t, cell(&s, 3, .Title), "d")
+	testing.expect_value(t, cell(&s, 3, .Time), "")
+	testing.expect(t, .Error in track_states(&s.app, 3))
+	testing.expect(t, .Placeholder not_in track_states(&s.app, 3))
+	// Pending tags show, marked as modified.
+	execute(&s.app, engine.Select{s.app.engine.listed[2]})
+	execute(&s.app, engine.Apply_Edit{{.Title, "Neon Overpass"}})
+	testing.expect_value(t, cell(&s, 2, .Title), "Neon Overpass")
+	testing.expect(t, .Modified in track_states(&s.app, 2))
+}
+
+// The columns' names in French, from 1.0.0's catalogue: checked on the catalogue
+// itself, since the one in use is shared by every test.
+@(test)
+the_headers_and_the_chooser_speak_french_when_selected :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	c: ui.Catalog
+	if !testing.expect(t, ui.catalog_init(&c, #load("../../translations/fr.po", string))) do return
+	defer ui.catalog_destroy(&c)
+	testing.expect_value(t, ui.catalog_tr(&c, "Title"), "Titre")
+	testing.expect_value(t, ui.catalog_tr(&c, "Artist"), "Artiste")
+	testing.expect_value(t, ui.catalog_tr(&c, "Year"), "Année")
+	testing.expect_value(t, ui.catalog_tr(&c, "Time"), "Durée")
+	testing.expect_value(t, ui.catalog_tr(&c, "Choose columns"), "Choisir les colonnes")
+	testing.expect_value(t, ui.catalog_tr(&c, "Columns"), "Colonnes")
+	testing.expect_value(
+		t,
+		ui.catalog_tr(&c, "Reset to default columns"),
+		"Rétablir les colonnes par défaut",
+	)
+}
+
 // Rows in every state, the selection outlined, in both themes at two sizes.
 @(test)
 the_table_matches_its_references :: proc(t: ^testing.T) {
@@ -309,10 +409,11 @@ the_table_matches_its_references :: proc(t: ^testing.T) {
 			defer screen_destroy(&s)
 			folder := folder_with_fixtures(t, copies[:])
 			defer remove_folder(folder)
-			damaged := folder_with(t, {})
-			remove_folder(damaged)
+			// A file that only starts like an MP3, whose tags cannot be read.
+			damaged := fmt.tprintf("%s/06 Damaged file.mp3", folder)
+			testing.expect(t, os.write_entire_file(damaged, transmute([]u8)string("ID3")) == nil)
 			open_folder_of(t, &s, folder)
-			wait_until_shown(t, &s, "11 tracks")
+			wait_until_shown(t, &s, "12 tracks")
 			e := &s.app.engine
 			// Unsaved changes on the fifth, a run of three selected and one apart, the
 			// second playing, the table focused for the selection's outline.
