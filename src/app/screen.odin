@@ -61,7 +61,7 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	l = layout_of(app, window)
 	if l.sidebar_shown do sidebar(ctx, app, l.sidebar)
 	if folder_open(app) {
-		tracks(ctx, app, l.centre)
+		track_table(ctx, app, l.centre)
 	} else {
 		empty_state(ctx, app, l.centre)
 	}
@@ -111,11 +111,4 @@ inspector :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		ctx,
 		{id = ui.widget_id("Inspector"), role = .Group, label = ui.tr("Inspector"), rect = rect},
 	)
-}
-
-// The centre column once something is open. The track table comes with slice 30.
-@(private = "file")
-tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
-	_ = app
-	ui.fill_rect(ctx.renderer, rect, ctx.theme.surface_1)
 }

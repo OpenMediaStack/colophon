@@ -20,6 +20,8 @@ Tracks :: struct {
 	rect:    Rect,
 	// A field drawn after the table, which can take the focus from it.
 	filter:  bool,
+	// The widths the table asks for are given to its columns, as an app would.
+	applies: bool,
 }
 
 @(private = "file")
@@ -108,6 +110,10 @@ tracks_frame :: proc(ui: ^Ui, data: rawptr) {
 		t.focused,
 	)
 	append(&t.all, t.last)
+	if resize, asked := t.last.resized.?; asked && t.applies {
+		for &c in t.columns do if c.id == resize.column do c.width = resize.width
+		t.sized = true
+	}
 	if t.filter do text_field(ui, widget_id("Filter"), {0, 420, 200, 28}, "other", "Filter")
 }
 
@@ -477,6 +483,51 @@ the_header_sorts_resizes_and_moves_the_columns :: proc(t: ^testing.T) {
 	move, moved := reported(&tr).moved.?
 	testing.expect(t, moved && move.column == COLUMN_ARTIST && move.before == COLUMN_TITLE)
 	testing.expect_value(t, reported(&tr).sort_by, nil)
+}
+
+@(test)
+a_column_dragged_to_the_right_lands_before_the_column_at_the_pointer :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	title, _ := find_widget(&h.ui, "Sort by Title")
+	time, _ := find_widget(&h.ui, "Time")
+	move_mouse(&h, rect_center(title.rect))
+	press(&h)
+	move_mouse(&h, {time.rect.x + 10, 14})
+	release(&h)
+	move, moved := reported(&tr).moved.?
+	testing.expect(t, moved && move.column == COLUMN_TITLE && move.before == COLUMN_TIME)
+	// Past the middle of the last column: last.
+	title, _ = find_widget(&h.ui, "Sort by Title")
+	move_mouse(&h, rect_center(title.rect))
+	press(&h)
+	move_mouse(&h, {time.rect.x + time.rect.w - 2, 14})
+	release(&h)
+	move, moved = reported(&tr).moved.?
+	testing.expect(t, moved && move.column == COLUMN_TITLE && move.before == nil)
+}
+
+@(test)
+the_release_after_a_double_click_keeps_the_fit :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	tr.applies = true
+	artist, _ := find_widget(&h.ui, "Artist")
+	edge := [2]f32{artist.rect.x + artist.rect.w + 3, 14}
+	move_mouse(&h, edge)
+	press(&h)
+	release(&h)
+	press(&h, clicks = 2)
+	release(&h)
+	run_frame(&h)
+	fit := text_width(h.ui.renderer, "Marlowe Kite", .Body) + 17
+	testing.expect_value(t, tr.columns[COLUMN_ARTIST].width, fit)
+	last, _ := reported(&tr).resized.?
+	testing.expect_value(t, last.width, fit)
 }
 
 @(test)

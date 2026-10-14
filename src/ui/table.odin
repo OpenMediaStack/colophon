@@ -661,12 +661,17 @@ draw_header :: proc(
 	fill_rect(r, {header.x, header.y + header.h - 1, header.w, 1}, th.border_subtle)
 	push_clip(r, header)
 	defer pop_clip(r)
-	x := origin_x + TABLE_STATUS_WIDTH
+	// Where every column starts, before any is drawn: a column dragged to the right
+	// is dropped before one drawn after it.
 	starts := make([]f32, len(columns) + 1, context.temp_allocator)
-	for column, i in columns {
-		cell := Rect{x, header.y, widths[i], header.h}
+	x := origin_x + TABLE_STATUS_WIDTH
+	for w, i in widths {
 		starts[i] = x
-		x += widths[i]
+		x += w
+	}
+	starts[len(columns)] = x
+	for column, i in columns {
+		cell := Rect{starts[i], header.y, widths[i], header.h}
 		if cell.w <= 0 do continue
 		cell_id := child_id(id, "column", column.id)
 		handle_id := child_id(id, "resize", column.id)
@@ -717,7 +722,11 @@ draw_header :: proc(
 			state.resize_from = widths[i]
 			request_focus(ui, id)
 		}
-		if .Double_Clicked in resize do result.resized = Column_Resize{column.id, fit_width(r, rows, column)}
+		if .Double_Clicked in resize {
+			// A fit, not a drag: the release must not bring the width back.
+			result.resized = Column_Resize{column.id, fit_width(r, rows, column)}
+			state.resizing = nil
+		}
 		if .Held in resize && state.resizing == column.id {
 			// The drag's distance first: the width stays exact while the pointer has not
 			// moved, and a press alone resizes nothing.
@@ -726,11 +735,10 @@ draw_header :: proc(
 		}
 		if .Held not_in resize && state.resizing == column.id do state.resizing = nil
 	}
-	starts[len(columns)] = x
 	// Where a dragged column would go: a line before the column it would precede.
 	if state.dragging != nil {
 		ui.cursor = .Grabbing
-		line_x := x
+		line_x := starts[len(columns)]
 		if before, has := drop_before(columns, widths, starts, state.drag_x).?; has {
 			for c, i in columns do if c.id == before do line_x = starts[i]
 		}

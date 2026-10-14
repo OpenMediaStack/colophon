@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-14 18:08+0200\n"
+"POT-Creation-Date: 2026-10-14 18:26+0200\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -153,6 +153,62 @@ msgstr "Effacer le filtre"
 msgid "Filter"
 msgstr "Filtre"
 
+#: src/app/tracks.odin:68
+msgid "Tracks"
+msgstr "Morceaux"
+
+#: src/app/tracks.odin:126 src/app/tracks.odin:144
+msgid "Sort by {}"
+msgstr "Trier par {}"
+
+#: src/app/tracks.odin:156
+msgid "Title"
+msgstr "Titre"
+
+#: src/app/tracks.odin:158
+msgid "Artist"
+msgstr "Artiste"
+
+#: src/app/tracks.odin:160
+msgid "Album"
+msgstr "Album"
+
+#: src/app/tracks.odin:162
+msgid "Year"
+msgstr "Année"
+
+#: src/app/tracks.odin:164
+msgid "Genre"
+msgstr "Genre"
+
+#: src/app/tracks.odin:166
+msgid "Time"
+msgstr "Durée"
+
+#: src/app/tracks.odin:168
+msgid "Bitrate"
+msgstr "Débit"
+
+#: src/app/tracks.odin:170
+msgid "Tags"
+msgstr "Tags"
+
+#: src/app/tracks.odin:172
+msgid "File"
+msgstr "Fichier"
+
+#: src/app/tracks.odin:174
+msgid "Folder"
+msgstr "Dossier"
+
+#: src/app/tracks.odin:312
+msgid "Reset to default columns"
+msgstr "Rétablir les colonnes par défaut"
+
+#: src/app/tracks.odin:313
+msgid "Columns"
+msgstr "Colonnes"
+
 #: src/ui/combo_box.odin:119
 msgid "Show suggestions"
 msgstr "Afficher les suggestions"
@@ -189,7 +245,7 @@ msgstr "Modifications non enregistrées"
 msgid "Unlike the rest of its album"
 msgstr "Différente du reste de son album"
 
-#: src/ui/table.odin:748
+#: src/ui/table.odin:756
 msgid "Choose columns"
 msgstr "Choisir les colonnes"
 
@@ -222,9 +278,6 @@ msgstr "Choisir les colonnes"
 
 #~ msgid "Open Folder…"
 #~ msgstr "Ouvrir un dossier…"
-
-#~ msgid "File"
-#~ msgstr "Fichier"
 
 #~ msgid "Open Files…"
 #~ msgstr "Ouvrir des fichiers…"
@@ -277,9 +330,6 @@ msgstr "Choisir les colonnes"
 
 #~ msgid "Write ID3v2.4 to the selected files"
 #~ msgstr "Écrire l’ID3v2.4 dans les fichiers sélectionnés"
-
-#~ msgid "Tags"
-#~ msgstr "Tags"
 
 #~ msgid "Write ID3v2.3 to the selected files"
 #~ msgstr "Écrire l’ID3v2.3 dans les fichiers sélectionnés"
@@ -367,9 +417,6 @@ msgstr "Choisir les colonnes"
 
 #~ msgid "Show the Folder column"
 #~ msgstr "Afficher la colonne Dossier"
-
-#~ msgid "Reset to default columns"
-#~ msgstr "Rétablir les colonnes par défaut"
 
 #~ msgid "Write ID3v2.4 by default"
 #~ msgstr "Écrire l’ID3v2.4 par défaut"
@@ -485,26 +532,11 @@ msgstr "Choisir les colonnes"
 #~ msgid "{0}.{1} GB"
 #~ msgstr "{0},{1} Go"
 
-#~ msgid "Title"
-#~ msgstr "Titre"
-
-#~ msgid "Artist"
-#~ msgstr "Artiste"
-
-#~ msgid "Album"
-#~ msgstr "Album"
-
-#~ msgid "Year"
-#~ msgstr "Année"
-
 #~ msgid "Comment"
 #~ msgstr "Commentaire"
 
 #~ msgid "Track"
 #~ msgstr "Piste"
-
-#~ msgid "Genre"
-#~ msgstr "Genre"
 
 #~ msgid "Saving converts {n} file."
 #~ msgid_plural "Saving converts {n} files."
@@ -832,23 +864,8 @@ msgstr "Choisir les colonnes"
 #~ msgid "Could not write the cover to “{}”"
 #~ msgstr "Impossible d’écrire la pochette dans « {} »"
 
-#~ msgid "Sort by {}"
-#~ msgstr "Trier par {}"
-
-#~ msgid "Time"
-#~ msgstr "Durée"
-
-#~ msgid "Bitrate"
-#~ msgstr "Débit"
-
-#~ msgid "Folder"
-#~ msgstr "Dossier"
-
 #~ msgid "Play"
 #~ msgstr "Lire"
-
-#~ msgid "Tracks"
-#~ msgstr "Morceaux"
 
 #~ msgid "{0} has changes that are not saved yet."
 #~ msgstr "{0} a des modifications qui ne sont pas encore enregistrées."
