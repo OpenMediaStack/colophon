@@ -70,8 +70,7 @@ toolbar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	palette_key := shortcut_hint(app, "K")
 	palette_width := ui.button_width(r, palette_key, palette_options)
 	palette_rect := ui.Rect{sidebar_rect.x - GAP - palette_width, y, palette_width, BUTTON}
-	// The command palette itself comes with its own slice.
-	ui.button(ctx, ui.widget_id("Command palette"), palette_rect, palette_key, palette_options)
+	if ui.button(ctx, ui.widget_id("Command palette"), palette_rect, palette_key, palette_options) do open_palette(app)
 	view := e.view
 	if ui.toolbar_button(
 		ctx,

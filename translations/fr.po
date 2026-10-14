@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-15 00:42+0200\n"
+"POT-Creation-Date: 2026-10-15 19:14+0200\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -13,7 +13,7 @@ msgstr ""
 msgid "“{}” is not a JPEG or PNG image"
 msgstr "« {} » n’est pas une image JPEG ou PNG"
 
-#: src/app/covers.odin:32
+#: src/app/covers.odin:51
 msgid "Could not write the cover to “{}”"
 msgstr "Impossible d’écrire la pochette dans « {} »"
 
@@ -29,257 +29,442 @@ msgstr "Colophon lit les tags de chaque MP3 d’un dossier et de ses sous-dossie
 msgid "Open folder…"
 msgstr "Ouvrir un dossier…"
 
-#: src/app/inspector.odin:72
+#: src/app/inspector.odin:85
 msgid "Inspector"
 msgstr "Inspecteur"
 
-#: src/app/inspector.odin:103
+#: src/app/inspector.odin:116
 msgid "Select tracks to see their tags"
 msgstr "Sélectionnez des morceaux pour voir leurs tags"
 
-#: src/app/inspector.odin:104
+#: src/app/inspector.odin:117
 msgid "{} selects every track"
 msgstr "{} sélectionne tous les morceaux"
 
-#: src/app/inspector.odin:144
+#: src/app/inspector.odin:157
 msgid "ID3v1 will keep only part of: {}"
 msgstr "L’ID3v1 ne gardera qu’une partie de : {}"
 
-#: src/app/inspector.odin:159
+#: src/app/inspector.odin:172
 msgid "{n} track selected"
 msgid_plural "{n} tracks selected"
 msgstr[0] "{n} morceau sélectionné"
 msgstr[1] "{n} morceaux sélectionnés"
 
-#: src/app/inspector.odin:189 src/app/status_bar.odin:49
+#: src/app/inspector.odin:202 src/app/status_bar.odin:49
 msgid "{n} file could not be read"
 msgid_plural "{n} files could not be read"
 msgstr[0] "{n} fichier illisible"
 msgstr[1] "{n} fichiers illisibles"
 
-#: src/app/inspector.odin:202
+#: src/app/inspector.odin:216
 msgid "Replace cover…"
 msgstr "Remplacer la pochette…"
 
-#: src/app/inspector.odin:216 src/app/inspector.odin:232
-#: src/app/tracks.odin:347
+#: src/app/inspector.odin:225 src/app/inspector.odin:241
+#: src/app/palette.odin:244 src/app/tracks.odin:347
 msgid "Tags"
 msgstr "Tags"
 
-#: src/app/inspector.odin:224 src/app/tracks.odin:349
+#: src/app/inspector.odin:233 src/app/palette.odin:241 src/app/tracks.odin:349
 msgid "File"
 msgstr "Fichier"
 
-#: src/app/inspector.odin:226
+#: src/app/inspector.odin:235
 msgid "Audio"
 msgstr "Audio"
 
-#: src/app/inspector.odin:229
+#: src/app/inspector.odin:238
 msgid "{} total"
 msgstr "{} au total"
 
-#: src/app/inspector.odin:230
+#: src/app/inspector.odin:239
 msgid "Size"
 msgstr "Taille"
 
-#: src/app/inspector.odin:235
+#: src/app/inspector.odin:244
 msgid "Saved as"
 msgstr "Enregistré en"
 
-#: src/app/inspector.odin:246 src/app/saving.odin:107 src/app/toolbar.odin:119
+#: src/app/inspector.odin:255 src/app/saving.odin:107 src/app/toolbar.odin:118
 msgid "Save {n} file"
 msgid_plural "Save {n} files"
 msgstr[0] "Enregistrer {n} fichier"
 msgstr[1] "Enregistrer {n} fichiers"
 
-#: src/app/inspector.odin:246 src/app/toolbar.odin:115
+#: src/app/inspector.odin:255 src/app/toolbar.odin:114
 msgid "Saving…"
 msgstr "Enregistrement…"
 
-#: src/app/inspector.odin:259 src/app/tracks.odin:260
+#: src/app/inspector.odin:268 src/app/palette.odin:271 src/app/tracks.odin:260
 msgid "Revert"
 msgstr "Rétablir l’original"
 
-#: src/app/inspector.odin:284
+#: src/app/inspector.odin:293
 msgid "No cover"
 msgstr "Pas de pochette"
 
-#: src/app/inspector.odin:286
+#: src/app/inspector.odin:304
 msgid "Cover"
 msgstr "Pochette"
 
-#: src/app/inspector.odin:289
+#: src/app/inspector.odin:306
 msgid "Several covers"
 msgstr "Plusieurs pochettes"
 
-#: src/app/inspector.odin:354
+#: src/app/inspector.odin:369
 msgid "Replace Cover…"
 msgstr "Remplacer la pochette…"
 
-#: src/app/inspector.odin:355
+#: src/app/inspector.odin:370
 msgid "Extract Cover…"
 msgstr "Extraire la pochette…"
 
-#: src/app/inspector.odin:356
+#: src/app/inspector.odin:371
 msgid "Remove Cover"
 msgstr "Supprimer la pochette"
 
-#: src/app/inspector.odin:358
+#: src/app/inspector.odin:373
 msgid "Cover menu"
 msgstr "Menu de la pochette"
 
-#: src/app/inspector.odin:380
+#: src/app/inspector.odin:395
 msgid "This track has no number, unlike the rest of its album."
 msgstr "Cette piste n’a pas de numéro, contrairement au reste de son album."
 
-#: src/app/inspector.odin:381
+#: src/app/inspector.odin:396
 msgid "Some of these tracks have no number, unlike the rest of their albums."
 msgstr "Certaines de ces pistes n’ont pas de numéro, contrairement au reste de leur album."
 
-#: src/app/inspector.odin:383
+#: src/app/inspector.odin:398
 msgid "Its album artist differs from the rest of its album."
 msgstr "Son artiste d’album diffère de celui du reste de son album."
 
-#: src/app/inspector.odin:385
+#: src/app/inspector.odin:400
 msgid "Some of these tracks have an album artist that differs from the rest of their albums."
 msgstr "Certaines de ces pistes ont un artiste d’album différent du reste de leur album."
 
-#: src/app/inspector.odin:444 src/app/inspector.odin:523
+#: src/app/inspector.odin:459 src/app/inspector.odin:538
 #: src/app/tracks.odin:333
 msgid "Title"
 msgstr "Titre"
 
-#: src/app/inspector.odin:446 src/app/inspector.odin:525
+#: src/app/inspector.odin:461 src/app/inspector.odin:540
 #: src/app/tracks.odin:335
 msgid "Artist"
 msgstr "Artiste"
 
-#: src/app/inspector.odin:448 src/app/inspector.odin:540
+#: src/app/inspector.odin:463 src/app/inspector.odin:555
 #: src/app/tracks.odin:337
 msgid "Album"
 msgstr "Album"
 
-#: src/app/inspector.odin:450 src/app/inspector.odin:543
+#: src/app/inspector.odin:465 src/app/inspector.odin:558
 #: src/app/tracks.odin:339
 msgid "Year"
 msgstr "Année"
 
-#: src/app/inspector.odin:452 src/app/inspector.odin:631
+#: src/app/inspector.odin:467 src/app/inspector.odin:646
 msgid "Comment"
 msgstr "Commentaire"
 
-#: src/app/inspector.odin:454 src/app/inspector.odin:593
-#: src/app/inspector.odin:595
+#: src/app/inspector.odin:469 src/app/inspector.odin:608
+#: src/app/inspector.odin:610
 msgid "Track"
 msgstr "Piste"
 
-#: src/app/inspector.odin:456 src/app/inspector.odin:616
+#: src/app/inspector.odin:471 src/app/inspector.odin:631
 #: src/app/tracks.odin:341
 msgid "Genre"
 msgstr "Genre"
 
-#: src/app/inspector.odin:532
+#: src/app/inspector.odin:547
 msgid "Album artist"
 msgstr "Artiste de l’album"
 
-#: src/app/inspector.odin:574
+#: src/app/inspector.odin:589
 msgid "Multiple"
 msgstr "Multiples"
 
-#: src/app/inspector.odin:583
+#: src/app/inspector.odin:598
 msgid "of"
 msgstr "sur"
 
-#: src/app/inspector.odin:595
+#: src/app/inspector.odin:610
 msgid "Track total"
 msgstr "Nombre de pistes"
 
-#: src/app/inspector.odin:606 src/app/inspector.odin:608
+#: src/app/inspector.odin:621 src/app/inspector.odin:623
 msgid "Disc"
 msgstr "Disque"
 
-#: src/app/inspector.odin:608
+#: src/app/inspector.odin:623
 msgid "Disc total"
 msgstr "Nombre de disques"
 
-#: src/app/inspector.odin:709 src/app/inspector.odin:731
-#: src/app/inspector.odin:826 src/app/inspector.odin:871
+#: src/app/inspector.odin:724 src/app/inspector.odin:746
+#: src/app/inspector.odin:841 src/app/inspector.odin:886
 msgid "Multiple values"
 msgstr "Valeurs multiples"
 
-#: src/app/inspector.odin:838
+#: src/app/inspector.odin:853
 msgid "{} kHz"
 msgstr "{} kHz"
 
-#: src/app/inspector.odin:840
+#: src/app/inspector.odin:855
 msgid "{}.{} kHz"
 msgstr "{},{} kHz"
 
-#: src/app/inspector.odin:842
+#: src/app/inspector.odin:857
 msgid "{} kbps"
 msgstr "{} kbit/s"
 
-#: src/app/inspector.odin:852
+#: src/app/inspector.odin:867
 msgid "{n} byte"
 msgid_plural "{n} bytes"
 msgstr[0] "{n} octet"
 msgstr[1] "{n} octets"
 
-#: src/app/inspector.odin:854
+#: src/app/inspector.odin:869
 msgid "{} KB"
 msgstr "{} Ko"
 
-#: src/app/inspector.odin:857
+#: src/app/inspector.odin:872
 msgid "{}.{} MB"
 msgstr "{},{} Mo"
 
-#: src/app/inspector.odin:860
+#: src/app/inspector.odin:875
 msgid "{}.{} GB"
 msgstr "{},{} Go"
 
-#: src/app/inspector.odin:869 src/app/inspector.odin:874
+#: src/app/inspector.odin:884 src/app/inspector.odin:889
 msgid "None"
 msgstr "Aucun"
 
-#: src/app/inspector.odin:887
+#: src/app/inspector.odin:902
 msgid "Could not read this file"
 msgstr "Impossible de lire ce fichier"
 
-#: src/app/inspector.odin:906
+#: src/app/inspector.odin:921
 msgid "Problem"
 msgstr "Problème"
 
-#: src/app/inspector.odin:912
+#: src/app/inspector.odin:927
 msgid "Colophon could not open this file. It may have been moved or deleted, or Colophon may not be allowed to read it."
 msgstr "Colophon n’a pas pu ouvrir ce fichier. Il a peut-être été déplacé ou supprimé, ou Colophon n’a pas le droit de le lire."
 
-#: src/app/inspector.odin:916
+#: src/app/inspector.odin:931
 msgid "This file is damaged, or it is not an MP3: Colophon could not make sense of it."
 msgstr "Ce fichier est abîmé, ou ce n’est pas un MP3 : Colophon n’a pas pu le comprendre."
 
-#: src/app/inspector.odin:935
+#: src/app/inspector.odin:950
 msgid "Details"
 msgstr "Détails"
 
-#: src/app/inspector.odin:938
+#: src/app/inspector.odin:953
 msgid "File size"
 msgstr "Taille du fichier"
 
-#: src/app/inspector.odin:954
+#: src/app/inspector.odin:969
 msgid "Show in Finder"
 msgstr "Afficher dans le Finder"
 
-#: src/app/inspector.odin:956
+#: src/app/inspector.odin:971
 msgid "Show in Explorer"
 msgstr "Afficher dans l’Explorateur"
 
-#: src/app/inspector.odin:958
+#: src/app/inspector.odin:973
 msgid "Show in Folder"
 msgstr "Afficher dans le dossier"
 
-#: src/app/inspector.odin:965
+#: src/app/inspector.odin:980
 msgid "Copy details"
 msgstr "Copier les détails"
+
+#: src/app/palette.odin:101 src/app/toolbar.odin:67
+msgid "Command palette"
+msgstr "Palette de commandes"
+
+#: src/app/palette.odin:125
+msgid "Command"
+msgstr "Commande"
+
+#: src/app/palette.odin:126
+msgid "Type a command"
+msgstr "Tapez une commande"
+
+#: src/app/palette.odin:151
+msgid "Commands"
+msgstr "Commandes"
+
+#: src/app/palette.odin:153
+msgid "No command holds “{}”"
+msgstr "Aucune commande ne contient « {} »"
+
+#: src/app/palette.odin:211
+msgid "esc to close"
+msgstr "esc pour fermer"
+
+#: src/app/palette.odin:211
+msgid "↑↓ to move"
+msgstr "↑↓ pour se déplacer"
+
+#: src/app/palette.odin:211
+msgid "↵ to run"
+msgstr "↵ pour lancer"
+
+#: src/app/palette.odin:242
+msgid "Edit"
+msgstr "Édition"
+
+#: src/app/palette.odin:243
+msgid "Controls"
+msgstr "Commandes"
+
+#: src/app/palette.odin:245
+msgid "View"
+msgstr "Présentation"
+
+#: src/app/palette.odin:246
+msgid "Settings"
+msgstr "Réglages"
+
+#: src/app/palette.odin:256
+msgid "Open Folder…"
+msgstr "Ouvrir un dossier…"
+
+#: src/app/palette.odin:257
+msgid "Open Files…"
+msgstr "Ouvrir des fichiers…"
+
+#: src/app/palette.odin:260 src/app/toolbar.odin:116
+msgid "Save"
+msgstr "Enregistrer"
+
+#: src/app/palette.odin:265 src/app/toolbar.odin:43
+msgid "Undo"
+msgstr "Annuler"
+
+#: src/app/palette.odin:266 src/app/toolbar.odin:54
+msgid "Redo"
+msgstr "Rétablir"
+
+#: src/app/palette.odin:267
+msgid "Find"
+msgstr "Rechercher"
+
+#: src/app/palette.odin:268
+msgid "Select All"
+msgstr "Tout sélectionner"
+
+#: src/app/palette.odin:269 src/app/tracks.odin:258
+msgid "Select Album"
+msgstr "Sélectionner l’album"
+
+#: src/app/palette.odin:270 src/app/tracks.odin:259
+msgid "Number Tracks"
+msgstr "Numéroter les pistes"
+
+#: src/app/palette.odin:275
+msgid "Pause"
+msgstr "Pause"
+
+#: src/app/palette.odin:275
+msgctxt "Player"
+msgid "Play"
+msgstr "Lecture"
+
+#: src/app/palette.odin:280
+msgid "Next Track"
+msgstr "Piste suivante"
+
+#: src/app/palette.odin:283
+msgid "Previous Track"
+msgstr "Piste précédente"
+
+#: src/app/palette.odin:291
+msgid "Write ID3v2.4 to the selected files"
+msgstr "Écrire l’ID3v2.4 dans les fichiers sélectionnés"
+
+#: src/app/palette.odin:298
+msgid "Write ID3v2.3 to the selected files"
+msgstr "Écrire l’ID3v2.3 dans les fichiers sélectionnés"
+
+#: src/app/palette.odin:305
+msgid "Write ID3v2.2 to the selected files"
+msgstr "Écrire l’ID3v2.2 dans les fichiers sélectionnés"
+
+#: src/app/palette.odin:312
+msgid "Write ID3v1.1 to the selected files"
+msgstr "Écrire l’ID3v1.1 dans les fichiers sélectionnés"
+
+#: src/app/palette.odin:319
+msgid "Write ID3v1.0 to the selected files"
+msgstr "Écrire l’ID3v1.0 dans les fichiers sélectionnés"
+
+#: src/app/palette.odin:326
+msgid "Hide Sidebar"
+msgstr "Masquer la barre latérale"
+
+#: src/app/palette.odin:326
+msgid "Show Sidebar"
+msgstr "Afficher la barre latérale"
+
+#: src/app/palette.odin:333
+msgid "Hide Inspector"
+msgstr "Masquer l’inspecteur"
+
+#: src/app/palette.odin:333
+msgid "Show Inspector"
+msgstr "Afficher l’inspecteur"
+
+#: src/app/palette.odin:344
+msgid "Hide the {} column (ID3 versions)"
+msgstr "Masquer la colonne {} (versions ID3)"
+
+#: src/app/palette.odin:346
+msgid "Show the {} column (ID3 versions)"
+msgstr "Afficher la colonne {} (versions ID3)"
+
+#: src/app/palette.odin:348
+msgid "Hide the {} column"
+msgstr "Masquer la colonne {}"
+
+#: src/app/palette.odin:350
+msgid "Show the {} column"
+msgstr "Afficher la colonne {}"
+
+#: src/app/palette.odin:354 src/app/tracks.odin:490
+msgid "Reset to default columns"
+msgstr "Rétablir les colonnes par défaut"
+
+#: src/app/palette.odin:358
+msgid "Write ID3v2.4 by default"
+msgstr "Écrire l’ID3v2.4 par défaut"
+
+#: src/app/palette.odin:365
+msgid "Write ID3v2.3 by default"
+msgstr "Écrire l’ID3v2.3 par défaut"
+
+#: src/app/palette.odin:372
+msgid "ID3v1 policy: keep where it exists"
+msgstr "ID3v1 : le garder là où il existe"
+
+#: src/app/palette.odin:379
+msgid "ID3v1 policy: always write"
+msgstr "ID3v1 : toujours l’écrire"
+
+#: src/app/palette.odin:386
+msgid "ID3v1 policy: never write"
+msgstr "ID3v1 : ne jamais l’écrire"
+
+#: src/app/palette.odin:393
+msgid "Turn developer mode off"
+msgstr "Désactiver le mode développeur"
+
+#: src/app/palette.odin:393
+msgid "Turn developer mode on"
+msgstr "Activer le mode développeur"
 
 #: src/app/saving.odin:46 src/app/status_bar.odin:41
 msgid "{n} file could not be saved"
@@ -327,45 +512,45 @@ msgstr "{}, {} et {} autres fichiers ont des modifications qui ne sont pas encor
 msgid "Quitting without saving discards them."
 msgstr "Si vous quittez sans enregistrer, elles seront perdues."
 
-#: src/app/screen.odin:88
+#: src/app/screen.odin:90
 msgid "Drop to open these folders and files"
 msgstr "Déposez pour ouvrir ces dossiers et fichiers"
 
-#: src/app/sidebar.odin:57
+#: src/app/sidebar.odin:58
 msgid "Sidebar"
 msgstr "Barre latérale"
 
-#: src/app/sidebar.odin:86
+#: src/app/sidebar.odin:87
 msgid "Library"
 msgstr "Bibliothèque"
 
-#: src/app/sidebar.odin:97
+#: src/app/sidebar.odin:98
 msgid "Folders"
 msgstr "Dossiers"
 
-#: src/app/sidebar.odin:115
+#: src/app/sidebar.odin:116
 msgid "Albums"
 msgstr "Albums"
 
-#: src/app/sidebar.odin:131
+#: src/app/sidebar.odin:133
 msgid "{n} more album"
 msgid_plural "{n} more albums"
 msgstr[0] "{n} autre album"
 msgstr[1] "{n} autres albums"
 
-#: src/app/sidebar.odin:149 src/app/sidebar.odin:156
+#: src/app/sidebar.odin:151 src/app/sidebar.odin:158
 msgid "Artists"
 msgstr "Artistes"
 
-#: src/app/sidebar.odin:186
+#: src/app/sidebar.odin:188
 msgid "All tracks"
 msgstr "Toutes les pistes"
 
-#: src/app/sidebar.odin:188
+#: src/app/sidebar.odin:190
 msgid "Recently changed"
 msgstr "Modifiés récemment"
 
-#: src/app/sidebar.odin:190
+#: src/app/sidebar.odin:192
 msgid "Unreadable files"
 msgstr "Fichiers illisibles"
 
@@ -435,39 +620,23 @@ msgstr ""
 msgid "Open folder"
 msgstr "Ouvrir un dossier"
 
-#: src/app/toolbar.odin:43
-msgid "Undo"
-msgstr "Annuler"
-
-#: src/app/toolbar.odin:54
-msgid "Redo"
-msgstr "Rétablir"
-
-#: src/app/toolbar.odin:67
-msgid "Command palette"
-msgstr "Palette de commandes"
-
-#: src/app/toolbar.odin:81
+#: src/app/toolbar.odin:80
 msgid "Toggle sidebar"
 msgstr "Afficher ou masquer la barre latérale"
 
-#: src/app/toolbar.odin:92
+#: src/app/toolbar.odin:91
 msgid "Toggle inspector"
 msgstr "Afficher ou masquer l’inspecteur"
 
-#: src/app/toolbar.odin:117
-msgid "Save"
-msgstr "Enregistrer"
-
-#: src/app/toolbar.odin:144
+#: src/app/toolbar.odin:143
 msgid "Filter by title, artist, album"
 msgstr "Filtrer par titre, artiste, album"
 
-#: src/app/toolbar.odin:149
+#: src/app/toolbar.odin:148
 msgid "Clear the filter"
 msgstr "Effacer le filtre"
 
-#: src/app/toolbar.odin:151
+#: src/app/toolbar.odin:150
 msgid "Filter"
 msgstr "Filtre"
 
@@ -478,14 +647,6 @@ msgstr "Morceaux"
 #: src/app/tracks.odin:257
 msgid "Play"
 msgstr "Lire"
-
-#: src/app/tracks.odin:258
-msgid "Select Album"
-msgstr "Sélectionner l’album"
-
-#: src/app/tracks.odin:259
-msgid "Number Tracks"
-msgstr "Numéroter les pistes"
 
 #: src/app/tracks.odin:262
 msgid "Track menu"
@@ -506,10 +667,6 @@ msgstr "Débit"
 #: src/app/tracks.odin:351
 msgid "Folder"
 msgstr "Dossier"
-
-#: src/app/tracks.odin:490
-msgid "Reset to default columns"
-msgstr "Rétablir les colonnes par défaut"
 
 #: src/app/tracks.odin:491
 msgid "Columns"
@@ -582,12 +739,6 @@ msgstr "Choisir les colonnes"
 #~ msgid "License scroll bar"
 #~ msgstr "Barre de défilement de la licence"
 
-#~ msgid "Open Folder…"
-#~ msgstr "Ouvrir un dossier…"
-
-#~ msgid "Open Files…"
-#~ msgstr "Ouvrir des fichiers…"
-
 #~ msgid "Preferences…"
 #~ msgstr "Préférences…"
 
@@ -600,66 +751,11 @@ msgstr "Choisir les colonnes"
 #~ msgid "Help"
 #~ msgstr "Aide"
 
-#~ msgid "Edit"
-#~ msgstr "Édition"
-
-#~ msgid "Find"
-#~ msgstr "Rechercher"
-
-#~ msgid "Select All"
-#~ msgstr "Tout sélectionner"
-
-#~ msgid "Pause"
-#~ msgstr "Pause"
-
-#~ msgctxt "Player"
-#~ msgid "Play"
-#~ msgstr "Lecture"
-
-#~ msgid "Controls"
-#~ msgstr "Commandes"
-
-#~ msgid "Next Track"
-#~ msgstr "Piste suivante"
-
-#~ msgid "Previous Track"
-#~ msgstr "Piste précédente"
-
-#~ msgid "Write ID3v2.4 to the selected files"
-#~ msgstr "Écrire l’ID3v2.4 dans les fichiers sélectionnés"
-
-#~ msgid "Write ID3v2.3 to the selected files"
-#~ msgstr "Écrire l’ID3v2.3 dans les fichiers sélectionnés"
-
-#~ msgid "Write ID3v2.2 to the selected files"
-#~ msgstr "Écrire l’ID3v2.2 dans les fichiers sélectionnés"
-
 #~ msgid "Remove ID3v2 from the selected files…"
 #~ msgstr "Retirer l’ID3v2 des fichiers sélectionnés…"
 
-#~ msgid "Write ID3v1.1 to the selected files"
-#~ msgstr "Écrire l’ID3v1.1 dans les fichiers sélectionnés"
-
-#~ msgid "Write ID3v1.0 to the selected files"
-#~ msgstr "Écrire l’ID3v1.0 dans les fichiers sélectionnés"
-
 #~ msgid "Remove ID3v1 from the selected files…"
 #~ msgstr "Retirer l’ID3v1 des fichiers sélectionnés…"
-
-#~ msgid "Hide Sidebar"
-#~ msgstr "Masquer la barre latérale"
-
-#~ msgid "Show Sidebar"
-#~ msgstr "Afficher la barre latérale"
-
-#~ msgid "View"
-#~ msgstr "Présentation"
-
-#~ msgid "Hide Inspector"
-#~ msgstr "Masquer l’inspecteur"
-
-#~ msgid "Show Inspector"
-#~ msgstr "Afficher l’inspecteur"
 
 #~ msgid "Hide the Artist column"
 #~ msgstr "Masquer la colonne Artiste"
@@ -672,12 +768,6 @@ msgstr "Choisir les colonnes"
 
 #~ msgid "Show the Album column"
 #~ msgstr "Afficher la colonne Album"
-
-#~ msgid "Hide the Year column"
-#~ msgstr "Masquer la colonne Année"
-
-#~ msgid "Show the Year column"
-#~ msgstr "Afficher la colonne Année"
 
 #~ msgid "Hide the Genre column"
 #~ msgstr "Masquer la colonne Genre"
@@ -697,12 +787,6 @@ msgstr "Choisir les colonnes"
 #~ msgid "Show the Bitrate column"
 #~ msgstr "Afficher la colonne Débit"
 
-#~ msgid "Hide the Tags column (ID3 versions)"
-#~ msgstr "Masquer la colonne Tags (versions ID3)"
-
-#~ msgid "Show the Tags column (ID3 versions)"
-#~ msgstr "Afficher la colonne Tags (versions ID3)"
-
 #~ msgid "Hide the File column"
 #~ msgstr "Masquer la colonne Fichier"
 
@@ -714,30 +798,6 @@ msgstr "Choisir les colonnes"
 
 #~ msgid "Show the Folder column"
 #~ msgstr "Afficher la colonne Dossier"
-
-#~ msgid "Write ID3v2.4 by default"
-#~ msgstr "Écrire l’ID3v2.4 par défaut"
-
-#~ msgid "Settings"
-#~ msgstr "Réglages"
-
-#~ msgid "Write ID3v2.3 by default"
-#~ msgstr "Écrire l’ID3v2.3 par défaut"
-
-#~ msgid "ID3v1 policy: keep where it exists"
-#~ msgstr "ID3v1 : le garder là où il existe"
-
-#~ msgid "ID3v1 policy: always write"
-#~ msgstr "ID3v1 : toujours l’écrire"
-
-#~ msgid "ID3v1 policy: never write"
-#~ msgstr "ID3v1 : ne jamais l’écrire"
-
-#~ msgid "Turn developer mode off"
-#~ msgstr "Désactiver le mode développeur"
-
-#~ msgid "Turn developer mode on"
-#~ msgstr "Activer le mode développeur"
 
 #~ msgid "Command Palette…"
 #~ msgstr "Palette de commandes…"
@@ -856,29 +916,8 @@ msgstr "Choisir les colonnes"
 #~ msgid "Reading this file failed in a way it never should. This is a bug in Colophon, and the file itself may be fine."
 #~ msgstr "La lecture de ce fichier a échoué d’une façon qui ne devrait jamais arriver. C’est un bogue de Colophon, et le fichier lui-même est peut-être intact."
 
-#~ msgid "Type a command"
-#~ msgstr "Tapez une commande"
-
-#~ msgid "Command"
-#~ msgstr "Commande"
-
-#~ msgid "Commands"
-#~ msgstr "Commandes"
-
-#~ msgid "No command holds “{}”"
-#~ msgstr "Aucune commande ne contient « {} »"
-
 #~ msgid "Commands scroll bar"
 #~ msgstr "Barre de défilement des commandes"
-
-#~ msgid "↑↓ to move"
-#~ msgstr "↑↓ pour se déplacer"
-
-#~ msgid "↵ to run"
-#~ msgstr "↵ pour lancer"
-
-#~ msgid "esc to close"
-#~ msgstr "esc pour fermer"
 
 #~ msgid "Player"
 #~ msgstr "Lecteur"

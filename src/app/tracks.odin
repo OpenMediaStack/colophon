@@ -326,7 +326,7 @@ table_columns :: proc(app: ^App) -> []ui.Table_Column {
 }
 
 // What the user calls a column.
-@(private = "file")
+@(private)
 column_name :: proc(column: engine.Table_Column) -> string {
 	switch column {
 	case .Title:

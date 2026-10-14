@@ -21,6 +21,7 @@ App :: struct {
 	genres:         Genres,
 	warnings:       Warnings_Cache,
 	thumbnails:     Thumbnails,
+	palette:        Palette,
 	// The cover read for the save dialog, until it answers.
 	cover_to_write: Maybe(lib.Cover),
 	sidebar:        Sidebar,
@@ -94,6 +95,7 @@ app_destroy :: proc(app: ^App) {
 	delete(app.warnings.found)
 	forget_cover_to_write(app)
 	destroy_thumbnails(&app.thumbnails)
+	delete(app.palette.query, app.engine.allocator)
 	forget_dropped(app)
 	delete(app.drop.paths)
 	engine.destroy(&app.engine)
