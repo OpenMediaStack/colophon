@@ -355,7 +355,8 @@ sort_key :: proc(e: ^Engine, id: Track_Id, column: Sort_Column) -> (key: Sort_Ke
 
 // The genres to suggest: those an ID3v1 tag can name and those of the files read, once
 // each whatever their case, in alphabetical order. A genre only typed so far is not one
-// of them. Allocated with allocator; the strings belong to the library.
+// of them. Allocated with allocator; the strings belong to the library. It reads every
+// track: call it once after each change, not on every frame.
 genres :: proc(e: ^Engine, allocator := context.allocator) -> []string {
 	Named :: struct {
 		folded, name: string,

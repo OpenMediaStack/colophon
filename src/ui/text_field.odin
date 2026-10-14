@@ -149,7 +149,7 @@ edit_field :: proc(
 		at := offset_in(ui.renderer, edit_text(e), text_rect, style, in_.mouse.x, ui.edit_scroll)
 		edit_move(e, at, true)
 	}
-	// A click in the field's own popup, its suggestions, is not a click elsewhere.
+	// A click in a popup, such as the field's suggestions, is not a click elsewhere.
 	if .Left in in_.pressed && !mouse_over(ui, rect) && !mouse_in_popup(ui) {
 		result.committed = true
 		release_focus(ui, id)

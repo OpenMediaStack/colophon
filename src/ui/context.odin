@@ -577,6 +577,7 @@ begin_popup :: proc(ui: ^Ui, rect: Rect) {
 	block_mouse(ui, rect)
 }
 
+// Ends the popup begin_popup started.
 end_popup :: proc(ui: ^Ui) {
 	ui.in_popup = false
 	set_layer(ui.renderer, ui.popup_layer)

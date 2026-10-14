@@ -106,7 +106,7 @@ Each slice is one pull request, in this order unless a slice says it can move. A
 - [ ] **24. `feat(ui): overlays`.** Context menus, tooltips, toasts, dialogs with each platform's button order, the scrim.
 - [ ] **25. `feat(ui): table`.** Virtualised rows, header states, sorting, resizing and reordering columns by drag, the column chooser (right click and button), horizontal scrolling, row states (hover, selected, focused, modified, error, playing). A benchmark with 10,000 rows.
 - [ ] **26. `feat(ui): editing in the table`.** In-place editing with a double click, Enter or F2, Tab across the editable cells.
-- [ ] **27. `feat(ui): translations`.** The `.po` parser, `tr` and `tr_n`, the system language through `SDL_GetPreferredLocales`, `scripts/extract-strings.sh`.
+- [ ] **27. `feat(ui): translations`.** The `.po` parser, `tr` and `tr_n`, the system language through `SDL_GetPreferredLocales`, `scripts/extract-strings.sh`. The toolkit's own words, such as the combo box's "Show suggestions", go through `tr` too.
 
 ### Phase 3: the screens
 

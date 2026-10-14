@@ -27,6 +27,8 @@ Genre_Form :: struct {
 	commits: int,
 	behind:  int,
 	track:   [2]strings.Builder,
+	// The genres offered, GENRES unless set.
+	choices: []string,
 }
 
 @(private = "file")
@@ -41,7 +43,7 @@ genre_frame :: proc(ui: ^Ui, data: rawptr) {
 		{10, 10, 200, 28},
 		strings.to_string(f.genre),
 		"Genre",
-		GENRES,
+		f.choices if f.choices != nil else GENRES,
 	)
 	if result.committed {
 		f.commits += 1
@@ -104,8 +106,10 @@ typing_opens_the_suggestions_and_enter_picks_the_highlighted_one :: proc(t: ^tes
 	press_key(&h, .Down)
 	press_key(&h, .Enter)
 	testing.expect_value(t, strings.to_string(f.genre), "Acid Rock")
-	testing.expect_value(t, f.commits, 1)
 	testing.expect(t, !h.ui.combo.open)
+	// Once: the field losing the focus after the pick commits nothing more.
+	run_frame(&h)
+	testing.expect_value(t, f.commits, 1)
 }
 
 @(test)
@@ -117,10 +121,99 @@ a_click_picks_a_suggestion_and_what_lies_under_it_gets_nothing :: proc(t: ^testi
 	click(&h, "Show suggestions")
 	testing.expect(t, h.ui.combo.open)
 	run_frame(&h)
+	suggestion, _ := find_widget(&h.ui, "Acid Rock")
+	testing.expect_value(t, suggestion.parent, child_id(widget_id("Genre"), "suggestions"))
 	testing.expect(t, click(&h, "Acid Rock"))
 	testing.expect_value(t, strings.to_string(f.genre), "Acid Rock")
 	testing.expect_value(t, f.behind, 0)
 	testing.expect(t, !h.ui.combo.open)
+	run_frame(&h)
+	testing.expect_value(t, f.commits, 1)
+}
+
+@(test)
+up_goes_back_to_the_text_typed_and_a_held_arrow_moves_on :: proc(t: ^testing.T) {
+	h: Harness
+	f: Genre_Form
+	genre_harness(&h, &f)
+	defer destroy_genre_form(&h, &f)
+	click(&h, "Genre")
+	press_key(&h, .A, COMMAND)
+	type_text(&h, "rock")
+	press_key(&h, .Down)
+	append(&h.ui.input.keys, Key_Press{.Down, {}, true, 0})
+	run_frame(&h)
+	testing.expect_value(t, h.ui.combo.highlighted, 1)
+	press_key(&h, .Up)
+	press_key(&h, .Up)
+	testing.expect_value(t, h.ui.combo.highlighted, -1)
+	press_key(&h, .Enter)
+	testing.expect_value(t, strings.to_string(f.genre), "rock")
+}
+
+@(test)
+a_list_that_matches_nothing_leaves_the_keys_to_the_field :: proc(t: ^testing.T) {
+	h: Harness
+	f: Genre_Form
+	genre_harness(&h, &f)
+	defer destroy_genre_form(&h, &f)
+	click(&h, "Genre")
+	press_key(&h, .A, COMMAND)
+	type_text(&h, "zzz")
+	// Down shows every genre.
+	press_key(&h, .Down)
+	run_frame(&h)
+	_, listed := find_widget(&h.ui, "Synthwave")
+	testing.expect(t, listed)
+	type_text(&h, "z")
+	press_key(&h, .Escape)
+	testing.expect_value(t, h.ui.focus, 0)
+}
+
+@(test)
+the_button_shows_every_choice_whatever_was_typed :: proc(t: ^testing.T) {
+	h: Harness
+	f: Genre_Form
+	genre_harness(&h, &f)
+	defer destroy_genre_form(&h, &f)
+	click(&h, "Genre")
+	press_key(&h, .A, COMMAND)
+	type_text(&h, "rock")
+	click(&h, "Show suggestions")
+	run_frame(&h)
+	_, listed := find_widget(&h.ui, "Synthwave")
+	testing.expect(t, listed && h.ui.combo.open)
+}
+
+@(test)
+the_wheel_scrolls_the_list_freely :: proc(t: ^testing.T) {
+	h: Harness
+	f: Genre_Form
+	f.choices = {
+		"Acid Jazz",
+		"Acid Rock",
+		"Ambient",
+		"Bass",
+		"Blues",
+		"Classical",
+		"Country",
+		"Dance",
+		"Disco",
+		"Folk",
+		"Funk",
+		"Grunge",
+	}
+	genre_harness(&h, &f)
+	defer destroy_genre_form(&h, &f)
+	click(&h, "Genre")
+	press_key(&h, .Down)
+	press_key(&h, .Down)
+	center, _ := widget_center(&h, "Acid Jazz")
+	move_mouse(&h, center)
+	h.ui.input.wheel = {0, 40}
+	run_frame(&h)
+	run_frame(&h)
+	testing.expect_value(t, h.ui.combo.scroll, 40)
 }
 
 @(test)
