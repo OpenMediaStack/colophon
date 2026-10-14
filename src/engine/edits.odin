@@ -68,6 +68,16 @@ Continue_Edit :: struct {
 	edit: Edit,
 }
 
+// A new value for one field of these tracks rather than the selected ones: the tracks
+// a cell's editor opened on, which it edits even once a scan has moved their rows or
+// the selection has changed. When continues, the edit goes on with the latest step of
+// the history, as Continue_Edit does. The engine copies the list.
+Edit_Tracks :: struct {
+	tracks:    []Track_Id,
+	edit:      Edit,
+	continues: bool,
+}
+
 Undo :: struct {}
 Redo :: struct {}
 

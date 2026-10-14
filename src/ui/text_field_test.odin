@@ -11,6 +11,8 @@ Form :: struct {
 	commits:  [2]int,
 	cancels:  [2]int,
 	disabled: bool,
+	// What the fields take, when set.
+	accepts:  proc(text: string) -> bool,
 }
 
 @(private = "file")
@@ -22,6 +24,7 @@ form_frame :: proc(ui: ^Ui, data: rawptr) {
 	for label, i in FIELD_LABELS {
 		options := Text_Field_Options {
 			placeholder = "Multiple values",
+			accepts     = f.accepts,
 		}
 		if i == 1 && f.disabled do options.flags += {.Disabled}
 		value := strings.to_string(f.values[i])
@@ -114,6 +117,39 @@ escape_brings_the_value_back :: proc(t: ^testing.T) {
 	testing.expect_value(t, value_of(&f, 0), "Paper Satellites")
 	info, _ := find_widget(&h.ui, "Title")
 	testing.expect_value(t, info.value, "Paper Satellites")
+}
+
+@(test)
+refused_text_keeps_the_focus_on_enter_and_is_given_up_on_leaving :: proc(t: ^testing.T) {
+	h: Harness
+	f: Form
+	f.accepts = proc(text: string) -> bool {
+		return !strings.contains(text, "!")
+	}
+	form_harness(&h, &f)
+	defer destroy_form(&h, &f)
+	click(&h, "Title")
+	type_text(&h, "!")
+	press_key(&h, .Enter)
+	testing.expect(t, has_focus(&h.ui, widget_id("Title")))
+	press_key(&h, .Tab)
+	testing.expect(t, has_focus(&h.ui, widget_id("Title")))
+	testing.expect_value(t, f.commits[0], 0)
+	info, _ := find_widget(&h.ui, "Title")
+	testing.expect(t, strings.contains(info.value, "!"))
+	// A click elsewhere gives the text up: the value comes back.
+	move_mouse(&h, {500, 500})
+	press(&h)
+	release(&h)
+	testing.expect_value(t, f.cancels[0], 1)
+	testing.expect_value(t, f.commits[0], 0)
+	testing.expect_value(t, value_of(&f, 0), "Paper Satellites")
+	// Text the field takes goes through as before.
+	click(&h, "Title")
+	type_text(&h, "?")
+	press_key(&h, .Enter)
+	testing.expect_value(t, f.commits[0], 1)
+	testing.expect(t, strings.contains(value_of(&f, 0), "?"))
 }
 
 @(test)

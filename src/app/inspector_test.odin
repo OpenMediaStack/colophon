@@ -30,21 +30,6 @@ screen_showing :: proc(
 	return
 }
 
-// The value a field shows, by its label.
-@(private = "file")
-field_value :: proc(s: ^Screen, label: string) -> (value: string, found: bool) {
-	for w in s.h.ui.widgets do if w.role == .Text_Field && w.label == label do return w.value, true
-	return
-}
-
-// Types text in a field, in place of what it held.
-@(private = "file")
-retype :: proc(s: ^Screen, label, text: string) {
-	ui.click(&s.h, label)
-	ui.press_key(&s.h, .A, ui.COMMAND)
-	ui.type_text(&s.h, text)
-}
-
 @(test)
 the_inspector_asks_for_a_selection :: proc(t: ^testing.T) {
 	s: Screen
@@ -185,15 +170,6 @@ typing_in_a_field_edits_the_selection_and_escape_takes_it_back :: proc(t: ^testi
 	year, _ := field_value(&s, "Year")
 	testing.expect_value(t, year, "20x4")
 	testing.expect_value(t, len(e.edits.undo), 1)
-}
-
-// The genres suggested by the open list, in its order.
-@(private = "file")
-suggestions :: proc(s: ^Screen) -> []string {
-	list := ui.child_id(ui.widget_id("Genre"), "suggestions")
-	found := make([dynamic]string, context.temp_allocator)
-	for w in s.h.ui.widgets do if w.parent == list do append(&found, w.label)
-	return found[:]
 }
 
 @(test)

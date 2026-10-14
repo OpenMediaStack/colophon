@@ -110,6 +110,7 @@ Command :: union {
 	Extend_Selection,
 	Apply_Edit,
 	Continue_Edit,
+	Edit_Tracks,
 	Undo,
 	Redo,
 	Revert,
@@ -174,6 +175,8 @@ command_id :: proc(command: Command) -> string {
 		return "tags.edit"
 	case Continue_Edit:
 		return "tags.continue_edit"
+	case Edit_Tracks:
+		return "tags.edit_tracks"
 	case Undo:
 		return "edit.undo"
 	case Redo:
@@ -329,6 +332,10 @@ execute :: proc(e: ^Engine, command: Command) {
 		edit_tracks(e, e.selection.tracks[:], c.edit, false)
 	case Continue_Edit:
 		edit_tracks(e, e.selection.tracks[:], c.edit, true)
+	case Edit_Tracks:
+		tracks := make([dynamic]Track_Id, 0, len(c.tracks), context.temp_allocator)
+		for track in c.tracks do if has_track(e, track) do append(&tracks, track)
+		edit_tracks(e, tracks[:], c.edit, c.continues)
 	case Undo:
 		undo_step(e)
 	case Redo:
@@ -374,6 +381,7 @@ execute :: proc(e: ^Engine, command: Command) {
 	     Open_Files,
 	     Apply_Edit,
 	     Continue_Edit,
+	     Edit_Tracks,
 	     Undo,
 	     Redo,
 	     Revert,

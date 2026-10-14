@@ -15,6 +15,10 @@ App :: struct {
 	drop:      Drop,
 	// What the track table keeps between frames: its scroll, a drag of a column.
 	table:     ui.Table_State,
+	// What it keeps beside that: the cell edited, a click waiting to shrink the
+	// selection, the track whose menu is open.
+	tracks:    Tracks,
+	genres:    Genres,
 	sidebar:   Sidebar,
 	inspector: Inspector,
 	// How many commands ran: a frame in which one ran is followed by another at once,
@@ -67,7 +71,8 @@ app_init :: proc(app: ^App, wake := lib.Wake{}, allocator := context.allocator) 
 app_destroy :: proc(app: ^App) {
 	delete(app.home, app.engine.allocator)
 	destroy_sidebar(&app.sidebar)
-	destroy_inspector(&app.inspector, app.engine.allocator)
+	destroy_tracks(&app.tracks)
+	delete(app.genres.list, app.engine.allocator)
 	forget_dropped(app)
 	delete(app.drop.paths)
 	engine.destroy(&app.engine)
@@ -76,6 +81,27 @@ app_destroy :: proc(app: ^App) {
 // Draws the main screen in the window's area: a frame of the harness and of the loop.
 app_frame :: proc(ctx: ^ui.Ui, data: rawptr) {
 	main_screen(ctx, (^App)(data), ctx.viewport)
+}
+
+// The genres of the library, which the genre fields of the inspector and the table
+// suggest, made again when the library changes: they come from the files' tags, and a
+// genre only typed so far is not one of them.
+Genres :: struct {
+	list:             []string,
+	made:             bool,
+	library_revision: u64,
+}
+
+// The genres of the library, in alphabetical order, valid until the library changes.
+genres :: proc(app: ^App) -> []string {
+	g := &app.genres
+	e := &app.engine
+	if !g.made || g.library_revision != e.library_revision {
+		delete(g.list, e.allocator)
+		g.list = engine.genres(e, e.allocator)
+		g.made, g.library_revision = true, e.library_revision
+	}
+	return g.list
 }
 
 // Something was opened: a folder, or files. The panels wait for it.
