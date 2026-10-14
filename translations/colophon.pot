@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-14 18:40+0200\n"
+"POT-Creation-Date: 2026-10-14 19:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -30,201 +30,201 @@ msgstr ""
 msgid "Open folder…"
 msgstr ""
 
-#: src/app/inspector.odin:60
+#: src/app/inspector.odin:57
 msgid "Inspector"
 msgstr ""
 
-#: src/app/inspector.odin:97
+#: src/app/inspector.odin:86
 msgid "Select tracks to see their tags"
 msgstr ""
 
-#: src/app/inspector.odin:98
+#: src/app/inspector.odin:87
 msgid "{} selects every track"
 msgstr ""
 
-#: src/app/inspector.odin:149
+#: src/app/inspector.odin:138
 msgid "No cover"
 msgstr ""
 
-#: src/app/inspector.odin:152
+#: src/app/inspector.odin:141
 msgid "{n} track selected"
 msgid_plural "{n} tracks selected"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/inspector.odin:182 src/app/status_bar.odin:49
+#: src/app/inspector.odin:171 src/app/status_bar.odin:49
 msgid "{n} file could not be read"
 msgid_plural "{n} files could not be read"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/inspector.odin:197 src/app/inspector.odin:212
-#: src/app/tracks.odin:170
+#: src/app/inspector.odin:186 src/app/inspector.odin:201
+#: src/app/tracks.odin:337
 msgid "Tags"
 msgstr ""
 
-#: src/app/inspector.odin:204 src/app/tracks.odin:172
+#: src/app/inspector.odin:193 src/app/tracks.odin:339
 msgid "File"
 msgstr ""
 
-#: src/app/inspector.odin:206
+#: src/app/inspector.odin:195
 msgid "Audio"
 msgstr ""
 
-#: src/app/inspector.odin:209
+#: src/app/inspector.odin:198
 msgid "{} total"
 msgstr ""
 
-#: src/app/inspector.odin:210
+#: src/app/inspector.odin:199
 msgid "Size"
 msgstr ""
 
-#: src/app/inspector.odin:215
+#: src/app/inspector.odin:204
 msgid "Saved as"
 msgstr ""
 
-#: src/app/inspector.odin:226 src/app/toolbar.odin:119
+#: src/app/inspector.odin:215 src/app/toolbar.odin:119
 msgid "Save {n} file"
 msgid_plural "Save {n} files"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/inspector.odin:226 src/app/toolbar.odin:115
+#: src/app/inspector.odin:215 src/app/toolbar.odin:115
 msgid "Saving…"
 msgstr ""
 
-#: src/app/inspector.odin:239
+#: src/app/inspector.odin:228 src/app/tracks.odin:243
 msgid "Revert"
 msgstr ""
 
-#: src/app/inspector.odin:294 src/app/tracks.odin:156
+#: src/app/inspector.odin:283 src/app/tracks.odin:323
 msgid "Title"
 msgstr ""
 
-#: src/app/inspector.odin:296 src/app/tracks.odin:158
+#: src/app/inspector.odin:285 src/app/tracks.odin:325
 msgid "Artist"
 msgstr ""
 
-#: src/app/inspector.odin:303
+#: src/app/inspector.odin:292
 msgid "Album artist"
 msgstr ""
 
-#: src/app/inspector.odin:311 src/app/tracks.odin:160
+#: src/app/inspector.odin:300 src/app/tracks.odin:327
 msgid "Album"
 msgstr ""
 
-#: src/app/inspector.odin:314 src/app/tracks.odin:162
+#: src/app/inspector.odin:303 src/app/tracks.odin:329
 msgid "Year"
 msgstr ""
 
-#: src/app/inspector.odin:344
+#: src/app/inspector.odin:333
 msgid "Multiple"
 msgstr ""
 
-#: src/app/inspector.odin:353
+#: src/app/inspector.odin:342
 msgid "of"
 msgstr ""
 
-#: src/app/inspector.odin:363 src/app/inspector.odin:365
+#: src/app/inspector.odin:352 src/app/inspector.odin:354
 msgid "Track"
 msgstr ""
 
-#: src/app/inspector.odin:365
+#: src/app/inspector.odin:354
 msgid "Track total"
 msgstr ""
 
-#: src/app/inspector.odin:376 src/app/inspector.odin:378
+#: src/app/inspector.odin:365 src/app/inspector.odin:367
 msgid "Disc"
 msgstr ""
 
-#: src/app/inspector.odin:378
+#: src/app/inspector.odin:367
 msgid "Disc total"
 msgstr ""
 
-#: src/app/inspector.odin:386 src/app/tracks.odin:164
+#: src/app/inspector.odin:375 src/app/tracks.odin:331
 msgid "Genre"
 msgstr ""
 
-#: src/app/inspector.odin:401
+#: src/app/inspector.odin:390
 msgid "Comment"
 msgstr ""
 
-#: src/app/inspector.odin:482 src/app/inspector.odin:504
-#: src/app/inspector.odin:577 src/app/inspector.odin:622
+#: src/app/inspector.odin:471 src/app/inspector.odin:494
+#: src/app/inspector.odin:587 src/app/inspector.odin:632
 msgid "Multiple values"
 msgstr ""
 
-#: src/app/inspector.odin:589
+#: src/app/inspector.odin:599
 msgid "{} kHz"
 msgstr ""
 
-#: src/app/inspector.odin:591
+#: src/app/inspector.odin:601
 msgid "{}.{} kHz"
 msgstr ""
 
-#: src/app/inspector.odin:593
+#: src/app/inspector.odin:603
 msgid "{} kbps"
 msgstr ""
 
-#: src/app/inspector.odin:603
+#: src/app/inspector.odin:613
 msgid "{n} byte"
 msgid_plural "{n} bytes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/inspector.odin:605
+#: src/app/inspector.odin:615
 msgid "{} KB"
 msgstr ""
 
-#: src/app/inspector.odin:608
+#: src/app/inspector.odin:618
 msgid "{}.{} MB"
 msgstr ""
 
-#: src/app/inspector.odin:611
+#: src/app/inspector.odin:621
 msgid "{}.{} GB"
 msgstr ""
 
-#: src/app/inspector.odin:620 src/app/inspector.odin:625
+#: src/app/inspector.odin:630 src/app/inspector.odin:635
 msgid "None"
 msgstr ""
 
-#: src/app/inspector.odin:638
+#: src/app/inspector.odin:648
 msgid "Could not read this file"
 msgstr ""
 
-#: src/app/inspector.odin:657
+#: src/app/inspector.odin:667
 msgid "Problem"
 msgstr ""
 
-#: src/app/inspector.odin:663
+#: src/app/inspector.odin:673
 msgid "Colophon could not open this file. It may have been moved or deleted, or Colophon may not be allowed to read it."
 msgstr ""
 
-#: src/app/inspector.odin:667
+#: src/app/inspector.odin:677
 msgid "This file is damaged, or it is not an MP3: Colophon could not make sense of it."
 msgstr ""
 
-#: src/app/inspector.odin:686
+#: src/app/inspector.odin:696
 msgid "Details"
 msgstr ""
 
-#: src/app/inspector.odin:689
+#: src/app/inspector.odin:699
 msgid "File size"
 msgstr ""
 
-#: src/app/inspector.odin:705
+#: src/app/inspector.odin:715
 msgid "Show in Finder"
 msgstr ""
 
-#: src/app/inspector.odin:707
+#: src/app/inspector.odin:717
 msgid "Show in Explorer"
 msgstr ""
 
-#: src/app/inspector.odin:709
+#: src/app/inspector.odin:719
 msgid "Show in Folder"
 msgstr ""
 
-#: src/app/inspector.odin:716
+#: src/app/inspector.odin:726
 msgid "Copy details"
 msgstr ""
 
@@ -232,42 +232,42 @@ msgstr ""
 msgid "Drop to open these folders and files"
 msgstr ""
 
-#: src/app/sidebar.odin:59
+#: src/app/sidebar.odin:57
 msgid "Sidebar"
 msgstr ""
 
-#: src/app/sidebar.odin:66 src/app/sidebar.odin:176
-msgid "All tracks"
-msgstr ""
-
-#: src/app/sidebar.odin:69 src/app/sidebar.odin:178
-msgid "Recently changed"
-msgstr ""
-
-#: src/app/sidebar.odin:72 src/app/sidebar.odin:180
-msgid "Unreadable files"
-msgstr ""
-
-#: src/app/sidebar.odin:94
+#: src/app/sidebar.odin:86
 msgid "Library"
 msgstr ""
 
-#: src/app/sidebar.odin:99
+#: src/app/sidebar.odin:97
 msgid "Folders"
 msgstr ""
 
-#: src/app/sidebar.odin:112
+#: src/app/sidebar.odin:115
 msgid "Albums"
 msgstr ""
 
-#: src/app/sidebar.odin:126
+#: src/app/sidebar.odin:131
 msgid "{n} more album"
 msgid_plural "{n} more albums"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/sidebar.odin:144 src/app/sidebar.odin:151
+#: src/app/sidebar.odin:149 src/app/sidebar.odin:156
 msgid "Artists"
+msgstr ""
+
+#: src/app/sidebar.odin:186
+msgid "All tracks"
+msgstr ""
+
+#: src/app/sidebar.odin:188
+msgid "Recently changed"
+msgstr ""
+
+#: src/app/sidebar.odin:190
+msgid "Unreadable files"
 msgstr ""
 
 #: src/app/status_bar.odin:18
@@ -374,31 +374,47 @@ msgstr ""
 msgid "Filter"
 msgstr ""
 
-#: src/app/tracks.odin:68
+#: src/app/tracks.odin:103
 msgid "Tracks"
 msgstr ""
 
-#: src/app/tracks.odin:126 src/app/tracks.odin:144
+#: src/app/tracks.odin:240
+msgid "Play"
+msgstr ""
+
+#: src/app/tracks.odin:241
+msgid "Select Album"
+msgstr ""
+
+#: src/app/tracks.odin:242
+msgid "Number Tracks"
+msgstr ""
+
+#: src/app/tracks.odin:245
+msgid "Track menu"
+msgstr ""
+
+#: src/app/tracks.odin:287 src/app/tracks.odin:308
 msgid "Sort by {}"
 msgstr ""
 
-#: src/app/tracks.odin:166
+#: src/app/tracks.odin:333
 msgid "Time"
 msgstr ""
 
-#: src/app/tracks.odin:168
+#: src/app/tracks.odin:335
 msgid "Bitrate"
 msgstr ""
 
-#: src/app/tracks.odin:174
+#: src/app/tracks.odin:341
 msgid "Folder"
 msgstr ""
 
-#: src/app/tracks.odin:312
+#: src/app/tracks.odin:479
 msgid "Reset to default columns"
 msgstr ""
 
-#: src/app/tracks.odin:313
+#: src/app/tracks.odin:480
 msgid "Columns"
 msgstr ""
 

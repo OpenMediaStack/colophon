@@ -161,3 +161,41 @@ expect_screen :: proc(t: ^testing.T, s: ^Screen, name: string) {
 	result, message := ui.check_reference(cap.surface, name, update)
 	testing.expectf(t, result == .Matches || (update && result == .Written), "%s", message)
 }
+
+// The value a field shows, by its label.
+field_value :: proc(s: ^Screen, label: string) -> (value: string, found: bool) {
+	for w in s.h.ui.widgets do if w.role == .Text_Field && w.label == label do return w.value, true
+	return
+}
+
+// What a field shows while it is empty, by its label.
+field_placeholder :: proc(s: ^Screen, label: string) -> string {
+	for w in s.h.ui.widgets do if w.role == .Text_Field && w.label == label do return w.placeholder
+	return ""
+}
+
+// Types text in a field, in place of what it held.
+retype :: proc(s: ^Screen, label, text: string) {
+	ui.click(&s.h, label)
+	ui.press_key(&s.h, .A, ui.COMMAND)
+	ui.type_text(&s.h, text)
+}
+
+// Drags the mouse from one point to another with the left button held.
+drag :: proc(s: ^Screen, from, to: [2]f32) {
+	ui.move_mouse(&s.h, from)
+	ui.press(&s.h)
+	ui.move_mouse(&s.h, to)
+	ui.release(&s.h)
+	ui.run_frame(&s.h)
+}
+
+// The genres suggested by the open list, in its order: the inspector's genre field or
+// a genre cell of the table, since one list opens at a time.
+suggestions :: proc(s: ^Screen) -> []string {
+	found := make([dynamic]string, context.temp_allocator)
+	list, open := ui.find_widget(&s.h.ui, "Suggestions")
+	if !open do return found[:]
+	for w in s.h.ui.widgets do if w.parent == list.id do append(&found, w.label)
+	return found[:]
+}

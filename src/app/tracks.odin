@@ -47,6 +47,42 @@ WEIGHTS := [engine.Table_Column]f32 {
 	.Folder  = 1,
 }
 
+// SDL counts a second click within this many seconds as a double click
+// (SDL_HINT_MOUSE_DOUBLE_CLICK_TIME, 500 ms unless set).
+@(private = "file")
+DOUBLE_CLICK :: 0.5
+
+// What the track table keeps between frames beside the toolkit's state.
+Tracks :: struct {
+	editing: Maybe(Cell_Editing),
+	shrink:  Maybe(Shrink),
+	// The track right-clicked, whose menu is open.
+	menu:    Maybe(engine.Track_Id),
+}
+
+// The cell edited in place: the tracks its editor opened on, which it edits even once
+// a scan has moved their rows, and whether its typing made a step of the history to go
+// on with, so that Escape takes the whole of it back. The list is made with the
+// engine's allocator and freed by end_cell or destroy_tracks.
+Cell_Editing :: struct {
+	tracks: [dynamic]engine.Track_Id,
+	field:  engine.Field,
+	typing: bool,
+}
+
+// A plain click on a track of a larger selection: the selection shrinks to it once a
+// double click can no longer follow, since a double click edits the whole selection.
+// The wait starts when the button is released.
+Shrink :: struct {
+	track: engine.Track_Id,
+	at:    Maybe(f64),
+}
+
+destroy_tracks :: proc(s: ^Tracks) {
+	if editing, is := s.editing.?; is do delete(editing.tracks)
+	s^ = {}
+}
+
 // The track table: the centre column once something is open. What the user does to it
 // becomes engine commands.
 track_table :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
@@ -67,18 +103,7 @@ track_table :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		focused_row(e),
 		ui.tr("Tracks"),
 	)
-	if press, pressed := result.press.?; pressed && press.row < len(e.listed) {
-		// Shift comes first, as in 1.0.0, when both are held.
-		track := e.listed[press.row]
-		switch {
-		case .Shift in press.modifiers:
-			execute(app, engine.Select_Range{track})
-		case ui.COMMAND <= press.modifiers:
-			execute(app, engine.Toggle_Selected{track})
-		case:
-			execute(app, engine.Select{track})
-		}
-	}
+	take_rows(ctx, app, result)
 	if column, sorted := result.sort_by.?; sorted do execute(app, engine.Sort_By{sort_column(column)})
 	if resize, resized := result.resized.?; resized {
 		execute(app, engine.Resize_Columns{widths_after(app, columns, rect.w, sized, resize)})
@@ -100,6 +125,152 @@ track_table :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	if result.select_all do execute(app, engine.Select_All{})
 	if result.space do execute(app, engine.Play_Pause{})
 	column_chooser(ctx, app)
+	track_menu(ctx, app)
+}
+
+// What the user did to the rows: a cell edited, a press, the release the shrinking
+// click waits for, a right click.
+@(private = "file")
+take_rows :: proc(ctx: ^ui.Ui, app: ^App, result: ui.Table_Result) {
+	e := &app.engine
+	s := &app.tracks
+	// What was typed in a cell comes first: Tab commits one cell as it opens the next,
+	// and a click on another row commits the cell as it selects the row.
+	if input, typed := result.input.?; typed do take_cell(app, input.field)
+	if press, pressed := result.press.?; pressed && press.row < len(e.listed) {
+		// Shift comes first, as in 1.0.0, when both are held.
+		track := e.listed[press.row]
+		s.shrink = nil
+		switch {
+		case .Shift in press.modifiers:
+			execute(app, engine.Select_Range{track})
+		case ui.COMMAND <= press.modifiers:
+			execute(app, engine.Toggle_Selected{track})
+		case engine.is_selected(&e.selection, track) && len(e.selection.tracks) > 1:
+			s.shrink = Shrink {
+				track = track,
+			}
+		case:
+			execute(app, engine.Select{track})
+		}
+	}
+	if cell, opened := result.edit.?; opened && cell.row < len(e.listed) do begin_cell(app, cell)
+	if result.release {
+		if shrink, armed := &s.shrink.?; armed && shrink.at == nil {
+			shrink.at = ctx.input.time + DOUBLE_CLICK
+		}
+	}
+	if shrink, armed := s.shrink.?; armed {
+		if at, waiting := shrink.at.?; waiting {
+			if ctx.input.time >= at {
+				execute(app, engine.Select{shrink.track})
+				s.shrink = nil
+			} else {
+				ui.wake_at(ctx, at)
+			}
+		}
+	}
+	if menu, opened := result.row_menu.?; opened && menu.row < len(e.listed) {
+		// The row joins the selection unless it is in it already, as in 1.0.0.
+		s.shrink = nil
+		track := e.listed[menu.row]
+		if !engine.is_selected(&e.selection, track) do execute(app, engine.Select{track})
+		s.menu = track
+		ui.open_menu(ctx, ui.widget_id("Track menu"), menu.at)
+	}
+}
+
+// Captures the tracks a cell's editor opened on: the selected ones, the row's track
+// joining the selection first when it was not in it.
+@(private = "file")
+begin_cell :: proc(app: ^App, cell: ui.Cell_Edit) {
+	e := &app.engine
+	s := &app.tracks
+	s.shrink = nil
+	field, editable := column_field(cell.column)
+	if !editable do return
+	track := e.listed[cell.row]
+	if !engine.is_selected(&e.selection, track) do execute(app, engine.Select{track})
+	end_cell(app)
+	tracks := make([dynamic]engine.Track_Id, 0, len(e.selection.tracks), e.allocator)
+	append(&tracks, ..e.selection.tracks[:])
+	s.editing = Cell_Editing{tracks, field, false}
+}
+
+// Takes in what the cell's editor reported, as the inspector's fields do: each change
+// at once on the tracks captured, the typing making one step of the history; Escape
+// takes the whole of it back.
+@(private = "file")
+take_cell :: proc(app: ^App, result: ui.Text_Field_Result) {
+	editing, is := &app.tracks.editing.?
+	if !is do return
+	if result.changed {
+		if edit, fits := edit_of(editing.field, result.text); fits {
+			execute(
+				app,
+				engine.Edit_Tracks {
+					tracks = editing.tracks[:],
+					edit = edit,
+					continues = editing.typing,
+				},
+			)
+			editing.typing = true
+		}
+	}
+	if result.cancelled && editing.typing do execute(app, engine.Undo{})
+	if result.committed || result.cancelled do end_cell(app)
+}
+
+@(private = "file")
+end_cell :: proc(app: ^App) {
+	if editing, is := app.tracks.editing.?; is do delete(editing.tracks)
+	app.tracks.editing = nil
+}
+
+// The tag a column's cells edit, for the columns that show one.
+@(private = "file")
+column_field :: proc(column: int) -> (field: engine.Field, editable: bool) {
+	if column == NUMBER_COLUMN do return .Track, true
+	#partial switch engine.Table_Column(column) {
+	case .Title:
+		return .Title, true
+	case .Artist:
+		return .Artist, true
+	case .Album:
+		return .Album, true
+	case .Year:
+		return .Year, true
+	case .Genre:
+		return .Genre, true
+	}
+	return
+}
+
+// The menu of a right click on a row, over the selected tracks: play the row's track,
+// select its album, number the selection, revert it.
+@(private = "file")
+track_menu :: proc(ctx: ^ui.Ui, app: ^App) {
+	e := &app.engine
+	id := ui.widget_id("Track menu")
+	if !ui.is_menu_open(ctx, id) do return
+	items := [?]ui.Menu_Item {
+		{label = ui.tr("Play"), disabled = !engine.can_play(e)},
+		{label = ui.tr("Select Album"), separator = true},
+		{label = ui.tr("Number Tracks")},
+		{label = ui.tr("Revert"), separator = true, disabled = !engine.can_revert(e)},
+	}
+	chosen, picked := ui.menu(ctx, id, items[:], ui.tr("Track menu")).?
+	if !picked do return
+	switch chosen {
+	case 0:
+		if track, has := app.tracks.menu.?; has do execute(app, engine.Play{track})
+	case 1:
+		execute(app, engine.Select_Album{})
+	case 2:
+		execute(app, engine.Number_Tracks{})
+	case 3:
+		execute(app, engine.Revert{})
+	}
 }
 
 // The columns the table shows, in the user's order: the number, then those not hidden,
@@ -124,12 +295,15 @@ table_columns :: proc(app: ^App) -> []ui.Table_Column {
 			align = .Right,
 			fixed = true,
 			sort_label = ui.fill(ui.tr("Sort by {}"), "#"),
+			editable = true,
+			accepts = accepts_of(.Track),
 		},
 	)
 	for column in view.column_order {
 		if hideable, is := engine.hideable_column(column); is && hideable not_in view.columns do continue
 		name := column_name(column)
 		numeric := column == .Year || column == .Time || column == .Bitrate
+		field, editable := column_field(int(column))
 		append(
 			&columns,
 			ui.Table_Column {
@@ -142,6 +316,9 @@ table_columns :: proc(app: ^App) -> []ui.Table_Column {
 				align = numeric ? .Right : .Left,
 				primary = column == .Title,
 				sort_label = ui.fill(ui.tr("Sort by {}"), name),
+				editable = editable,
+				accepts = editable ? accepts_of(field) : nil,
+				choices = column == .Genre ? genres(app) : nil,
 			},
 		)
 	}

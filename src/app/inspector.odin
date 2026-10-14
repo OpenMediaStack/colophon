@@ -1,6 +1,5 @@
 package main
 
-import "base:runtime"
 import "core:fmt"
 import "core:strconv"
 
@@ -26,35 +25,27 @@ COMMENT_HEIGHT :: 64
 NBSP :: " "
 
 // What the inspector keeps between frames: its scroll, which sections show their
-// content, what the selected tracks share, and the genres to suggest, made again when
-// the selection or the library changes. Make it with init_inspector, free it with
-// destroy_inspector.
+// content, and what the selected tracks share, made again when the selection or the
+// library changes.
 Inspector :: struct {
-	scroll:           ui.Scroll,
-	comment_scroll:   ui.Scroll,
-	tags_open:        bool,
-	file_open:        bool,
-	inspection:       engine.Inspection,
-	genres:           []string,
-	// What the inspection and the genres were made from, once made: the engine's
-	// revisions and how many commands had run.
-	made:             bool,
-	revision:         u64,
-	library_revision: u64,
-	commands:         int,
+	scroll:         ui.Scroll,
+	comment_scroll: ui.Scroll,
+	tags_open:      bool,
+	file_open:      bool,
+	inspection:     engine.Inspection,
+	// What the inspection was made from, once made: the engine's revision and how many
+	// commands had run.
+	made:           bool,
+	revision:       u64,
+	commands:       int,
 	// The field being typed in, whose next changes go on with the same step of the
 	// history, so that Escape takes the whole of the typing back.
-	typing:           Maybe(engine.Field),
+	typing:         Maybe(engine.Field),
 }
 
 init_inspector :: proc(i: ^Inspector) {
 	i.tags_open = true
 	i.file_open = true
-}
-
-// Frees what the inspector made, with the engine's allocator it made it with.
-destroy_inspector :: proc(i: ^Inspector, allocator: runtime.Allocator) {
-	delete(i.genres, allocator)
 }
 
 // The inspector: the tags of the selected tracks, their file, and the actions on
@@ -77,19 +68,13 @@ inspector :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 }
 
 // Makes the inspection again when a command ran or the library or the edits changed,
-// since it walks the selection, and the genres when the library changed, since they
-// come from the files' tags: a genre only typed so far is not one of them.
+// since it walks the selection.
 @(private = "file")
 refresh_inspection :: proc(app: ^App) {
 	e := &app.engine
 	i := &app.inspector
-	if !i.made || i.library_revision != e.library_revision {
-		delete(i.genres, e.allocator)
-		i.genres = engine.genres(e, e.allocator)
-	}
 	if !i.made || i.revision != e.revision || app.commands != i.commands do i.inspection = engine.inspect(e)
-	i.made, i.revision, i.library_revision = true, e.revision, e.library_revision
-	i.commands = app.commands
+	i.made, i.revision, i.commands = true, e.revision, app.commands
 }
 
 @(private = "file")
@@ -243,7 +228,7 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	revert_label := ui.tr("Revert")
 	revert_options := ui.Button_Options {
 		kind     = .Secondary,
-		disabled = s.modified == {} || saving,
+		disabled = !engine.can_revert(e) || saving,
 	}
 	revert_width := ui.button_width(r, revert_label, revert_options)
 	revert_rect := ui.Rect{save_rect.x - 8 - revert_width, by, revert_width, ui.BUTTON_HEIGHT}
@@ -334,7 +319,7 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 
 	year_name := ui.tr("Year")
 	field_label(ctx, year_name, {x, y, FIELD_LABEL_WIDTH, ui.BUTTON_HEIGHT}, .Year in s.modified)
-	year_value, year_options := number_options(s.year, .Year in s.modified)
+	year_value, year_options := number_options(s.year, .Year in s.modified, .Year)
 	year := ui.text_field(
 		ctx,
 		ui.widget_id(year_name),
@@ -360,8 +345,8 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 		field_label(ctx, name, {x, y, FIELD_LABEL_WIDTH, ui.BUTTON_HEIGHT}, modified)
 		values: [2]string
 		options: [2]ui.Text_Field_Options
-		values[0], options[0] = number_options(shared[0], fields[0] in s.modified)
-		values[1], options[1] = number_options(shared[1], fields[1] in s.modified)
+		values[0], options[0] = number_options(shared[0], fields[0] in s.modified, fields[0])
+		values[1], options[1] = number_options(shared[1], fields[1] in s.modified, fields[1])
 		// The pair says the tracks differ in fewer letters than a field would.
 		if .Multiple_Values in options[0].flags do options[0].placeholder = ui.tr("Multiple")
 		if .Multiple_Values in options[1].flags do options[1].placeholder = "…"
@@ -414,7 +399,7 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 		{field_x, y, field_w, ui.BUTTON_HEIGHT},
 		genre_value,
 		genre_name,
-		app.inspector.genres,
+		genres(app),
 		genre_options,
 	)
 	append(&taken, Taken{.Genre, genre})
@@ -510,6 +495,7 @@ field_options :: proc(
 number_options :: proc(
 	shared: engine.Shared(int),
 	modified: bool,
+	field: engine.Field,
 ) -> (
 	value: string,
 	options: ui.Text_Field_Options,
@@ -524,6 +510,7 @@ number_options :: proc(
 	}
 	if modified do options.flags += {.Modified}
 	options.flags += {.Numeric}
+	options.accepts = accepts_of(field)
 	return
 }
 
@@ -554,7 +541,7 @@ take_field :: proc(app: ^App, field: engine.Field, result: ui.Text_Field_Result)
 // The edit a field's text makes: text for the text fields, a number for the number
 // fields, empty text emptying either. fits is false when the text is not a value the
 // field takes, such as letters in a year.
-@(private = "file")
+@(private)
 edit_of :: proc(field: engine.Field, text: string) -> (edit: engine.Edit, fits: bool) {
 	edit.field = field
 	#partial switch field {
@@ -570,6 +557,25 @@ edit_of :: proc(field: engine.Field, text: string) -> (edit: engine.Edit, fits: 
 	}
 	edit.value = text
 	return edit, true
+}
+
+// Whether a text is a value a field takes, for the number fields, which refuse some:
+// the fields and the cells show what is wrong rather than taking it in.
+@(private)
+accepts_of :: proc(field: engine.Field) -> proc(text: string) -> bool {
+	#partial switch field {
+	case .Year:
+		return proc(text: string) -> bool {
+				_, fits := edit_of(.Year, text)
+				return fits
+			}
+	case .Track, .Track_Total, .Disc, .Disc_Total:
+		return proc(text: string) -> bool {
+				_, fits := edit_of(.Track, text)
+				return fits
+			}
+	}
+	return nil
 }
 
 // The album and the artist the selected tracks share, with a dot between them when

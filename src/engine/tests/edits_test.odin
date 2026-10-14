@@ -246,3 +246,44 @@ the_genres_to_suggest_are_id3v1_s_and_those_read :: proc(t: ^testing.T) {
 	testing.expect_value(t, contains(engine.genres(&e, context.temp_allocator), "Synthwave"), 1)
 	free_all(context.temp_allocator)
 }
+
+@(test)
+an_edit_of_given_tracks_leaves_the_selection_alone :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := two_tracks(t, &e)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	one, two := track_named(&e, "1.mp3"), track_named(&e, "2.mp3")
+	engine.execute(&e, engine.Select{one})
+
+	engine.execute(&e, engine.Edit_Tracks{{two}, {.Title, "Neon"}, false})
+	engine.execute(&e, engine.Edit_Tracks{{two}, {.Title, "Neon Overpass"}, true})
+
+	testing.expect_value(t, title_of(&e, one), "Paper Satellites")
+	testing.expect_value(t, title_of(&e, two), "Neon Overpass")
+	testing.expect_value(t, len(e.selection.tracks), 1)
+	// Typed on: one step of the history, and a track that is not there edits nothing.
+	engine.execute(&e, engine.Undo{})
+	testing.expect_value(t, title_of(&e, two), "Café")
+	testing.expect(t, !engine.can_undo(&e))
+	engine.execute(&e, engine.Edit_Tracks{{engine.Track_Id(9)}, {.Title, "Nowhere"}, false})
+	testing.expect(t, !engine.can_undo(&e))
+}
+
+@(test)
+revert_is_possible_while_a_selected_track_has_changes :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := two_tracks(t, &e)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	one, two := track_named(&e, "1.mp3"), track_named(&e, "2.mp3")
+	engine.execute(&e, engine.Select{one})
+	testing.expect(t, !engine.can_revert(&e))
+	engine.execute(&e, engine.Apply_Edit{{.Title, "New"}})
+	testing.expect(t, engine.can_revert(&e))
+	engine.execute(&e, engine.Select{two})
+	testing.expect(t, !engine.can_revert(&e))
+	engine.execute(&e, engine.Select_All{})
+	engine.execute(&e, engine.Revert{})
+	testing.expect(t, !engine.can_revert(&e))
+}

@@ -68,6 +68,16 @@ Continue_Edit :: struct {
 	edit: Edit,
 }
 
+// A new value for one field of these tracks rather than the selected ones: the tracks
+// a cell's editor opened on, which it edits even once a scan has moved their rows or
+// the selection has changed. When continues, the edit goes on with the latest step of
+// the history, as Continue_Edit does. The engine copies the list.
+Edit_Tracks :: struct {
+	tracks:    []Track_Id,
+	edit:      Edit,
+	continues: bool,
+}
+
 Undo :: struct {}
 Redo :: struct {}
 
@@ -155,6 +165,12 @@ versions_of :: proc(e: ^Engine, track: Track_Id) -> (versions: lib.Tag_Versions,
 	saved := saved_metadata(e, track) or_return
 	if chosen, found := e.edits.chosen[track]; found do return chosen, true
 	return lib.versions_following(e.edits.policy, saved.formats), true
+}
+
+// Whether a selected track has changes waiting to be saved, which Revert drops.
+can_revert :: proc(e: ^Engine) -> bool {
+	for track in e.selection.tracks do if track in e.edits.pending do return true
+	return false
 }
 
 // Whether there is a step to undo.

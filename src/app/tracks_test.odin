@@ -61,15 +61,6 @@ resize_handle :: proc(s: ^Screen, name: string) -> [2]f32 {
 }
 
 @(private = "file")
-drag :: proc(s: ^Screen, from, to: [2]f32) {
-	ui.move_mouse(&s.h, from)
-	ui.press(&s.h)
-	ui.move_mouse(&s.h, to)
-	ui.release(&s.h)
-	ui.run_frame(&s.h)
-}
-
-@(private = "file")
 first_listed_name :: proc(s: ^Screen) -> string {
 	e := &s.app.engine
 	return filepath.stem(e.library.tracks[e.listed[0]].path)

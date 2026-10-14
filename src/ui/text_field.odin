@@ -35,6 +35,11 @@ Text_Field_Options :: struct {
 	clearable:   bool,
 	// What assistive technologies call its clear button; "Clear" when empty.
 	clear_label: string,
+	// Whether the text is a value the field takes; nil takes any. While it is not, the
+	// field shows the error ring, and Enter and Tab keep the focus so that it shows
+	// what is wrong; the text is given up when the focus leaves otherwise, the value
+	// coming back as on Escape.
+	accepts:     proc(text: string) -> bool,
 }
 
 // What happened to a text field this frame.
@@ -90,8 +95,14 @@ text_field :: proc(
 	// The focus went to another widget's request while this field was typed in: what
 	// was typed is committed, as a click elsewhere would.
 	if ui.edit_ended == id {
-		result.committed = true
-		result.text = string(ui.edit_ended_text[:])
+		ended := string(ui.edit_ended_text[:])
+		if accepted(options.accepts, ended) {
+			result.committed = true
+			result.text = ended
+		} else {
+			result.cancelled = true
+			result.text = string(ui.edit_ended_start[:])
+		}
 		ui.edit_ended = 0
 	}
 	focused := has_focus(ui, id) && !disabled
@@ -117,9 +128,13 @@ text_field :: proc(
 			offset_in(ui.renderer, value, text_rect, style, ui.input.mouse.x, 0),
 		}
 	}
-	if focused && !keys_blocked(ui) do result = edit_field(ui, id, rect, text_rect, style, interaction)
-	draw_text_field(ui, rect, text_rect, value, style, options, interaction, focused)
+	if focused && !keys_blocked(ui) {
+		result = edit_field(ui, id, rect, text_rect, style, interaction, options.accepts)
+	}
 	shown := focused ? edit_text(&ui.edit) : value
+	options := options
+	if !accepted(options.accepts, shown) do options.flags += {.Error}
+	draw_text_field(ui, rect, text_rect, value, style, options, interaction, focused)
 	if options.clearable && len(shown) > 0 && !disabled {
 		// Inside the field's trailing room: a click on it is not a click elsewhere, and
 		// the field keeps the focus if it had it.
@@ -144,6 +159,7 @@ text_field :: proc(
 			role = .Text_Field,
 			label = label,
 			value = shown,
+			placeholder = options.placeholder,
 			rect = rect,
 			states = field_states(interaction, focused, disabled),
 			focusable = !disabled,
@@ -162,7 +178,14 @@ focus_field :: proc(ui: ^Ui, id: Widget_Id) {
 	request_focus(ui, id, by_key = true)
 }
 
-// The keys, the typed text and the mouse on the focused field.
+// Whether accepts takes the text; nil takes any.
+@(private = "file")
+accepted :: proc(accepts: proc(text: string) -> bool, text: string) -> bool {
+	return accepts == nil || accepts(text)
+}
+
+// The keys, the typed text and the mouse on the focused field. Text that accepts
+// refuses keeps the focus on Enter and Tab, and is given up on a click elsewhere.
 @(private = "file")
 edit_field :: proc(
 	ui: ^Ui,
@@ -170,6 +193,7 @@ edit_field :: proc(
 	rect, text_rect: Rect,
 	style: Text_Style,
 	interaction: Interaction,
+	accepts: proc(text: string) -> bool,
 ) -> (
 	result: Text_Field_Result,
 ) {
@@ -192,7 +216,12 @@ edit_field :: proc(
 	}
 	// A click in a popup, such as the field's suggestions, is not a click elsewhere.
 	if .Left in in_.pressed && !mouse_over(ui, rect) && !mouse_in_popup(ui) {
-		result.committed = true
+		if accepted(accepts, edit_text(e)) {
+			result.committed = true
+		} else {
+			result.cancelled = true
+			edit_reset(e, string(ui.edit_start[:]), false)
+		}
 		release_focus(ui, id)
 	}
 	// The keys and the text in the order they came: a Backspace before a letter
@@ -219,11 +248,15 @@ edit_field :: proc(
 		taken := true
 		#partial switch press.key {
 		case .Enter:
-			result.committed = true
-			release_focus(ui, id)
+			if accepted(accepts, edit_text(e)) {
+				result.committed = true
+				release_focus(ui, id)
+			}
 		case .Tab:
-			result.committed = true
-			move_focus(ui, .Shift in press.modifiers ? .Back : .Forward)
+			if accepted(accepts, edit_text(e)) {
+				result.committed = true
+				move_focus(ui, .Shift in press.modifiers ? .Back : .Forward)
+			}
 		case .Escape:
 			result.cancelled = true
 			edit_reset(e, string(ui.edit_start[:]), false)
