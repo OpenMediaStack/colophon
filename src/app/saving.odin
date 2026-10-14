@@ -21,8 +21,10 @@ Departure :: enum u8 {
 }
 
 // Asks the window to close, as its close button does, and says whether it closes: it
-// stays open to ask what to do with changes that are not saved.
+// stays open to ask what to do with changes that are not saved, or while a departure
+// already asked for runs its save.
 request_close :: proc(app: ^App) -> (closes: bool) {
+	if app.departure != nil do return false
 	if len(app.engine.edits.pending) > 0 {
 		app.departure = .Asking
 		return false
@@ -54,6 +56,12 @@ follow_save :: proc(app: ^App, now: f64) {
 	if !leaving do return
 	switch departure {
 	case .Asking:
+		// A save that ran while the dialog asked left nothing to save: the close asked
+		// for is granted, rather than a dialog about no file.
+		if len(e.edits.pending) == 0 {
+			app.departure = nil
+			app.quit = true
+		}
 	case .Saving:
 		if report.failed == 0 {
 			app.quit = true

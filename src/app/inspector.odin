@@ -275,7 +275,7 @@ warning_row :: proc(ctx: ^ui.Ui, text: string, x, y, width: f32, index: int) {
 
 // The fields an ID3v1 tag would keep only part of, named in 1.0.0's order and joined
 // with commas; empty when none. Allocated with the temporary allocator.
-@(private)
+@(private = "file")
 lost_names :: proc(losses: lib.Id3v1_Losses) -> string {
 	order := [?]lib.Id3v1_Loss{.Title, .Artist, .Album, .Year, .Comment, .Track, .Genre}
 	names := make([dynamic]string, context.temp_allocator)

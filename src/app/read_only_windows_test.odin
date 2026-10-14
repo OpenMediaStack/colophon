@@ -4,8 +4,8 @@ package main
 import win32 "core:sys/windows"
 
 // Makes a file read-only, or writable again, for the tests of a save that cannot
-// write: the read-only attribute, set without opening the file, which core:os's
-// change_mode does and cannot once the file is read-only. True when done.
+// write. core:os's change_mode opens the file to change its mode, which fails once it
+// is read-only; the attribute is set without opening it. True when done.
 set_read_only :: proc(path: string, read_only: bool) -> bool {
 	name := win32.utf8_to_wstring(path, context.temp_allocator)
 	attributes := win32.GetFileAttributesW(name)

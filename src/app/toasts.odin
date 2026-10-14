@@ -40,6 +40,7 @@ notify :: proc(
 	app.notice = Notice{kind, strings.clone(message, app.engine.allocator), action, now + stays}
 }
 
+// Frees the toast's message and forgets it; app_destroy calls it too.
 forget_notice :: proc(app: ^App) {
 	if notice, shown := app.notice.?; shown do delete(notice.message, app.engine.allocator)
 	app.notice = nil
@@ -66,8 +67,16 @@ toasts :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	case .None:
 	case .Acted:
 		if action, has := notice.action.?; has && action == .Retry_Save do execute(app, engine.Save{})
-		forget_notice(app)
+		dismiss_notice(ctx, app)
 	case .Closed:
-		forget_notice(app)
+		dismiss_notice(ctx, app)
 	}
+}
+
+// Ends the toast at the next frame rather than now: the widgets declared this frame
+// still point at its message.
+@(private = "file")
+dismiss_notice :: proc(ctx: ^ui.Ui, app: ^App) {
+	if notice, shown := &app.notice.?; shown do notice.until = ctx.input.time
+	ui.wake_at(ctx, ctx.input.time)
 }

@@ -213,6 +213,7 @@ a_failed_save_can_be_retried_from_its_toast :: proc(t: ^testing.T) {
 	defer delete(path)
 	defer screen_destroy(&s)
 	testing.expect(t, set_read_only(path, true))
+	defer set_read_only(path, false)
 	retype(&s, "Album", "Analog Hearts")
 	ui.press_key(&s.h, .Enter)
 	execute(&s.app, engine.Save{})
@@ -370,15 +371,103 @@ the_dialog_names_three_tracks_and_counts_the_others :: proc(t: ^testing.T) {
 	)
 }
 
+// The x of a button of the unsaved changes dialog, by its label.
+@(private = "file")
+dialog_button_x :: proc(s: ^Screen, label: string) -> f32 {
+	dialog := ui.widget_id("Unsaved changes")
+	for w in s.h.ui.widgets do if w.role == .Button && w.label == label && w.parent == dialog do return w.rect.x
+	return -1
+}
+
+@(test)
+the_buttons_follow_the_platform_order :: proc(t: ^testing.T) {
+	s: Screen
+	folder, path := screen_with_a_change(t, &s)
+	defer remove_folder(folder)
+	defer delete(path)
+	defer screen_destroy(&s)
+	close_requested(&s)
+	testing.expect(t, dialog_button_x(&s, "Don’t Save") < dialog_button_x(&s, "Cancel"))
+	testing.expect(t, dialog_button_x(&s, "Cancel") < dialog_button_x(&s, "Save 1 file"))
+	s.app.departure = nil
+	s.app.platform = .Windows
+	close_requested(&s)
+	testing.expect(t, dialog_button_x(&s, "Save 1 file") < dialog_button_x(&s, "Don’t Save"))
+	testing.expect(t, dialog_button_x(&s, "Don’t Save") < dialog_button_x(&s, "Cancel"))
+}
+
+// The dialog in French, from 1.0.0's catalogue: checked on the catalogue itself, since
+// the one in use is shared by every test.
+@(test)
+the_dialog_speaks_french :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	c: ui.Catalog
+	if !testing.expect(t, ui.catalog_init(&c, #load("../../translations/fr.po", string))) do return
+	defer ui.catalog_destroy(&c)
+	testing.expect_value(
+		t,
+		ui.catalog_tr_n(
+			&c,
+			"Save changes to {n} file before quitting?",
+			"Save changes to {n} files before quitting?",
+			3,
+			"",
+		),
+		"Enregistrer les modifications de 3 fichiers avant de quitter\u00A0?",
+	)
+	testing.expect_value(t, ui.catalog_tr(&c, "Don’t Save"), "Ne pas enregistrer")
+}
+
+@(test)
+a_close_asked_during_a_save_is_granted_once_nothing_is_left :: proc(t: ^testing.T) {
+	s: Screen
+	folder, path := screen_with_a_change(t, &s)
+	defer remove_folder(folder)
+	defer delete(path)
+	defer screen_destroy(&s)
+	execute(&s.app, engine.Save{})
+	closes := request_close(&s.app)
+	wait_for_save(t, &s)
+	ui.run_frame(&s.h)
+	testing.expect(t, !closes || s.app.quit)
+	testing.expect(t, s.app.quit)
+	testing.expect(t, !shows(&s, "Save changes to 0 files before quitting?"))
+	testing.expect_value(t, title_on_disk(path), "Neon Overpass")
+}
+
+@(test)
+a_closed_toast_is_gone_at_the_next_frame :: proc(t: ^testing.T) {
+	s: Screen
+	screen_init(&s, {1440, 900})
+	defer screen_destroy(&s)
+	notify(&s.app, .Error, "2 files could not be saved", .Retry_Save, s.h.ui.input.time)
+	ui.run_frame(&s.h)
+	testing.expect(t, shows(&s, "2 files could not be saved"))
+	testing.expect(t, ui.click(&s.h, "Close"))
+	ui.run_frame(&s.h)
+	testing.expect(t, !shows(&s, "2 files could not be saved"))
+	testing.expect_value(t, s.app.notice, nil)
+}
+
+// Three named tracks with changes, as 1.0.0's capture, in both themes.
 @(test)
 the_unsaved_changes_dialog_matches_its_references :: proc(t: ^testing.T) {
 	for kind in ui.Theme_Kind {
 		s: Screen
-		folder, path := screen_with_a_selected(t, &s, "v23_full.mp3", kind)
-		defer remove_folder(folder)
-		defer delete(path)
+		screen_init(&s, {1440, 900}, kind)
 		defer screen_destroy(&s)
-		retype(&s, "Title", "Neon Overpass")
+		folder := folder_with_fixtures(
+			t,
+			{{"v23_full.mp3", "1.mp3"}, {"v24_unicode.mp3", "2.mp3"}, {"v1_1_ascii.mp3", "3.mp3"}},
+		)
+		defer remove_folder(folder)
+		delete(s.app.home)
+		s.app.home = strings.clone(folder)
+		open_folder_of(t, &s, folder)
+		wait_until_shown(t, &s, "3 tracks")
+		execute(&s.app, engine.Select_All{})
+		ui.run_frame(&s.h)
+		retype(&s, "Album", "Analog Hearts")
 		ui.press_key(&s.h, .Enter)
 		close_requested(&s)
 		ui.move_mouse(&s.h, {0, 0})
