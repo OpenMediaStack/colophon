@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-14 19:28+0200\n"
+"POT-Creation-Date: 2026-10-15 00:16+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -42,245 +42,261 @@ msgstr ""
 msgid "{} selects every track"
 msgstr ""
 
-#: src/app/inspector.odin:143
+#: src/app/inspector.odin:128
+msgid "ID3v1 will keep only part of: {}"
+msgstr ""
+
+#: src/app/inspector.odin:148
 msgid "No cover"
 msgstr ""
 
-#: src/app/inspector.odin:146
+#: src/app/inspector.odin:151
 msgid "{n} track selected"
 msgid_plural "{n} tracks selected"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/inspector.odin:176 src/app/status_bar.odin:49
+#: src/app/inspector.odin:181 src/app/status_bar.odin:49
 msgid "{n} file could not be read"
 msgid_plural "{n} files could not be read"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/inspector.odin:191 src/app/inspector.odin:217
-#: src/app/tracks.odin:337
+#: src/app/inspector.odin:196 src/app/inspector.odin:212
+#: src/app/tracks.odin:347
 msgid "Tags"
 msgstr ""
 
-#: src/app/inspector.odin:196
-msgid "ID3v1 will keep only part of: {}"
-msgstr ""
-
-#: src/app/inspector.odin:209 src/app/tracks.odin:339
+#: src/app/inspector.odin:204 src/app/tracks.odin:349
 msgid "File"
 msgstr ""
 
-#: src/app/inspector.odin:211
+#: src/app/inspector.odin:206
 msgid "Audio"
 msgstr ""
 
-#: src/app/inspector.odin:214
+#: src/app/inspector.odin:209
 msgid "{} total"
 msgstr ""
 
-#: src/app/inspector.odin:215
+#: src/app/inspector.odin:210
 msgid "Size"
 msgstr ""
 
-#: src/app/inspector.odin:220
+#: src/app/inspector.odin:215
 msgid "Saved as"
 msgstr ""
 
-#: src/app/inspector.odin:231 src/app/saving.odin:99 src/app/toolbar.odin:119
+#: src/app/inspector.odin:226 src/app/saving.odin:107 src/app/toolbar.odin:119
 msgid "Save {n} file"
 msgid_plural "Save {n} files"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/inspector.odin:231 src/app/toolbar.odin:115
+#: src/app/inspector.odin:226 src/app/toolbar.odin:115
 msgid "Saving…"
 msgstr ""
 
-#: src/app/inspector.odin:244 src/app/tracks.odin:243
+#: src/app/inspector.odin:239 src/app/tracks.odin:260
 msgid "Revert"
 msgstr ""
 
-#: src/app/inspector.odin:290 src/app/inspector.odin:369
-#: src/app/tracks.odin:323
+#: src/app/inspector.odin:260
+msgid "This track has no number, unlike the rest of its album."
+msgstr ""
+
+#: src/app/inspector.odin:261
+msgid "Some of these tracks have no number, unlike the rest of their albums."
+msgstr ""
+
+#: src/app/inspector.odin:263
+msgid "Its album artist differs from the rest of its album."
+msgstr ""
+
+#: src/app/inspector.odin:265
+msgid "Some of these tracks have an album artist that differs from the rest of their albums."
+msgstr ""
+
+#: src/app/inspector.odin:323 src/app/inspector.odin:402
+#: src/app/tracks.odin:333
 msgid "Title"
 msgstr ""
 
-#: src/app/inspector.odin:292 src/app/inspector.odin:371
-#: src/app/tracks.odin:325
+#: src/app/inspector.odin:325 src/app/inspector.odin:404
+#: src/app/tracks.odin:335
 msgid "Artist"
 msgstr ""
 
-#: src/app/inspector.odin:294 src/app/inspector.odin:386
-#: src/app/tracks.odin:327
+#: src/app/inspector.odin:327 src/app/inspector.odin:419
+#: src/app/tracks.odin:337
 msgid "Album"
 msgstr ""
 
-#: src/app/inspector.odin:296 src/app/inspector.odin:389
-#: src/app/tracks.odin:329
+#: src/app/inspector.odin:329 src/app/inspector.odin:422
+#: src/app/tracks.odin:339
 msgid "Year"
 msgstr ""
 
-#: src/app/inspector.odin:298 src/app/inspector.odin:476
+#: src/app/inspector.odin:331 src/app/inspector.odin:510
 msgid "Comment"
 msgstr ""
 
-#: src/app/inspector.odin:300 src/app/inspector.odin:438
-#: src/app/inspector.odin:440
+#: src/app/inspector.odin:333 src/app/inspector.odin:472
+#: src/app/inspector.odin:474
 msgid "Track"
 msgstr ""
 
-#: src/app/inspector.odin:302 src/app/inspector.odin:461
-#: src/app/tracks.odin:331
+#: src/app/inspector.odin:335 src/app/inspector.odin:495
+#: src/app/tracks.odin:341
 msgid "Genre"
 msgstr ""
 
-#: src/app/inspector.odin:378
+#: src/app/inspector.odin:411
 msgid "Album artist"
 msgstr ""
 
-#: src/app/inspector.odin:419
+#: src/app/inspector.odin:453
 msgid "Multiple"
 msgstr ""
 
-#: src/app/inspector.odin:428
+#: src/app/inspector.odin:462
 msgid "of"
 msgstr ""
 
-#: src/app/inspector.odin:440
+#: src/app/inspector.odin:474
 msgid "Track total"
 msgstr ""
 
-#: src/app/inspector.odin:451 src/app/inspector.odin:453
+#: src/app/inspector.odin:485 src/app/inspector.odin:487
 msgid "Disc"
 msgstr ""
 
-#: src/app/inspector.odin:453
+#: src/app/inspector.odin:487
 msgid "Disc total"
 msgstr ""
 
-#: src/app/inspector.odin:554 src/app/inspector.odin:576
-#: src/app/inspector.odin:671 src/app/inspector.odin:716
+#: src/app/inspector.odin:588 src/app/inspector.odin:610
+#: src/app/inspector.odin:705 src/app/inspector.odin:750
 msgid "Multiple values"
 msgstr ""
 
-#: src/app/inspector.odin:683
+#: src/app/inspector.odin:717
 msgid "{} kHz"
 msgstr ""
 
-#: src/app/inspector.odin:685
+#: src/app/inspector.odin:719
 msgid "{}.{} kHz"
 msgstr ""
 
-#: src/app/inspector.odin:687
+#: src/app/inspector.odin:721
 msgid "{} kbps"
 msgstr ""
 
-#: src/app/inspector.odin:697
+#: src/app/inspector.odin:731
 msgid "{n} byte"
 msgid_plural "{n} bytes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/inspector.odin:699
+#: src/app/inspector.odin:733
 msgid "{} KB"
 msgstr ""
 
-#: src/app/inspector.odin:702
+#: src/app/inspector.odin:736
 msgid "{}.{} MB"
 msgstr ""
 
-#: src/app/inspector.odin:705
+#: src/app/inspector.odin:739
 msgid "{}.{} GB"
 msgstr ""
 
-#: src/app/inspector.odin:714 src/app/inspector.odin:719
+#: src/app/inspector.odin:748 src/app/inspector.odin:753
 msgid "None"
 msgstr ""
 
-#: src/app/inspector.odin:732
+#: src/app/inspector.odin:766
 msgid "Could not read this file"
 msgstr ""
 
-#: src/app/inspector.odin:751
+#: src/app/inspector.odin:785
 msgid "Problem"
 msgstr ""
 
-#: src/app/inspector.odin:757
+#: src/app/inspector.odin:791
 msgid "Colophon could not open this file. It may have been moved or deleted, or Colophon may not be allowed to read it."
 msgstr ""
 
-#: src/app/inspector.odin:761
+#: src/app/inspector.odin:795
 msgid "This file is damaged, or it is not an MP3: Colophon could not make sense of it."
 msgstr ""
 
-#: src/app/inspector.odin:780
+#: src/app/inspector.odin:814
 msgid "Details"
 msgstr ""
 
-#: src/app/inspector.odin:783
+#: src/app/inspector.odin:817
 msgid "File size"
 msgstr ""
 
-#: src/app/inspector.odin:799
+#: src/app/inspector.odin:833
 msgid "Show in Finder"
 msgstr ""
 
-#: src/app/inspector.odin:801
+#: src/app/inspector.odin:835
 msgid "Show in Explorer"
 msgstr ""
 
-#: src/app/inspector.odin:803
+#: src/app/inspector.odin:837
 msgid "Show in Folder"
 msgstr ""
 
-#: src/app/inspector.odin:810
+#: src/app/inspector.odin:844
 msgid "Copy details"
 msgstr ""
 
-#: src/app/saving.odin:44 src/app/status_bar.odin:41
+#: src/app/saving.odin:46 src/app/status_bar.odin:41
 msgid "{n} file could not be saved"
 msgid_plural "{n} files could not be saved"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/saving.odin:50
+#: src/app/saving.odin:52
 msgid "Saved {n} file"
 msgid_plural "Saved {n} files"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/saving.odin:94
+#: src/app/saving.odin:102
 msgid "Save changes to {n} file before quitting?"
 msgid_plural "Save changes to {n} files before quitting?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/saving.odin:100
+#: src/app/saving.odin:108
 msgid "Don’t Save"
 msgstr ""
 
-#: src/app/saving.odin:101
+#: src/app/saving.odin:109
 msgid "Cancel"
 msgstr ""
 
-#: src/app/saving.odin:136
+#: src/app/saving.odin:144
 msgid "{} has changes that are not saved yet."
 msgstr ""
 
-#: src/app/saving.odin:139
+#: src/app/saving.odin:147
 msgid "{} and {} have changes that are not saved yet."
 msgstr ""
 
-#: src/app/saving.odin:145
+#: src/app/saving.odin:153
 msgid "{}, {} and {} have changes that are not saved yet."
 msgstr ""
 
-#: src/app/saving.odin:152
+#: src/app/saving.odin:160
 msgid "{}, {} and {} other files have changes that are not saved yet."
 msgstr ""
 
-#: src/app/saving.odin:159
+#: src/app/saving.odin:167
 msgid "Quitting without saving discards them."
 msgstr ""
 
@@ -380,7 +396,7 @@ msgid_plural "{n} selected"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/toasts.odin:61
+#: src/app/toasts.odin:62
 msgid "Retry"
 msgstr ""
 
@@ -428,47 +444,47 @@ msgstr ""
 msgid "Filter"
 msgstr ""
 
-#: src/app/tracks.odin:103
+#: src/app/tracks.odin:104
 msgid "Tracks"
 msgstr ""
 
-#: src/app/tracks.odin:240
+#: src/app/tracks.odin:257
 msgid "Play"
 msgstr ""
 
-#: src/app/tracks.odin:241
+#: src/app/tracks.odin:258
 msgid "Select Album"
 msgstr ""
 
-#: src/app/tracks.odin:242
+#: src/app/tracks.odin:259
 msgid "Number Tracks"
 msgstr ""
 
-#: src/app/tracks.odin:245
+#: src/app/tracks.odin:262
 msgid "Track menu"
 msgstr ""
 
-#: src/app/tracks.odin:287 src/app/tracks.odin:308
+#: src/app/tracks.odin:297 src/app/tracks.odin:318
 msgid "Sort by {}"
 msgstr ""
 
-#: src/app/tracks.odin:333
+#: src/app/tracks.odin:343
 msgid "Time"
 msgstr ""
 
-#: src/app/tracks.odin:335
+#: src/app/tracks.odin:345
 msgid "Bitrate"
 msgstr ""
 
-#: src/app/tracks.odin:341
+#: src/app/tracks.odin:351
 msgid "Folder"
 msgstr ""
 
-#: src/app/tracks.odin:479
+#: src/app/tracks.odin:490
 msgid "Reset to default columns"
 msgstr ""
 
-#: src/app/tracks.odin:480
+#: src/app/tracks.odin:491
 msgid "Columns"
 msgstr ""
 
@@ -492,22 +508,22 @@ msgstr ""
 msgid "Vertical scroll bar"
 msgstr ""
 
-#: src/ui/table.odin:587
+#: src/ui/table.odin:578
 msgid "Unreadable"
 msgstr ""
 
-#: src/ui/table.odin:590
+#: src/ui/table.odin:581
 msgid "Playing"
 msgstr ""
 
-#: src/ui/table.odin:593
+#: src/ui/table.odin:584
 msgid "Unsaved changes"
 msgstr ""
 
-#: src/ui/table.odin:596
+#: src/ui/table.odin:587
 msgid "Unlike the rest of its album"
 msgstr ""
 
-#: src/ui/table.odin:756
+#: src/ui/table.odin:747
 msgid "Choose columns"
 msgstr ""

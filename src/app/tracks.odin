@@ -411,7 +411,7 @@ tag_cell :: proc(tags: ^lib.Tags, metadata: ^lib.Metadata, column: engine.Table_
 	return ""
 }
 
-// What a row is going through. The warnings come with slice 35.
+// What a row is going through.
 @(private)
 track_states :: proc(data: rawptr, row: int) -> (states: ui.Row_States) {
 	app := (^App)(data)
@@ -423,6 +423,7 @@ track_states :: proc(data: rawptr, row: int) -> (states: ui.Row_States) {
 	if id in e.edits.pending do states += {.Modified}
 	if track.error != .None do states += {.Error}
 	if playing, has := e.playback.track.?; has && playing == id do states += {.Playing}
+	if id in warnings(app) do states += {.Warning}
 	if tags, readable := engine.shown_tags(e, id); readable && tags.title == nil do states += {.Placeholder}
 	return
 }
