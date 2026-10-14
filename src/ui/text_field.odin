@@ -274,6 +274,8 @@ draw_text_field :: proc(
 	}
 	if len(s) == 0 do draw_field_value(r, th, text_rect, "", style, options)
 	draw_text(r, s, x, middle, style, th.text_primary)
+	// Behind a dialog or an open menu, the field takes no keys: no caret, no blinking.
+	if keys_blocked(ui) do return
 	since := ui.input.time - ui.caret_time
 	if math.mod(since, 2 * BLINK) < BLINK {
 		fill_rect(r, {x + caret_x, middle - 8, CARET_WIDTH, 16}, th.text_primary)

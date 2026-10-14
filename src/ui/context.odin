@@ -154,6 +154,9 @@ Role :: enum u8 {
 	Cell,
 	Slider,
 	Image,
+	Menu,
+	// A modal dialog: only its widgets take the keys and the mouse.
+	Dialog,
 }
 
 // What a widget is going through, for the accessibility tree and for tests.
@@ -268,12 +271,13 @@ Ui :: struct {
 	// When the caret last moved, so that it shows at once and then blinks.
 	caret_time:      f64,
 	clipboard:       Clipboard,
-	// The open popup's rect, from the last frame and for the next: the widgets under it
-	// do not take the mouse, whatever their order. Only the popup's own widgets do.
-	popup:           Maybe(Rect),
-	popup_next:      Maybe(Rect),
-	in_popup:        bool,
-	popup_layer:     Layer,
+	// The popups drawn in the last frame, and in this one, in the order they were drawn:
+	// the widgets under one do not take the mouse, whatever their order. Only the
+	// popup's own widgets do, and those of the popups drawn above it.
+	popups:          [dynamic]Popup,
+	popups_next:     [dynamic]Popup,
+	// The popups being drawn, innermost last.
+	popups_open:     [dynamic]Open_Popup,
 	// The scroll area under the mouse along each axis, from the last frame, and the one
 	// this frame finds: the innermost that can scroll along it wins, as it is drawn
 	// after the one around it.
@@ -281,11 +285,18 @@ Ui :: struct {
 	scroll_hot_next: [2]Widget_Id,
 	// What a drag started from: a scroll bar's offset when its thumb was pressed.
 	drag_from:       f32,
-	// The modal dialog shown last frame, and this frame's: while one is shown, only its
-	// widgets take the keys.
+	// The modal dialog shown last frame, and this frame's, the last one drawn: while one
+	// is shown, only its widgets take the keys.
 	modal:           Widget_Id,
 	modal_next:      Widget_Id,
-	in_modal:        bool,
+	// The dialog being drawn, between begin_dialog and end_dialog.
+	dialog:          Widget_Id,
+	// The focus each dialog shown found, which it gets back when the dialog closes.
+	dialog_focus:    [dynamic]Dialog_Focus,
+	// The context menu is being drawn: while one is open, only it takes the keys.
+	in_menu:         bool,
+	// A press on the widget under the mouse hides its tooltip until the mouse leaves.
+	tooltip_hidden:  Widget_Id,
 	// When the widget under the mouse became so, for tooltips.
 	hot_since:       f64,
 	// The window's area, in points: overlays stay inside it.
@@ -314,6 +325,10 @@ ui_init :: proc(ui: ^Ui, renderer: ^Renderer, theme: Theme, allocator := context
 	ui.edit_start = make([dynamic]u8, allocator)
 	ui.edit_ended_text = make([dynamic]u8, allocator)
 	ui.combo.filter = make([dynamic]u8, allocator)
+	ui.popups = make([dynamic]Popup, allocator)
+	ui.popups_next = make([dynamic]Popup, allocator)
+	ui.popups_open = make([dynamic]Open_Popup, allocator)
+	ui.dialog_focus = make([dynamic]Dialog_Focus, allocator)
 }
 
 // Frees what ui_init made.
@@ -326,13 +341,20 @@ ui_destroy :: proc(ui: ^Ui) {
 	delete(ui.edit_start)
 	delete(ui.edit_ended_text)
 	delete(ui.combo.filter)
+	delete(ui.popups)
+	delete(ui.popups_next)
+	delete(ui.popups_open)
+	delete(ui.dialog_focus)
 	ui^ = {}
 }
 
 // Starts a frame drawn at scale pixels per point: the hover found last frame takes
 // effect, and the renderer's lists start empty.
 ui_begin_frame :: proc(ui: ^Ui, scale: f32) {
-	if ui.hot_next != ui.hot do ui.hot_since = ui.input.time
+	if ui.hot_next != ui.hot {
+		ui.hot_since = ui.input.time
+		ui.tooltip_hidden = 0
+	}
 	ui.hot = ui.hot_next
 	ui.hot_next = 0
 	ui.modal = ui.modal_next
@@ -341,9 +363,12 @@ ui_begin_frame :: proc(ui: ^Ui, scale: f32) {
 	ui.hot_layer = .Base
 	ui.active_seen = false
 	ui.focus_seen = false
-	if ui.input.lost_focus do ui.active = 0
-	ui.popup = ui.popup_next
-	ui.popup_next = nil
+	if ui.input.lost_focus {
+		ui.active = 0
+		ui.menu.open = false
+	}
+	ui.popups, ui.popups_next = ui.popups_next, ui.popups
+	clear(&ui.popups_next)
 	ui.scroll_hot = ui.scroll_hot_next
 	ui.scroll_hot_next = {}
 	ui.cursor = .Default
@@ -361,6 +386,21 @@ ui_end_frame :: proc(ui: ^Ui) -> (redraw: bool) {
 	if !ui.focus_seen do ui.focus = 0
 	focus := ui.focus
 	redraw = ui.hot_next != ui.hot
+	// A dialog opened or closed: the next frame blocks the keys it should.
+	if ui.modal_next != ui.modal do redraw = true
+	// A dialog closed: the focus it took goes back where it was.
+	for i := len(ui.dialog_focus) - 1; i >= 0; i -= 1 {
+		d := &ui.dialog_focus[i]
+		if d.shown {
+			d.shown = false
+			continue
+		}
+		if ui.focus == 0 && ui.focus_next == nil do ui.focus_next = d.previous
+		ordered_remove(&ui.dialog_focus, i)
+	}
+	// A menu its owner no longer draws is closed.
+	if !ui.menu.drawn do ui.menu.open = false
+	ui.menu.drawn = false
 	// Tab moves the focus, unless a widget asked for it this frame.
 	if direction, tabbed := ui.tab.?; tabbed && ui.focus_next == nil {
 		if next, found := tab_target(ui, direction); found do ui.focus_next = next
@@ -405,12 +445,12 @@ child_id :: proc "contextless" (parent: Widget_Id, name: string, index := 0) -> 
 	return Widget_Id(h | 1)
 }
 
-// Whether the mouse is over rect and inside the clip drawn into, and not over an open
-// popup that rect is not part of.
+// Whether the mouse is over rect and inside the clip drawn into, and not over a popup
+// above what is drawn now.
 mouse_over :: proc(ui: ^Ui, rect: Rect) -> bool {
 	p := ui.input.mouse
 	if !rect_contains(rect, p) do return false
-	if !ui.in_popup && mouse_in_popup(ui) do return false
+	if mouse_in_popup(ui) do return false
 	if clip, clipped := current_clip(ui.renderer); clipped && !rect_contains(clip, p) do return false
 	return true
 }
@@ -544,6 +584,8 @@ ROLE_ACTIONS := [Role]Actions {
 	.Cell         = {.Press},
 	.Slider       = {.Increment, .Decrement, .Set_Value},
 	.Image        = {},
+	.Menu         = {},
+	.Dialog       = {},
 }
 
 // Declares the widgets drawn until pop_parent as children of id: a list, a dialog.
@@ -578,9 +620,14 @@ move_focus :: proc(ui: ^Ui, direction: Tab) {
 @(private = "file")
 tab_target :: proc(ui: ^Ui, direction: Tab) -> (target: Widget_Id, found: bool) {
 	focusable := make([dynamic]Widget_Id, context.temp_allocator)
+	// While a dialog is shown, the widgets inside it, at any depth: the parents are
+	// declared before what they hold.
+	inside := make(map[Widget_Id]bool, context.temp_allocator)
+	if ui.modal_next != 0 do inside[ui.modal_next] = true
 	at := -1
 	for w in ui.widgets {
-		if !w.focusable || (ui.modal != 0 && w.parent != ui.modal) do continue
+		if ui.modal_next != 0 && w.parent in inside do inside[w.id] = true
+		if !w.focusable || (ui.modal_next != 0 && w.id not_in inside) do continue
 		if w.id == ui.focus do at = len(focusable)
 		append(&focusable, w.id)
 	}
@@ -597,33 +644,54 @@ Edit_Click :: struct {
 	offset: int,
 }
 
+// A popup drawn in a frame, by the order it was drawn in.
+Popup :: struct {
+	rect:  Rect,
+	layer: Layer,
+}
+
+// A popup being drawn: where it is in the frame's order, and the layer drawn on before
+// it, for end_popup to go back to.
+Open_Popup :: struct {
+	index:    int,
+	layer:    Layer,
+	previous: Layer,
+}
+
+// The focus a dialog found when it showed, and whether it was drawn this frame.
+Dialog_Focus :: struct {
+	id:       Widget_Id,
+	previous: Widget_Id,
+	shown:    bool,
+}
+
 // Starts drawing a popup at rect: a list of suggestions, a menu, a dialog's scrim. Its
 // widgets take the mouse before those under it from the next frame on, whatever the
 // order they are drawn in, and it is not clipped by what it is drawn in, but for a
-// margin around it for its shadow. End it with end_popup.
+// margin around it for its shadow. A popup inside another is drawn on its layer at
+// least. End it with end_popup; popups nest.
 begin_popup :: proc(ui: ^Ui, rect: Rect, layer := Layer.Overlay) {
-	ui.popup_next = rect
-	ui.in_popup = true
-	ui.popup_layer = set_layer(ui.renderer, layer)
+	on := layer
+	if ui.renderer.layer > on do on = ui.renderer.layer
+	append(&ui.popups_open, Open_Popup{len(ui.popups_next), on, set_layer(ui.renderer, on)})
+	append(&ui.popups_next, Popup{rect, on})
 	block_mouse(ui, rect)
 	SHADOW_MARGIN :: 64
-	push_clip(
-		ui.renderer,
-		rect_inset(rect, -SHADOW_MARGIN, -SHADOW_MARGIN),
-		inside_current = false,
-	)
+	push_outer_clip(ui.renderer, rect_inset(rect, -SHADOW_MARGIN, -SHADOW_MARGIN))
 }
 
 // Ends the popup begin_popup started.
 end_popup :: proc(ui: ^Ui) {
 	pop_clip(ui.renderer)
-	ui.in_popup = false
-	set_layer(ui.renderer, ui.popup_layer)
+	if len(ui.popups_open) == 0 do return
+	set_layer(ui.renderer, pop(&ui.popups_open).previous)
 }
 
-// Whether the keys belong to a modal dialog the widget drawn now is not part of.
+// Whether the keys belong to a modal dialog the widget drawn now is not part of, or
+// to the open context menu.
 keys_blocked :: proc(ui: ^Ui) -> bool {
-	return ui.modal != 0 && !ui.in_modal
+	if ui.modal != 0 && ui.dialog != ui.modal do return true
+	return ui.menu.open && !ui.in_menu
 }
 
 // Asks for a frame at time at the latest, without input: a tooltip to show, a caret to
@@ -632,8 +700,17 @@ wake_at :: proc(ui: ^Ui, at: f64) {
 	ui.wake_at = min(ui.wake_at, at)
 }
 
-// Whether the mouse is over the popup open in the last frame.
+// Whether the mouse is over a popup of the last frame drawn above what is drawn now:
+// over any popup outside them, over a popup drawn after it inside one.
 mouse_in_popup :: proc(ui: ^Ui) -> bool {
-	popup, open := ui.popup.?
-	return open && rect_contains(popup, ui.input.mouse)
+	layer, index := Layer.Base, -1
+	if len(ui.popups_open) > 0 {
+		current := ui.popups_open[len(ui.popups_open) - 1]
+		layer, index = current.layer, current.index
+	}
+	for p, i in ui.popups {
+		above := p.layer > layer || (p.layer == layer && i > index)
+		if above && rect_contains(p.rect, ui.input.mouse) do return true
+	}
+	return false
 }

@@ -117,10 +117,16 @@ set_layer :: proc(r: ^Renderer, layer: Layer) -> (previous: Layer) {
 }
 
 // Clips what follows to rect, in points, within the current clip.
-push_clip :: proc(r: ^Renderer, rect: Rect, inside_current := true) {
+push_clip :: proc(r: ^Renderer, rect: Rect) {
 	clip := rect
-	if current, ok := current_clip(r); ok && inside_current do clip = rect_intersect(clip, current)
+	if current, ok := current_clip(r); ok do clip = rect_intersect(clip, current)
 	append(&r.clips, clip)
+}
+
+// Clips what follows to rect, in points, whatever the current clip: a popup drawn
+// from inside a scroll area.
+push_outer_clip :: proc(r: ^Renderer, rect: Rect) {
+	append(&r.clips, rect)
 }
 
 pop_clip :: proc(r: ^Renderer) {
@@ -411,22 +417,32 @@ draw_shadow :: proc(r: ^Renderer, rect: Rect, radius, offset_y, blur: f32, color
 	b := blur * r.scale
 	rad := min(radius * r.scale, (x1 - x0) / 2, (y1 - y0) / 2)
 	// A gaussian blur's falloff in steps, half its strength at the shape's edge. The
-	// rings inside the shape keep a radius of a pixel at least: a ring of points all in
-	// one place makes triangles of no area, which SDL's software renderer mishandles.
+	// rings keep a radius of a pixel at least: a ring of points all in one place makes
+	// triangles of no area, which SDL's software renderer mishandles. A ring further
+	// inside than the corners' radius allows is drawn around a smaller rect instead.
 	Step :: struct {
 		offset, alpha: f32,
 	}
 	steps := [?]Step{{-b / 2, 0.9}, {-b / 4, 0.75}, {0, 0.5}, {b / 4, 0.25}, {b / 2, 0.09}, {b, 0}}
 	list := begin_command(r, ATLAS_TEXTURE)
 	uv := white_uv(&r.atlas)
-	first := make([dynamic]i32, 0, len(steps), context.temp_allocator)
-	previous_offset := min(f32)
+	first: [len(steps)]i32
+	rings := 0
+	previous := min(f32)
 	for step in steps {
-		offset := max(step.offset, 1 - rad)
-		if offset <= previous_offset do continue
-		previous_offset = offset
-		append(&first, vertex_count(list))
-		for p in ring(x0, y0, x1, y1, rad, offset) {
+		// How far the rect shrinks so that the ring keeps its pixel of radius, as far
+		// as the rect allows.
+		shrink := clamp(1 - rad - step.offset, 0, max(min(x1 - x0, y1 - y0) / 2 - 1, 0))
+		offset := step.offset + shrink
+		if rad + offset < 1 do offset = 1 - rad
+		// Where the ring lies, from the shape's edge outward: two steps the rect cannot
+		// tell apart make one ring.
+		at := offset - shrink
+		if at <= previous do continue
+		previous = at
+		first[rings] = vertex_count(list)
+		rings += 1
+		for p in ring(x0 + shrink, y0 + shrink, x1 - shrink, y1 - shrink, rad, offset) {
 			push_vertex(list, p, {color.r, color.g, color.b, color.a * step.alpha}, uv)
 		}
 	}
@@ -437,5 +453,5 @@ draw_shadow :: proc(r: ^Renderer, rect: Rect, radius, offset_y, blur: f32, color
 	for i in 0 ..< i32(RING_POINTS) {
 		push_triangle(list, center_index, first[0] + i, first[0] + (i + 1) % RING_POINTS)
 	}
-	for k in 0 ..< len(first) - 1 do stitch_rings(list, first[k], first[k + 1])
+	for k in 0 ..< rings - 1 do stitch_rings(list, first[k], first[k + 1])
 }

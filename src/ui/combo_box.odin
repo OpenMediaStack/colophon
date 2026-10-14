@@ -229,6 +229,9 @@ draw_suggestions :: proc(
 		rect.w,
 		f32(visible) * ITEM_HEIGHT + 2 * LIST_INSET,
 	}
+	// Above the field when there is no room under it.
+	v := ui.viewport
+	if list.y + list.h > v.y + v.h && rect.y - LIST_GAP - list.h >= v.y do list.y = rect.y - LIST_GAP - list.h
 	inner := rect_inset(list, 1, LIST_INSET)
 	content := f32(len(shown)) * ITEM_HEIGHT
 	most := max(content - inner.h, 0)

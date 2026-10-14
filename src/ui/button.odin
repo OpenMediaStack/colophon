@@ -10,6 +10,9 @@ Button_Kind :: enum u8 {
 	Ghost,
 	// An action that destroys something, in the error colour.
 	Destructive,
+	// An action inside a message, a toast's Retry: in the accent's text colour, a fill
+	// on hover.
+	Link,
 }
 
 // How a button is drawn: what the mouse, the keyboard and the app make of it.
@@ -82,8 +85,7 @@ button :: proc(
 
 // The width a button needs for its label, icon and shortcut.
 button_width :: proc(r: ^Renderer, label: string, options := Button_Options{}) -> f32 {
-	style :=
-		options.kind == .Primary || options.kind == .Destructive ? Text_Style.Body_Strong : Text_Style.Body
+	style := button_style(options.kind)
 	width :=
 		2 * (options.padding > 0 ? options.padding : BUTTON_PADDING) + text_width(r, label, style)
 	if _, has_icon := options.icon.?; has_icon do width += 16 + ICON_GAP
@@ -108,6 +110,7 @@ toolbar_button :: proc(
 	states, activated := button_states(ui, id, rect, disabled)
 	if checked == true do states += {.Checked}
 	draw_toolbar_button(ui.renderer, ui.theme, rect, icon, states)
+	tooltip(ui, id, rect, label)
 	declared := widget_states(states)
 	if checked != nil do declared += {.Checkable}
 	declare(
@@ -134,11 +137,10 @@ draw_button :: proc(
 	states: Button_States,
 ) {
 	fill, border, text: Color
-	style := Text_Style.Body
+	style := button_style(options.kind)
 	disabled := .Disabled in states
 	switch options.kind {
 	case .Primary, .Destructive:
-		style = .Body_Strong
 		base, hover, on := th.accent, th.accent_hover, th.on_accent
 		if options.kind == .Destructive do base, hover, on = th.error, lighter(th.error), th.on_error
 		switch {
@@ -166,6 +168,13 @@ draw_button :: proc(
 		} else if !disabled && .Hovered in states {
 			fill, text = th.surface_3, th.text_primary
 		}
+	case .Link:
+		text = disabled ? th.text_disabled : th.accent_text
+		if !disabled && .Pressed in states {
+			fill = th.border_strong
+		} else if !disabled && .Hovered in states {
+			fill = th.surface_3
+		}
 	}
 	if fill.a > 0 do fill_rect(r, rect, fill, RADIUS)
 	if border.a > 0 do stroke_rect(r, rect, border, RADIUS)
@@ -187,6 +196,40 @@ draw_button :: proc(
 		hint.a *= 0.75
 		draw_text(r, options.shortcut, x, middle, .Small, hint)
 	}
+}
+
+// The weight of a button's label: medium for the actions that stand out.
+@(private = "file")
+button_style :: proc(kind: Button_Kind) -> Text_Style {
+	return kind == .Ghost || kind == .Secondary ? .Body : .Body_Strong
+}
+
+// A small button with an icon alone, a toast's close: the icon 14 points in the
+// tertiary text colour, a fill on hover, its label read by screen readers.
+icon_button :: proc(ui: ^Ui, id: Widget_Id, rect: Rect, icon: Icon, label: string) -> bool {
+	r := ui.renderer
+	th := ui.theme
+	states, activated := button_states(ui, id, rect, false)
+	switch {
+	case .Pressed in states:
+		fill_rect(r, rect, th.border_strong, RADIUS)
+	case .Hovered in states:
+		fill_rect(r, rect, th.surface_3, RADIUS)
+	}
+	if .Focused in states do draw_focus_ring(r, th, rect, RADIUS)
+	draw_icon_centered(r, icon, rect, th.text_tertiary, 14)
+	declare(
+		ui,
+		{
+			id = id,
+			role = .Button,
+			label = label,
+			rect = rect,
+			states = widget_states(states),
+			focusable = true,
+		},
+	)
+	return activated
 }
 
 // Draws a toolbar button in states, without the Ui.
