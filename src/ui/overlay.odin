@@ -320,6 +320,8 @@ Dialog_Options :: struct {
 	// The room the dialog keeps between its message and its buttons for what the caller
 	// draws there, in points.
 	content_height: f32,
+	// Whose button order the dialog follows: the system's when nil; a capture pins one.
+	platform:       Maybe(Platform),
 }
 
 // What the user chose in a dialog, by its buttons or by the keys.
@@ -431,7 +433,7 @@ end_dialog :: proc(ui: ^Ui, d: Dialog) -> (choice: Dialog_Choice) {
 	r := ui.renderer
 	box := d.box
 	options := d.options
-	left, right := dialog_buttons(options)
+	left, right := dialog_buttons(options, options.platform.? or_else PLATFORM)
 	y := box.y + box.h - DIALOG_PADDING - BUTTON_HEIGHT
 	x := box.x + DIALOG_PADDING
 	for c in left {

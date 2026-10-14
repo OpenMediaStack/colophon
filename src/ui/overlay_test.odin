@@ -443,11 +443,13 @@ the_overlays_match_their_reference :: proc(t: ^testing.T) {
 			"Retry",
 		)
 		options := Dialog_Options {
-			title   = "Save the changes?",
-			message = "3 files have changes that are not saved. Saving writes their tags.",
-			primary = "Save",
-			cancel  = "Cancel",
-			discard = "Don't Save",
+			title    = "Save the changes?",
+			message  = "3 files have changes that are not saved. Saving writes their tags.",
+			primary  = "Save",
+			cancel   = "Cancel",
+			discard  = "Don't Save",
+			// The same capture on every system.
+			platform = .Mac,
 		}
 		dialog_window := Rect{area.x, 200, area.w, 220}
 		end_dialog(&ui, begin_dialog(&ui, widget_id("Dialog"), dialog_window, options))
