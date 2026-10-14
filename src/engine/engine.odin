@@ -73,6 +73,10 @@ Engine :: struct {
 	saving:           Maybe(Saving),
 	// The files the last save could not write.
 	save_failures:    [dynamic]Save_Failure,
+	// How the last save ended, and how many saves ended, so that the UI tells each
+	// once.
+	last_save:        Save_Report,
+	saves_ended:      int,
 }
 
 // Adds a folder's audio files to the library.

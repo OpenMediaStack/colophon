@@ -151,6 +151,7 @@ event_loop :: proc(w: ^Window, app: ^App) -> bool {
 	defer sdl.RemoveEventWatch(live_resize, &live)
 	for {
 		update(w, app)
+		if app.quit do return true
 		draw(w) or_return
 		if !sdl.RenderPresent(w.renderer) do return sdl_failed("SDL_RenderPresent")
 		if !wait_for_events(w, app) do return true
@@ -269,7 +270,8 @@ Event_Outcome :: enum u8 {
 handle_event :: proc(w: ^Window, app: ^App, event: ^sdl.Event) -> Event_Outcome {
 	#partial switch event.type {
 	case .QUIT:
-		return .Quit
+		// The window closes at once, or asks about the changes first.
+		return request_close(app) ? .Quit : .Other
 	case .SYSTEM_THEME_CHANGED:
 		w.ctx.theme = ui.theme(system_theme())
 		return .Other

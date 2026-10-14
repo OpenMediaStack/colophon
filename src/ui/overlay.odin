@@ -416,10 +416,20 @@ begin_dialog :: proc(
 		y += DIALOG_GAP
 	}
 	if len(message_lines) > 0 {
+		top := y
 		for line in message_lines {
 			draw_text(r, line, box.x + DIALOG_PADDING, y + 9, .Body, th.text_secondary)
 			y += 18
 		}
+		declare(
+			ui,
+			{
+				id = child_id(id, "message"),
+				role = .Label,
+				label = options.message,
+				rect = {box.x + DIALOG_PADDING, top, width, y - top},
+			},
+		)
 		y += DIALOG_GAP
 	}
 	d.content = {box.x + DIALOG_PADDING, y, width, options.content_height}
