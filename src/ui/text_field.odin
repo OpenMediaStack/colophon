@@ -24,6 +24,8 @@ Text_Field_Options :: struct {
 	// Shown while the field is empty: a hint, or what multiple values hide.
 	placeholder: string,
 	flags:       Field_Flags,
+	// Room kept at the right for a button inside the field, in points.
+	trailing:    f32,
 }
 
 // What happened to a text field this frame.
@@ -64,6 +66,7 @@ text_field :: proc(
 	disabled := .Disabled in options.flags
 	style := .Numeric in options.flags ? Text_Style.Numeric : Text_Style.Body
 	text_rect := rect_inset(rect, FIELD_PADDING, 0)
+	text_rect.w = max(text_rect.w - options.trailing, 0)
 	interaction: Interaction
 	if disabled {
 		release_focus(ui, id)
@@ -146,7 +149,8 @@ edit_field :: proc(
 		at := offset_in(ui.renderer, edit_text(e), text_rect, style, in_.mouse.x, ui.edit_scroll)
 		edit_move(e, at, true)
 	}
-	if .Left in in_.pressed && !mouse_over(ui, rect) {
+	// A click in a popup, such as the field's suggestions, is not a click elsewhere.
+	if .Left in in_.pressed && !mouse_over(ui, rect) && !mouse_in_popup(ui) {
 		result.committed = true
 		release_focus(ui, id)
 	}

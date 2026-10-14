@@ -1,6 +1,8 @@
 package engine_tests
 
+import "core:strings"
 import "core:testing"
+import "core:time"
 
 import "../../engine"
 import lib "../../library"
@@ -203,4 +205,44 @@ a_track_unlike_the_rest_of_its_album_is_warned_about :: proc(t: ^testing.T) {
 	w := engine.warnings(&e, context.temp_allocator)
 	testing.expect_value(t, len(w), 1)
 	testing.expect_value(t, w[one], engine.Warnings{.Missing_Number})
+}
+
+@(test)
+the_genres_to_suggest_are_id3v1_s_and_those_read :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := folder_with_fixtures(t, {{"v23_full.mp3", "1.mp3"}, {"v24_unicode.mp3", "2.mp3"}})
+	defer remove_folder(folder)
+	engine_reading(t, &e, folder)
+	defer engine.destroy(&e)
+	engine.execute(&e, engine.Select_All{})
+	engine.execute(&e, engine.Apply_Edit{{.Genre, "Synthwave"}})
+
+	genres := engine.genres(&e, context.temp_allocator)
+
+	contains :: proc(list: []string, s: string) -> (n: int) {
+		for g in list do if g == s do n += 1
+		return
+	}
+	testing.expect_value(t, contains(genres, "Blues"), 1)
+	testing.expect_value(t, contains(genres, "Folk"), 1)
+	testing.expect_value(t, contains(genres, "Synthwave"), 0)
+	for i in 1 ..< len(genres) {
+		testing.expectf(
+			t,
+			strings.to_lower(genres[i - 1], context.temp_allocator) <
+			strings.to_lower(genres[i], context.temp_allocator),
+			"%s before %s",
+			genres[i - 1],
+			genres[i],
+		)
+	}
+
+	engine.execute(&e, engine.Save{})
+	start := time.tick_now()
+	for engine.saving(&e) != nil && time.tick_since(start) < PATIENCE {
+		engine.poll(&e)
+		time.sleep(time.Millisecond)
+	}
+	testing.expect_value(t, contains(engine.genres(&e, context.temp_allocator), "Synthwave"), 1)
+	free_all(context.temp_allocator)
 }

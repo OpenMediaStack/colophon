@@ -100,13 +100,13 @@ Each slice is one pull request, in this order unless a slice says it can move. A
 - [x] **18. `feat(ui): context, input and headless tests`.** The `Ui` context, widget ids, hot, active and focus rules, layout helpers, and the harness that runs frames with scripted input and finds widgets by label. SDL's events become the `Ui`'s input through `input_from_sdl`, which the app's loop calls from slice 28.
 - [x] **19. `feat(ui): buttons`.** Toolbar buttons, icon and label, primary, secondary, ghost and destructive, every state of the brief's component sheet. Reference captures. Tooltips come with the overlays of slice 24; moving the focus with Tab with the text field of slice 20.
 - [x] **20. `feat(ui): text field`.** Caret, selection by mouse and keys, word moves as each platform does them, clipboard, undo inside the field, double click selects a word and triple click all, placeholder, the states (hover, focus, modified, multiple values, error, disabled), IME composition (after spike 4), typed text as a pending change. (Done but the IME composition, which slice 28 brings once Florent chose the text stack.) The editing itself lives in `Text_Edit`, apart from drawing, and is tested for each platform's word moves on any system; the field reports each change, which the inspector of slice 32 turns into `Continue_Edit`.
-- [ ] **21. `feat(ui): number pair and combo box`.** The track and disc pairs, the genre combo with suggestions.
+- [x] **21. `feat(ui): number pair and combo box`.** The track and disc pairs, the genre combo with suggestions, and the engine's genres to suggest (ID3v1's and those read). Popups, which take the mouse before what lies under them, start here; their shadow comes with slice 24.
 - [ ] **22. `feat(ui): checkbox and segmented control`.**
 - [ ] **23. `feat(ui): scrolling`.** Scroll areas, wheel and trackpad, scroll bars hidden when everything fits, hover and drag states.
 - [ ] **24. `feat(ui): overlays`.** Context menus, tooltips, toasts, dialogs with each platform's button order, the scrim.
 - [ ] **25. `feat(ui): table`.** Virtualised rows, header states, sorting, resizing and reordering columns by drag, the column chooser (right click and button), horizontal scrolling, row states (hover, selected, focused, modified, error, playing). A benchmark with 10,000 rows.
 - [ ] **26. `feat(ui): editing in the table`.** In-place editing with a double click, Enter or F2, Tab across the editable cells.
-- [ ] **27. `feat(ui): translations`.** The `.po` parser, `tr` and `tr_n`, the system language through `SDL_GetPreferredLocales`, `scripts/extract-strings.sh`.
+- [ ] **27. `feat(ui): translations`.** The `.po` parser, `tr` and `tr_n`, the system language through `SDL_GetPreferredLocales`, `scripts/extract-strings.sh`. The toolkit's own words, such as the combo box's "Show suggestions", go through `tr` too.
 
 ### Phase 3: the screens
 
