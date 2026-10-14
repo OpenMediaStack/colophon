@@ -55,10 +55,10 @@ FIELD_PADDING :: 8
 // The side of the clear button, which fits a field 28 high.
 @(private = "file")
 CLEAR_BUTTON :: 20
-@(private = "file")
+@(private)
 CARET_WIDTH :: 1.5
 // The caret shows this long, then hides as long.
-@(private = "file")
+@(private)
 BLINK :: 0.53
 
 // A one-line text field showing value, labelled label for screen readers and tests.
@@ -99,6 +99,7 @@ text_field :: proc(
 		// The focus just came: the field edits a copy of its value, all of it selected
 		// when the focus came by Tab, else with the caret where the click was. The value
 		// is kept, for Escape to bring back.
+		ui.edit.multiline = false
 		edit_reset(&ui.edit, value, ui.focus_by_key)
 		if click, clicked := ui.edit_click.?; clicked && click.owner == id do edit_move(&ui.edit, click.offset)
 		ui.edit_click = nil
@@ -248,7 +249,7 @@ edit_field :: proc(
 
 // Whether a key types text: a letter, a digit, Space or punctuation, alone, with
 // Shift, or with Control and Alt, which is AltGr on Windows.
-@(private = "file")
+@(private)
 types_text :: proc(press: Key_Press) -> bool {
 	m := press.modifiers - {.Shift}
 	if m != {} && m != {.Control, .Alt} do return false
@@ -260,7 +261,7 @@ types_text :: proc(press: Key_Press) -> bool {
 }
 
 // The offset in s, drawn from text_rect's left edge scrolled by scroll, nearest to x.
-@(private = "file")
+@(private)
 offset_in :: proc(
 	r: ^Renderer,
 	s: string,
@@ -396,7 +397,7 @@ draw_field_value :: proc(
 	}
 }
 
-@(private = "file")
+@(private)
 field_states :: proc(interaction: Interaction, focused, disabled: bool) -> (w: Widget_States) {
 	if .Hovered in interaction do w += {.Hovered}
 	if focused do w += {.Focused}

@@ -90,14 +90,3 @@ drop_target :: proc(ctx: ^ui.Ui, window: ui.Rect) {
 	ui.draw_text(r, label, box.x + 16, box.y + box.h / 2, .Title, th.text_primary)
 	ui.declare(ctx, {id = ui.widget_id("Drop target"), role = .Label, label = label, rect = box})
 }
-
-// The inspector's panel. Its fields come with slice 32.
-@(private = "file")
-inspector :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
-	_ = app
-	ui.fill_rect(ctx.renderer, rect, ctx.theme.surface_1)
-	ui.declare(
-		ctx,
-		{id = ui.widget_id("Inspector"), role = .Group, label = ui.tr("Inspector"), rect = rect},
-	)
-}
