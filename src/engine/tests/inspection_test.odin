@@ -254,7 +254,7 @@ a_cover_is_an_edit_like_any_other :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(e.edits.pending), 2)
 	testing.expect(t, s.cover_track != nil)
 
-	engine.execute(&e, engine.Apply_Edit{{.Cover, engine.No_Cover{}}})
+	engine.execute(&e, engine.Apply_Edit{{.Cover, nil}})
 	s = summary_of(t, &e)
 	testing.expect_value(t, s.cover, nil)
 	testing.expect_value(t, s.cover_track, nil)

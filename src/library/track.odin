@@ -73,8 +73,8 @@ Own_Cover :: struct {
 	size: int,
 }
 
-// A cover held in memory: a JPEG or a PNG, with its MIME type. Free it with
-// destroy_cover.
+// A cover held in memory with its MIME type: a JPEG or a PNG when Colophon made it,
+// whatever the file names when read from one. Free it with destroy_cover.
 Cover :: struct {
 	mime: string,
 	data: []u8,
@@ -82,7 +82,9 @@ Cover :: struct {
 
 // What tells the covers of two tracks apart without reading the files: a file's own
 // by its frame's size, one in memory by its bytes. Two files whose picture frames
-// have one size therefore look the same.
+// have one size therefore look the same; and a file's own is keyed by its first
+// picture frame, while read_cover gives the front cover when it comes later, since
+// the type sits in the data a scan skips.
 Cover_Key :: struct {
 	size: int,
 	hash: u64,
@@ -132,11 +134,21 @@ same_tags :: proc(a, b: Tags) -> bool {
 	)
 }
 
-// A copy of a cover's strings and bytes, allocated with allocator.
-clone_cover :: proc(cover: Cover, allocator := context.allocator) -> Cover {
-	return {strings.clone(cover.mime, allocator), slice.clone(cover.data, allocator)}
+// A copy of a cover's string and bytes, allocated with allocator. Free it with
+// destroy_cover.
+clone_cover :: proc(
+	cover: Cover,
+	allocator := context.allocator,
+) -> (
+	clone: Cover,
+	err: runtime.Allocator_Error,
+) #optional_allocator_error {
+	clone.mime = strings.clone(cover.mime, allocator) or_return
+	clone.data = slice.clone(cover.data, allocator) or_return
+	return
 }
 
+// Frees a cover's string and bytes, allocated with allocator.
 destroy_cover :: proc(cover: ^Cover, allocator := context.allocator) {
 	delete(cover.mime, allocator)
 	delete(cover.data, allocator)
@@ -214,7 +226,7 @@ clone_tags :: proc(
 	clone.album = clone_text(tags.album, allocator) or_return
 	clone.genre = clone_text(tags.genre, allocator) or_return
 	clone.comment = clone_text(tags.comment, allocator) or_return
-	if cover, held := tags.cover.(Cover); held do clone.cover = clone_cover(cover, allocator)
+	if cover, held := tags.cover.(Cover); held do clone.cover = clone_cover(cover, allocator) or_return
 	return
 }
 

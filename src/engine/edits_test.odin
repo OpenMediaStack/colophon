@@ -309,7 +309,7 @@ same_value :: proc(a, b: Edit_Value) -> bool {
 	case int:
 		other, ok := b.(int)
 		return ok && other == v
-	case lib.Cover, No_Cover:
+	case lib.Cover:
 		return false
 	}
 	return false
@@ -349,4 +349,14 @@ a_track_whose_file_cannot_be_read_takes_no_change :: proc(t: ^testing.T) {
 	choose_versions(&e, {0}, Id3v1_Choice{.V1_1})
 	set_title(&e, {0}, "Newer")
 	testing.expect_value(t, len(e.edits.undo), 1)
+}
+
+@(test)
+a_cover_fits_the_cover_field_alone :: proc(t: ^testing.T) {
+	cover := lib.Cover{"image/png", {1, 2, 3}}
+	testing.expect(t, fits({.Cover, cover}))
+	testing.expect(t, fits({.Cover, nil}))
+	testing.expect(t, !fits({.Cover, 7}))
+	testing.expect(t, !fits({.Cover, "text"}))
+	testing.expect(t, !fits({.Title, cover}))
 }

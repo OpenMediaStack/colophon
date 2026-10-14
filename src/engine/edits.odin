@@ -34,17 +34,14 @@ Edit :: struct {
 }
 
 // The value of an edit: text for the text fields, a number from 1 for the number
-// fields, a year from 1 to 9999, a cover held in memory or none for the cover. An
-// edit whose value does not fit its field changes nothing. The engine copies a cover.
+// fields, a year from 1 to 9999, a cover held in memory for the cover; nil empties
+// any field, the cover included. An edit whose value does not fit its field changes
+// nothing. The engine copies a cover.
 Edit_Value :: union {
 	string,
 	int,
 	lib.Cover,
-	No_Cover,
 }
-
-// The value that removes the cover.
-No_Cover :: struct {}
 
 // A choice of the version to write one tag of the selected tracks in; nil removes
 // the tag.
@@ -103,7 +100,8 @@ Choose_Version :: struct {
 
 // What the user wants for each track, and the history of how they got there. The
 // history holds values rather than "modified or not", so that undoing an edit already
-// saved brings the old values back as a change to save.
+// saved brings the old values back as a change to save; the cover is the exception,
+// a file's own being known without its bytes (see the plan's decision on covers).
 Edits :: struct {
 	// The tracks saving would change, with the tags to write into them.
 	pending: map[Track_Id]lib.Tags,
@@ -268,7 +266,7 @@ fits :: proc(edit: Edit) -> bool {
 			v >= 1 &&
 			v <= int(max(u32)) \
 		)
-	case lib.Cover, No_Cover:
+	case lib.Cover:
 		return edit.field == .Cover
 	}
 	return false

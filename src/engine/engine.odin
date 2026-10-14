@@ -242,7 +242,10 @@ init :: proc(e: ^Engine, wake := lib.Wake{}, allocator := context.allocator) {
 // Stops the scans and frees everything.
 destroy :: proc(e: ^Engine) {
 	context.allocator = e.allocator
-	if s, running := e.saving.?; running do lib.destroy_save(s.save)
+	if s, running := e.saving.?; running {
+		lib.destroy_save(s.save)
+		delete(s.sent)
+	}
 	delete(e.save_failures)
 	for scan in e.scans do lib.destroy_scan(scan)
 	delete(e.scans)

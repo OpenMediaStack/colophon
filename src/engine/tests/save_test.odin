@@ -3,6 +3,7 @@ package engine_tests
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
+import "core:slice"
 import "core:strings"
 import "core:testing"
 import "core:time"
@@ -372,4 +373,29 @@ a_save_reports_how_it_ended :: proc(t: ^testing.T) {
 	testing.expect_value(t, e.saves_ended, 2)
 	testing.expect_value(t, e.last_save, engine.Save_Report{1, 1})
 	testing.expect_value(t, len(e.edits.pending), 1)
+}
+
+@(test)
+saving_a_cover_settles_the_track :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := folder_with_fixtures(t, {{"v23_cover.mp3", "1.mp3"}, {"v23_full.mp3", "2.mp3"}})
+	defer remove_folder(folder)
+	engine_reading(t, &e, folder)
+	defer engine.destroy(&e)
+	cover, found := lib.read_cover(fmt.tprintf("%s/1.mp3", folder))
+	defer lib.destroy_cover(&cover)
+	testing.expect(t, found)
+	engine.execute(&e, engine.Select_All{})
+	engine.execute(&e, engine.Apply_Edit{{.Cover, cover}})
+	engine.execute(&e, engine.Save{})
+	poll_until_saved(t, &e)
+	testing.expect_value(t, len(e.edits.pending), 0)
+	testing.expect_value(t, engine.modified_fields(&e, e.selection.tracks[:]), engine.Fields{})
+	for track in e.library.tracks {
+		_, own := track.metadata.tags.cover.(lib.Own_Cover)
+		testing.expect(t, own)
+	}
+	written, has := lib.read_cover(fmt.tprintf("%s/2.mp3", folder))
+	defer lib.destroy_cover(&written)
+	testing.expect(t, has && slice.equal(written.data, cover.data))
 }

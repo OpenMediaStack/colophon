@@ -31,6 +31,9 @@ Save_Report :: struct {
 Saving :: struct {
 	save:     ^lib.Save,
 	progress: Save_Progress,
+	// The key of the cover sent for each track, so that a track whose cover was
+	// written settles, while one replaced again meanwhile stays pending.
+	sent:     map[Track_Id]Maybe(lib.Cover_Key),
 }
 
 // How far the running save has got, if one runs.
@@ -101,7 +104,9 @@ save :: proc(e: ^Engine, keeping_id3v1: bool) {
 		for job in jobs do append(&e.save_failures, Save_Failure{Track_Id(job.id), .Cannot_Write})
 		return
 	}
-	e.saving = Saving{s, {0, len(jobs)}}
+	sent := make(map[Track_Id]Maybe(lib.Cover_Key), e.allocator)
+	for job in jobs do sent[Track_Id(job.id)] = lib.cover_key(job.tags.cover)
+	e.saving = Saving{s, {0, len(jobs)}, sent}
 }
 
 // Takes in the files the save wrote: each track gets what its file now holds, and its
@@ -119,7 +124,7 @@ poll_save :: proc(e: ^Engine) -> (changed: bool) {
 		switch ev in event {
 		case lib.Saved:
 			s.progress.done += 1
-			take_saved(e, Track_Id(ev.id), ev.track)
+			take_saved(e, Track_Id(ev.id), ev.track, s.sent[Track_Id(ev.id)])
 			event = nil
 		case lib.Save_Failure:
 			s.progress.done += 1
@@ -130,6 +135,7 @@ poll_save :: proc(e: ^Engine) -> (changed: bool) {
 	}
 	if finished {
 		lib.destroy_save(s.save)
+		delete(s.sent)
 		e.last_save = {s.progress.done - len(e.save_failures), len(e.save_failures)}
 		e.saves_ended += 1
 		e.saving = nil
@@ -140,7 +146,7 @@ poll_save :: proc(e: ^Engine) -> (changed: bool) {
 // Puts what a track's file holds once written in place of what it held. The track
 // keeps its path, which found borrows.
 @(private = "file")
-take_saved :: proc(e: ^Engine, id: Track_Id, written: lib.Track) {
+take_saved :: proc(e: ^Engine, id: Track_Id, written: lib.Track, sent: Maybe(lib.Cover_Key)) {
 	written := written
 	if !has_track(e, id) {
 		lib.destroy_track(&written)
@@ -158,5 +164,13 @@ take_saved :: proc(e: ^Engine, id: Track_Id, written: lib.Track) {
 	track.error = .None
 	delete(written.path)
 	e.saved[id] = {}
+	// The file now holds the cover that was sent: wanting it is wanting the file's
+	// own, else the track would wait to be saved again. A cover replaced again
+	// meanwhile differs from the one sent, and stays pending.
+	if held, has := &wanted.tags.cover.(lib.Cover);
+	   readable && has && lib.cover_key(wanted.tags.cover) == sent {
+		lib.destroy_cover(held)
+		wanted.tags.cover = track.metadata.tags.cover
+	}
 	if readable do want(e, id, wanted)
 }

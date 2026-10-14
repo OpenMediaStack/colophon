@@ -113,14 +113,19 @@ own_cover :: proc(tag: ^id3.Tag) -> Cover_State {
 // The cover of the file at path, the front cover else its first picture, read from
 // the file: a scan never reads pictures. found is false for a file without one, or
 // that cannot be read, or whose picture is a link. The cover is allocated with
-// allocator; free it with destroy_cover.
+// allocator, which the reading uses for its scratch too: safe to call from any thread
+// with an allocator that is. Free it with destroy_cover.
 read_cover :: proc(path: string, allocator := context.allocator) -> (cover: Cover, found: bool) {
-	tags, read_err := id3.read_file(path, {}, context.temp_allocator)
+	tags, read_err := id3.read_file(path, {}, allocator)
 	if read_err != nil do return
 	defer id3.destroy(&tags)
-	picture, has, err := id3.front_cover(&tags.v2, context.temp_allocator)
-	if err != nil || !has || picture.mime == "-->" do return
-	return clone_cover({picture.mime, picture.data}, allocator), true
+	picture, has, err := id3.front_cover(&tags.v2, allocator)
+	if err != nil || !has do return
+	defer id3.destroy_picture(&picture, allocator)
+	if picture.mime == "-->" do return
+	clone, clone_err := clone_cover({picture.mime, picture.data}, allocator)
+	if clone_err != nil do return
+	return clone, true
 }
 
 @(private = "file")
