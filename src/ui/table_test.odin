@@ -34,7 +34,14 @@ tracks_of :: proc(t: ^Tracks, count: int) {
 	t.count = count
 	t.rect = {0, 0, 800, 400}
 	t.columns = {
-		{id = COLUMN_NUMBER, title = "#", min_width = 36, numeric = true, fixed = true},
+		{
+			id = COLUMN_NUMBER,
+			title = "#",
+			min_width = 36,
+			mono = true,
+			align = .Right,
+			fixed = true,
+		},
 		{
 			id = COLUMN_TITLE,
 			title = "Title",
@@ -42,9 +49,17 @@ tracks_of :: proc(t: ^Tracks, count: int) {
 			weight = 1.6,
 			width = 240,
 			primary = true,
+			sort_label = "Sort by Title",
 		},
 		{id = COLUMN_ARTIST, title = "Artist", min_width = 140, weight = 1.1, width = 160},
-		{id = COLUMN_TIME, title = "Time", min_width = 56, numeric = true, width = 56},
+		{
+			id = COLUMN_TIME,
+			title = "Time",
+			min_width = 56,
+			mono = true,
+			align = .Right,
+			width = 56,
+		},
 	}
 	t.all = make([dynamic]Table_Result, context.temp_allocator)
 }
@@ -66,14 +81,12 @@ cell_of :: proc(data: rawptr, row, column: int) -> string {
 
 @(private = "file")
 states_of :: proc(data: rawptr, row: int) -> (s: Row_States) {
-	t := (^Tracks)(data)
 	if row >= 3 && row <= 4 do s += {.Selected}
 	if row == 1 do s += {.Modified}
 	if row == 2 do s += {.Placeholder}
 	if row == 5 do s += {.Error}
 	if row == 6 do s += {.Playing}
 	if row == 7 do s += {.Warning}
-	_ = t
 	return
 }
 
@@ -119,6 +132,7 @@ reported :: proc(t: ^Tracks) -> (r: Table_Result) {
 		if each.row_menu != nil do r.row_menu = each.row_menu
 		if each.column_menu != nil do r.column_menu = each.column_menu
 		if each.edit != nil do r.edit = each.edit
+		r.release ||= each.release
 		if each.step != nil do r.step = each.step
 		r.select_all ||= each.select_all
 		r.space ||= each.space
@@ -192,6 +206,44 @@ a_double_click_on_a_cell_asks_to_edit_it :: proc(t: ^testing.T) {
 }
 
 @(test)
+a_press_and_its_release_are_reported_and_a_right_click_takes_the_focus :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	click(&h, "Track 2")
+	testing.expect(t, reported(&tr).release)
+	request_focus(&h.ui, 0)
+	run_frame(&h)
+	click(&h, "Track 4", .Right)
+	testing.expect(t, has_focus(&h.ui, widget_id("Tracks")))
+	// Tab moves on from the table.
+	press_key(&h, .Tab)
+	testing.expect(t, !has_focus(&h.ui, widget_id("Tracks")))
+}
+
+@(test)
+rows_cells_and_signs_are_declared_inside_the_table :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	table := widget_id("Tracks")
+	row, _ := find_widget(&h.ui, "Track 2")
+	testing.expect_value(t, row.parent, table)
+	unsaved, _ := find_widget(&h.ui, "Unsaved changes")
+	testing.expect(t, unsaved.role == .Image && unsaved.parent == row.id)
+	unreadable, found := find_widget(&h.ui, "Unreadable")
+	testing.expect(t, found && unreadable.parent == child_id(table, "row", 5))
+	cell, _ := find_widget(&h.ui, "Marlowe Kite")
+	testing.expect(t, cell.role == .Cell && cell.parent == child_id(table, "row", 0))
+	sort, _ := find_widget(&h.ui, "Sort by Title")
+	testing.expect_value(t, sort.parent, table)
+	chooser, _ := find_widget(&h.ui, "Choose columns")
+	testing.expect_value(t, chooser.parent, table)
+}
+
+@(test)
 the_header_sorts_resizes_and_moves_the_columns :: proc(t: ^testing.T) {
 	h: Harness
 	tr: Tracks
@@ -201,7 +253,7 @@ the_header_sorts_resizes_and_moves_the_columns :: proc(t: ^testing.T) {
 	testing.expect_value(t, reported(&tr).sort_by, COLUMN_ARTIST)
 
 	// The right edge of Title.
-	title, _ := find_widget(&h.ui, "Title")
+	title, _ := find_widget(&h.ui, "Sort by Title")
 	move_mouse(&h, {title.rect.x + title.rect.w + 3, 14})
 	press(&h)
 	move_mouse(&h, {title.rect.x + title.rect.w + 53, 14})
@@ -219,6 +271,56 @@ the_header_sorts_resizes_and_moves_the_columns :: proc(t: ^testing.T) {
 	move, moved := reported(&tr).moved.?
 	testing.expect(t, moved && move.column == COLUMN_ARTIST && move.before == COLUMN_TITLE)
 	testing.expect_value(t, reported(&tr).sort_by, nil)
+}
+
+@(test)
+a_column_fits_its_content_moves_last_and_keeps_some_width :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	artist, _ := find_widget(&h.ui, "Artist")
+	edge := [2]f32{artist.rect.x + artist.rect.w + 3, 14}
+	move_mouse(&h, edge)
+	press(&h)
+	release(&h)
+	// A press alone resizes nothing.
+	testing.expect_value(t, reported(&tr).resized, nil)
+	press(&h, clicks = 2)
+	release(&h)
+	fit, fitted := reported(&tr).resized.?
+	widest := text_width(h.ui.renderer, "Marlowe Kite", .Body)
+	testing.expect(t, fitted && fit.column == COLUMN_ARTIST && fit.width == widest + 17)
+
+	// Never narrower than 40 points.
+	move_mouse(&h, edge)
+	press(&h)
+	move_mouse(&h, {edge.x - 500, 14})
+	release(&h)
+	narrow, _ := reported(&tr).resized.?
+	testing.expect_value(t, narrow.width, 40)
+
+	// Dropped past the last column: last.
+	title, _ := find_widget(&h.ui, "Sort by Title")
+	move_mouse(&h, rect_center(title.rect))
+	press(&h)
+	move_mouse(&h, {790, 14})
+	release(&h)
+	move, moved := reported(&tr).moved.?
+	testing.expect(t, moved && move.column == COLUMN_TITLE && move.before == nil)
+}
+
+@(test)
+a_right_click_anywhere_on_the_header_opens_the_chooser :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	// The status corner, which no column covers.
+	move_mouse(&h, {10, 14})
+	press(&h, .Right)
+	release(&h, .Right)
+	testing.expect(t, reported(&tr).column_menu != nil)
 }
 
 @(test)
@@ -260,6 +362,17 @@ the_focused_row_is_kept_in_view :: proc(t: ^testing.T) {
 	run_frame(&h)
 	run_frame(&h)
 	_, shown := find_widget(&h.ui, "Track 501")
+	testing.expect(t, shown)
+	// Back to a row the focus left: it scrolls there again.
+	tr.focused = 0
+	run_frame(&h)
+	tr.state.scroll.offset.y = 10_000
+	tr.focused = nil
+	run_frame(&h)
+	tr.focused = 0
+	run_frame(&h)
+	run_frame(&h)
+	_, shown = find_widget(&h.ui, "Track 1")
 	testing.expect(t, shown)
 }
 

@@ -4,19 +4,24 @@ import "core:math"
 
 // A column of a table: the caller's id for it, and how it is drawn and sized.
 Table_Column :: struct {
-	id:        int,
-	title:     string,
+	id:         int,
+	title:      string,
 	// The width the user gave it, when the table is sized; else the table shares its width
 	// between the columns, each getting min_width and its weight's share of what is left.
-	width:     f32,
-	min_width: f32,
-	weight:    f32,
-	// Numbers that line up: JetBrains Mono, aligned right.
-	numeric:   bool,
+	width:      f32,
+	min_width:  f32,
+	weight:     f32,
+	// In JetBrains Mono, as numbers that line up and the tag versions.
+	mono:       bool,
+	// Where its text goes: numbers to the right.
+	align:      Align,
+	// What assistive technologies call its name, which sorts by it: "Sort by Title";
+	// its title when empty.
+	sort_label: string,
 	// The column whose text says which row it is, the title: in the row's colours.
-	primary:   bool,
+	primary:    bool,
 	// Not resized, moved or hidden by the user: the track number.
-	fixed:     bool,
+	fixed:      bool,
 }
 
 // What a row is going through.
@@ -39,7 +44,8 @@ Row_States :: bit_set[Row_State]
 Table_Rows :: struct {
 	data:   rawptr,
 	count:  int,
-	// The text of a cell, which must last until the frame ends.
+	// The text of a cell, which must last until the next frame: it is declared as the
+	// cell's label.
 	cell:   proc(data: rawptr, row: int, column: int) -> string,
 	states: proc(data: rawptr, row: int) -> Row_States,
 }
@@ -70,7 +76,8 @@ Column_Move :: struct {
 	before: Maybe(int),
 }
 
-// A column resized to width.
+// A column resized to width. The first resize of columns the user never sized gives
+// one width: the app takes the others from column_widths.
 Column_Resize :: struct {
 	column: int,
 	width:  f32,
@@ -184,11 +191,17 @@ table :: proc(
 			focusable = true,
 		},
 	)
+	push_parent(ui, id)
+	defer pop_parent(ui)
 
 	if focused do table_keys(ui, &result)
-	// The focused row is kept in view once, when it moves.
-	if row, has := focused_row.?; has && state.revealed != row {
-		scroll_into_view(&state.scroll, f32(row) * TABLE_ROW_HEIGHT, TABLE_ROW_HEIGHT, body.h)
+	// The focused row is kept in view once, when it moves, above the horizontal scroll
+	// bar when there is one.
+	view := body.h - (content.x > body.w ? SCROLL_BAR : 0)
+	row, has_row := focused_row.?
+	if !has_row do state.revealed = nil
+	if has_row && state.revealed != row {
+		scroll_into_view(&state.scroll, f32(row) * TABLE_ROW_HEIGHT, TABLE_ROW_HEIGHT, view)
 		state.revealed = row
 	}
 
@@ -239,7 +252,7 @@ table_keys :: proc(ui: ^Ui, result: ^Table_Result) {
 	if take_key(ui, .Tab, {.Shift}) do move_focus(ui, .Back)
 }
 
-// The rows in view, from the first one the scroll shows.
+// The rows in view, from the first one the scroll shows: each declared with its cells.
 @(private = "file")
 draw_rows :: proc(
 	ui: ^Ui,
@@ -274,32 +287,15 @@ draw_rows :: proc(
 			request_focus(ui, id)
 		}
 		if .Held in interaction && .Left in in_.released do result.release = true
-		if .Right_Clicked in interaction do result.row_menu = Row_Menu{row, in_.mouse}
+		if .Right_Clicked in interaction {
+			result.row_menu = Row_Menu{row, in_.mouse}
+			request_focus(ui, id)
+		}
 		switch {
 		case .Selected in states:
 			fill_rect(r, rect, th.accent_selection)
 		case .Hovered in interaction:
 			fill_rect(r, rect, th.surface_3)
-		}
-		draw_status(r, th, {rect.x, y, TABLE_STATUS_WIDTH, TABLE_ROW_HEIGHT}, states)
-		x := rect.x + TABLE_STATUS_WIDTH
-		for column, i in columns {
-			cell := Rect{x, y, widths[i], TABLE_ROW_HEIGHT}
-			x += widths[i]
-			if cell.w <= 0 do continue
-			text := rows.cell(rows.data, row, column.id)
-			draw_cell(r, th, cell, text, column, states)
-			if .Double_Clicked in interaction &&
-			   rect_contains(cell, in_.mouse) &&
-			   .Error not_in states {
-				result.edit = Cell_Edit{row, column.id}
-			}
-		}
-		fill_rect(r, {rect.x, y + TABLE_ROW_HEIGHT - 1, rect.w, 1}, th.border_row)
-		if .Selected in states && focused {
-			above := row > 0 && .Selected in rows.states(rows.data, row - 1)
-			below := row + 1 < rows.count && .Selected in rows.states(rows.data, row + 1)
-			draw_selection_outline(r, th, rect, above, below)
 		}
 		label := len(columns) > 0 ? rows.cell(rows.data, row, primary_column(columns)) : ""
 		declare(
@@ -310,25 +306,65 @@ draw_rows :: proc(
 				label = label,
 				rect = rect,
 				states = row_widget_states(states, interaction),
-				parent = id,
 			},
 		)
+		push_parent(ui, row_id)
+		draw_status(ui, row_id, {rect.x, y, TABLE_STATUS_WIDTH, TABLE_ROW_HEIGHT}, states)
+		x := rect.x + TABLE_STATUS_WIDTH
+		for column, i in columns {
+			cell := Rect{x, y, widths[i], TABLE_ROW_HEIGHT}
+			x += widths[i]
+			if cell.w <= 0 do continue
+			text := rows.cell(rows.data, row, column.id)
+			draw_cell(r, th, cell, text, column, states)
+			// A line at the right edge of each cell, but the number's.
+			if !column.fixed do fill_rect(r, {cell.x + cell.w - 1, y, 1, TABLE_ROW_HEIGHT}, th.border_row)
+			declare(
+				ui,
+				{
+					id = child_id(row_id, "cell", column.id),
+					role = .Cell,
+					label = text,
+					rect = cell,
+				},
+			)
+			if .Double_Clicked in interaction &&
+			   rect_contains(cell, in_.mouse) &&
+			   .Error not_in states {
+				result.edit = Cell_Edit{row, column.id}
+			}
+		}
+		pop_parent(ui)
+		fill_rect(r, {rect.x, y + TABLE_ROW_HEIGHT - 1, rect.w, 1}, th.border_row)
+		if .Selected in states && focused {
+			above := row > 0 && .Selected in rows.states(rows.data, row - 1)
+			below := row + 1 < rows.count && .Selected in rows.states(rows.data, row + 1)
+			draw_selection_outline(r, th, rect, above, below)
+		}
 	}
 }
 
-// The status column: why a row stands out, one sign at most.
+// The status column: why a row stands out, one sign at most, declared as an image.
 @(private = "file")
-draw_status :: proc(r: ^Renderer, th: Theme, cell: Rect, states: Row_States) {
+draw_status :: proc(ui: ^Ui, row_id: Widget_Id, cell: Rect, states: Row_States) {
+	r := ui.renderer
+	th := ui.theme
+	label: string
 	switch {
 	case .Error in states:
 		draw_icon_centered(r, .Circle_Alert, cell, th.error, 14)
+		label = "Unreadable"
 	case .Playing in states:
 		draw_icon_centered(r, .Volume, cell, th.accent_text, 14)
+		label = "Playing"
 	case .Modified in states:
 		fill_rect(r, centered(cell, 6, 6), th.accent, 3)
+		label = "Unsaved changes"
 	case .Warning in states:
 		draw_icon_centered(r, .Triangle_Alert, cell, th.warning, 14)
+		label = "Unlike the rest of its album"
 	}
+	if label != "" do declare(ui, {id = child_id(row_id, "status"), role = .Image, label = label, rect = cell})
 }
 
 @(private = "file")
@@ -353,20 +389,11 @@ draw_cell :: proc(
 	case column.primary:
 		color = th.text_primary
 	}
-	style := column.numeric ? Text_Style.Numeric : Text_Style.Body
+	style := column.mono ? Text_Style.Numeric : Text_Style.Body
 	push_clip(r, cell)
 	defer pop_clip(r)
 	inner := rect_inset(cell, 8, 0)
-	draw_text_fit(
-		r,
-		text,
-		inner.x,
-		cell.y + cell.h / 2,
-		inner.w,
-		style,
-		color,
-		column.numeric ? .Right : .Left,
-	)
+	draw_text_fit(r, text, inner.x, cell.y + cell.h / 2, inner.w, style, color, column.align)
 }
 
 // The outline of a run of selected rows while the table has the focus: its sides, and
@@ -381,7 +408,8 @@ draw_selection_outline :: proc(r: ^Renderer, th: Theme, rect: Rect, above, below
 
 // The header: a click on a column's name sorts by it, a drag of it moves the column, a
 // drag of its right edge resizes it and a double click there fits it, a right click
-// opens the column chooser, as does the button at its right end.
+// anywhere opens the column chooser, as does the button at its right end. A press
+// gives the table the focus.
 @(private = "file")
 draw_header :: proc(
 	ui: ^Ui,
@@ -413,7 +441,7 @@ draw_header :: proc(
 		handle_id := child_id(id, "resize", column.id)
 		name := Rect{cell.x, cell.y, cell.w - (column.fixed ? 0 : RESIZE_HANDLE), cell.h}
 		interaction := interact(ui, cell_id, name)
-		if .Right_Clicked in interaction do result.column_menu = in_.mouse
+		if .Pressed in interaction do request_focus(ui, id)
 		if !column.fixed {
 			if .Held in interaction &&
 			   state.dragging == nil &&
@@ -425,7 +453,7 @@ draw_header :: proc(
 				if .Held not_in interaction || .Left in in_.released {
 					result.moved = Column_Move {
 						column.id,
-						drop_before(columns, widths, starts, x, in_.mouse.x, origin_x),
+						drop_before(columns, widths, starts, in_.mouse.x),
 					}
 					state.dragging = nil
 				}
@@ -436,87 +464,99 @@ draw_header :: proc(
 		if s, has := sort.?; has && s.column == column.id do sorted, descending = true, s.descending
 		if state.dragging == column.id do fill_rect(r, cell, th.surface_3)
 		color := sorted ? th.text_primary : th.text_secondary
-		inner := rect_inset(cell, 8, 0)
-		marker: f32 = sorted ? 14 : 0
-		align: Align = column.numeric ? .Right : .Left
-		text_x := inner.x
-		if column.numeric do text_x = inner.x + marker
-		draw_text_fit(
-			r,
-			column.title,
-			text_x,
-			cell.y + cell.h / 2,
-			inner.w - marker,
-			.Small_Strong,
-			color,
-			align,
-		)
-		if sorted {
-			title_width := min(text_width(r, column.title, .Small_Strong), inner.w - marker)
-			icon_x :=
-				column.numeric ? inner.x + inner.w - title_width - 14 : inner.x + title_width + 4
-			draw_icon(
-				r,
-				descending ? .Chevron_Down : .Chevron_Up,
-				{icon_x, cell.y + cell.h / 2 - 5, 10, 10},
-				color,
-			)
-		}
-		label := column.title
+		draw_column_name(r, rect_inset(cell, 8, 0), column, sorted, descending, color)
 		declare(
 			ui,
 			{
 				id = cell_id,
 				role = .Button,
-				label = label,
+				label = column.sort_label != "" ? column.sort_label : column.title,
 				rect = name,
 				states = sorted ? {.Selected} : {},
 			},
 		)
 		if column.fixed do continue
 		// The separator at the column's right edge, which a drag resizes.
-		fill_rect(r, {cell.x + cell.w - 1, cell.y + 6, 1, cell.h - 12}, th.border_subtle)
+		fill_rect(r, {cell.x + cell.w - 1, cell.y, 1, cell.h}, th.border_subtle)
 		handle := Rect{cell.x + cell.w - RESIZE_HANDLE, cell.y, RESIZE_HANDLE, cell.h}
 		resize := interact(ui, handle_id, handle)
 		if .Hovered in resize || .Held in resize do ui.cursor = .Resize_Horizontal
 		if .Pressed in resize {
 			state.resizing = column.id
 			state.resize_from = widths[i]
+			request_focus(ui, id)
 		}
 		if .Double_Clicked in resize do result.resized = Column_Resize{column.id, fit_width(r, rows, column)}
 		if .Held in resize && state.resizing == column.id {
-			width := max(state.resize_from + in_.mouse.x - ui.press_mouse.x, NARROWEST)
+			// The drag's distance first: the width stays exact while the pointer has not
+			// moved, and a press alone resizes nothing.
+			width := max(state.resize_from + (in_.mouse.x - ui.press_mouse.x), NARROWEST)
 			if width != widths[i] do result.resized = Column_Resize{column.id, width}
 		}
 		if .Held not_in resize && state.resizing == column.id do state.resizing = nil
 	}
 	starts[len(columns)] = x
 	// Where a dragged column would go: a line before the column it would precede.
-	if dragged, is := state.dragging.?; is {
+	if state.dragging != nil {
 		ui.cursor = .Grabbing
-		before := drop_before(columns, widths, starts, x, state.drag_x, origin_x)
 		line_x := x
-		if b, has := before.?; has {
-			for c, i in columns do if c.id == b do line_x = starts[i]
+		if before, has := drop_before(columns, widths, starts, state.drag_x).?; has {
+			for c, i in columns do if c.id == before do line_x = starts[i]
 		}
-		fill_rect(r, {line_x - 1, header.y, 2, header.h}, th.focus_ring)
-		_ = dragged
+		fill_rect(r, {line_x - 1, header.y, 2, header.h}, th.accent)
 	}
-	// The columns button, at the right end.
-	button_rect := Rect{header.x + header.w - TABLE_END_WIDTH + 4, header.y + 2, 24, 24}
+	// A drag or a resize whose column went away ends with the button.
+	if .Left not_in in_.down {
+		state.dragging = nil
+		state.resizing = nil
+	}
+	// The columns button, at the right end, over the names scrolled under it.
+	end := Rect{header.x + header.w - TABLE_END_WIDTH, header.y, TABLE_END_WIDTH, header.h - 1}
+	fill_rect(r, end, th.surface_2)
+	button_rect := Rect{end.x + 4, header.y + 2, 24, 24}
 	if toolbar_button(ui, child_id(id, "columns"), button_rect, .Columns, "Choose columns") {
 		result.column_menu = [2]f32{button_rect.x, button_rect.y + button_rect.h}
 	}
+	if .Right in in_.pressed && mouse_over(ui, header) do result.column_menu = in_.mouse
+}
+
+// A column's name in the header, and the order's chevron right after it when the table
+// is sorted by it, both packed to the side the column's text goes to.
+@(private = "file")
+draw_column_name :: proc(
+	r: ^Renderer,
+	inner: Rect,
+	column: Table_Column,
+	sorted, descending: bool,
+	color: Color,
+) {
+	MARKER :: 10
+	GAP :: 4
+	middle := inner.y + inner.h / 2
+	if !sorted {
+		draw_text_fit(
+			r,
+			column.title,
+			inner.x,
+			middle,
+			inner.w,
+			.Small_Strong,
+			color,
+			column.align,
+		)
+		return
+	}
+	title_width := min(text_width(r, column.title, .Small_Strong), inner.w - MARKER - GAP)
+	text_x := column.align == .Right ? inner.x + inner.w - MARKER - GAP - title_width : inner.x
+	draw_text_fit(r, column.title, text_x, middle, title_width, .Small_Strong, color)
+	icon := descending ? Icon.Chevron_Down : Icon.Chevron_Up
+	draw_icon(r, icon, {text_x + title_width + GAP, middle - MARKER / 2, MARKER, MARKER}, color)
 }
 
 // The column a column dragged to pointer would go before: the first whose middle lies
 // past it, among those that can move; nil to go last.
 @(private = "file")
-drop_before :: proc(
-	columns: []Table_Column,
-	widths, starts: []f32,
-	end, pointer, origin_x: f32,
-) -> Maybe(int) {
+drop_before :: proc(columns: []Table_Column, widths, starts: []f32, pointer: f32) -> Maybe(int) {
 	for c, i in columns {
 		if c.fixed || widths[i] <= 0 do continue
 		if starts[i] + widths[i] / 2 > pointer do return c.id
@@ -528,8 +568,8 @@ drop_before :: proc(
 // and the separator, up to WIDEST_FIT: a double click on the column's edge.
 @(private = "file")
 fit_width :: proc(r: ^Renderer, rows: Table_Rows, column: Table_Column) -> f32 {
-	style := column.numeric ? Text_Style.Numeric : Text_Style.Body
-	widest := text_width(r, column.title, .Small_Strong) + 14
+	style := column.mono ? Text_Style.Numeric : Text_Style.Body
+	widest := text_width(r, column.title, .Small_Strong)
 	for row in 0 ..< rows.count {
 		widest = max(widest, text_width(r, rows.cell(rows.data, row, column.id), style))
 		if widest >= WIDEST_FIT do break
