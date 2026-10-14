@@ -70,6 +70,8 @@ damaged_files_scan_and_save_without_a_panic :: proc(t: ^testing.T) {
 	for event in events {
 		track := event.(lib.Track) or_continue
 		tracks += 1
+		// The one path that decodes picture frames, on damaged files too.
+		if cover, found := lib.read_cover(track.path); found do lib.destroy_cover(&cover)
 		if track.error != .None || tracks % 5 != 0 do continue
 		tags := track.metadata.tags
 		tags.title = "Saved again"

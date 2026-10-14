@@ -51,7 +51,8 @@ finds_mp3_files_in_subfolders_sorted_by_name :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(found(folder, events[:])), 4)
 	want := []string{"Album/01.mp3", "Album/02.mp3", "a.mp3", "b.mp3"}
 	for path, i in found(folder, events[:]) do testing.expect_value(t, path, want[i])
-	testing.expect_value(t, events[len(events) - 1], lib.Scan_Event(lib.Scan_Outcome.Completed))
+	outcome, ended := events[len(events) - 1].(lib.Scan_Outcome)
+	testing.expect(t, ended && outcome == .Completed)
 }
 
 @(test)
@@ -165,7 +166,8 @@ reports_a_missing_folder_and_still_finishes :: proc(t: ^testing.T) {
 	failure, ok := events[0].(lib.Scan_Error)
 	testing.expect(t, ok)
 	testing.expect_value(t, failure.path, "/this/folder/does/not/exist")
-	testing.expect_value(t, events[1], lib.Scan_Event(lib.Scan_Outcome.Completed))
+	outcome, ended := events[1].(lib.Scan_Outcome)
+	testing.expect(t, ended && outcome == .Completed)
 }
 
 @(test)

@@ -98,7 +98,7 @@ every_fixture_reads_back_what_was_written_with_its_audio_untouched :: proc(t: ^t
 			before := slice.clone(audio(read_bytes(path)))
 			defer delete(before)
 			tags := new_tags()
-			tags.has_cover = original.metadata.tags.has_cover
+			tags.cover = original.metadata.tags.cover
 
 			written, write_err := lib.write_track(path, tags, versions)
 			defer lib.destroy_track(&written)
@@ -116,7 +116,7 @@ every_fixture_reads_back_what_was_written_with_its_audio_untouched :: proc(t: ^t
 			if versions.id3v2 != nil {
 				testing.expectf(
 					t,
-					written.metadata.tags == tags,
+					lib.same_tags(written.metadata.tags, tags),
 					"%s: %v",
 					what,
 					written.metadata.tags,
@@ -151,7 +151,7 @@ removed_fields_are_gone :: proc(t: ^testing.T) {
 	defer lib.destroy_track(&written)
 
 	testing.expect_value(t, err, lib.Write_Error.None)
-	testing.expect_value(t, written.metadata.tags, tags)
+	testing.expectf(t, lib.same_tags(written.metadata.tags, tags), "%v", written.metadata.tags)
 }
 
 @(test)
@@ -175,14 +175,14 @@ id3v2_2_keeps_the_frames_colophon_does_not_edit :: proc(t: ^testing.T) {
 	folder, path := copy_of(t, "v23_cover.mp3")
 	defer remove_folder(folder)
 	tags := new_tags()
-	tags.has_cover = true
+	tags.cover = lib.Own_Cover{}
 
 	written, err := lib.write_track(path, tags, {.V2_2, nil})
 	defer lib.destroy_track(&written)
 
 	testing.expect_value(t, err, lib.Write_Error.None)
 	testing.expect_value(t, written.metadata.formats, lib.Tag_Formats{id3v2 = .V2_2})
-	testing.expect_value(t, written.metadata.tags, tags)
+	testing.expectf(t, lib.same_tags(written.metadata.tags, tags), "%v", written.metadata.tags)
 	file, _ := id3.read_file(path)
 	defer id3.destroy(&file)
 	pictures, publishers := 0, 0
@@ -284,7 +284,12 @@ a_total_without_its_number_reads_back_the_same :: proc(t: ^testing.T) {
 	defer lib.destroy_track(&written)
 
 	testing.expect_value(t, err, lib.Write_Error.None)
-	testing.expect_value(t, written.metadata.tags, before.metadata.tags)
+	testing.expectf(
+		t,
+		lib.same_tags(written.metadata.tags, before.metadata.tags),
+		"%v",
+		written.metadata.tags,
+	)
 }
 
 @(test)
@@ -318,4 +323,88 @@ the_enhanced_tag_keeps_its_speed_and_times :: proc(t: ^testing.T) {
 			testing.expect_value(t, enhanced.end_time, "002:30")
 		}
 	}
+}
+
+@(test)
+a_cover_is_replaced_and_removed :: proc(t: ^testing.T) {
+	folder, path := copy_of(t, "v23_full.mp3")
+	defer remove_folder(folder)
+	cover, found := lib.read_cover(fixture("v23_cover.mp3"))
+	defer lib.destroy_cover(&cover)
+	testing.expect(t, found)
+	tags := new_tags()
+	tags.cover = cover
+
+	written, err := lib.write_track(path, tags, {.V2_3, nil})
+	defer lib.destroy_track(&written)
+
+	testing.expect_value(t, err, lib.Write_Error.None)
+	_, own := written.metadata.tags.cover.(lib.Own_Cover)
+	testing.expect(t, own)
+	back, has := lib.read_cover(path)
+	defer lib.destroy_cover(&back)
+	testing.expect(t, has && back.mime == cover.mime && slice.equal(back.data, cover.data))
+
+	// None removes it.
+	tags.cover = nil
+	again, err_again := lib.write_track(path, tags, {.V2_3, nil})
+	defer lib.destroy_track(&again)
+	testing.expect_value(t, err_again, lib.Write_Error.None)
+	testing.expect(t, again.metadata.tags.cover == nil)
+}
+
+// A file with a front cover and a back cover: removing the cover removes the front one
+// alone, and the back cover is the file's cover from then on, as 1.0.0 did.
+@(test)
+removing_the_cover_keeps_the_other_pictures :: proc(t: ^testing.T) {
+	folder, path := copy_of(t, "v23_cover.mp3")
+	defer remove_folder(folder)
+	file, read_err := id3.read_file(path)
+	testing.expect(t, read_err == nil)
+	back := []u8{66, 65, 67, 75}
+	testing.expect(
+		t,
+		id3.set_picture(&file.v2, {mime = "image/png", type = .Back_Cover, data = back}) == nil,
+	)
+	testing.expect(t, id3.write_file(path, &file) == nil)
+	id3.destroy(&file)
+	tags := new_tags()
+	tags.cover = nil
+
+	written, err := lib.write_track(path, tags, {.V2_3, nil})
+	defer lib.destroy_track(&written)
+
+	testing.expect_value(t, err, lib.Write_Error.None)
+	_, own := written.metadata.tags.cover.(lib.Own_Cover)
+	testing.expect(t, own)
+	cover, found := lib.read_cover(path)
+	defer lib.destroy_cover(&cover)
+	testing.expect(t, found && slice.equal(cover.data, back))
+}
+
+// A cover written as ID3v2.2 names its format in three letters and reads back as its
+// MIME type; a format ID3v2.2 cannot name fails the file, left untouched.
+@(test)
+a_cover_written_as_id3v2_2_keeps_its_format :: proc(t: ^testing.T) {
+	folder, path := copy_of(t, "v23_full.mp3")
+	defer remove_folder(folder)
+	before := slice.clone(read_bytes(path))
+	defer delete(before)
+	tags := new_tags()
+	tags.cover = lib.Cover{"image/jpeg", []u8{0xFF, 0xD8, 0xFF, 0xE0}}
+
+	written, err := lib.write_track(path, tags, {.V2_2, nil})
+	defer lib.destroy_track(&written)
+	testing.expect_value(t, err, lib.Write_Error.None)
+	cover, found := lib.read_cover(path)
+	defer lib.destroy_cover(&cover)
+	testing.expect(t, found && cover.mime == "image/jpeg")
+
+	tags.cover = lib.Cover{"image/webp", []u8{1, 2, 3}}
+	again_before := slice.clone(read_bytes(path))
+	defer delete(again_before)
+	again, err_again := lib.write_track(path, tags, {.V2_2, nil})
+	defer lib.destroy_track(&again)
+	testing.expect(t, err_again != .None)
+	testing.expect(t, slice.equal(read_bytes(path), again_before))
 }

@@ -282,8 +282,37 @@ typed_text_makes_the_edit_of_its_field :: proc(t: ^testing.T) {
 		edit, ok := parse_edit(c.field, c.text)
 		want, valid := c.edit.?
 		testing.expectf(t, ok == valid, "%v %q: %v", c.field, c.text, ok)
-		if ok && valid do testing.expectf(t, edit == want, "%v %q: %v", c.field, c.text, edit)
+		if ok && valid {
+			testing.expectf(t, edit.field == want.field, "%v %q: %v", c.field, c.text, edit)
+			testing.expectf(
+				t,
+				same_value(edit.value, want.value),
+				"%v %q: %v",
+				c.field,
+				c.text,
+				edit,
+			)
+		}
 	}
+}
+
+// Whether two text or number values are the same: an Edit_Value holds covers too,
+// whose bytes make it incomparable.
+@(private = "file")
+same_value :: proc(a, b: Edit_Value) -> bool {
+	switch v in a {
+	case nil:
+		return b == nil
+	case string:
+		other, ok := b.(string)
+		return ok && other == v
+	case int:
+		other, ok := b.(int)
+		return ok && other == v
+	case lib.Cover:
+		return false
+	}
+	return false
 }
 
 @(test)
@@ -320,4 +349,14 @@ a_track_whose_file_cannot_be_read_takes_no_change :: proc(t: ^testing.T) {
 	choose_versions(&e, {0}, Id3v1_Choice{.V1_1})
 	set_title(&e, {0}, "Newer")
 	testing.expect_value(t, len(e.edits.undo), 1)
+}
+
+@(test)
+a_cover_fits_the_cover_field_alone :: proc(t: ^testing.T) {
+	cover := lib.Cover{"image/png", {1, 2, 3}}
+	testing.expect(t, fits({.Cover, cover}))
+	testing.expect(t, fits({.Cover, nil}))
+	testing.expect(t, !fits({.Cover, 7}))
+	testing.expect(t, !fits({.Cover, "text"}))
+	testing.expect(t, !fits({.Title, cover}))
 }

@@ -20,6 +20,7 @@ Field :: enum u8 {
 	Disc_Total,
 	Genre,
 	Comment,
+	Cover,
 }
 
 // Several fields, such as those with values waiting to be saved.
@@ -33,11 +34,13 @@ Edit :: struct {
 }
 
 // The value of an edit: text for the text fields, a number from 1 for the number
-// fields, a year from 1 to 9999. An edit whose value does not fit its field changes
-// nothing.
+// fields, a year from 1 to 9999, a cover held in memory for the cover; nil empties
+// any field, the cover included. An edit whose value does not fit its field changes
+// nothing. The engine copies a cover.
 Edit_Value :: union {
 	string,
 	int,
+	lib.Cover,
 }
 
 // A choice of the version to write one tag of the selected tracks in; nil removes
@@ -97,7 +100,8 @@ Choose_Version :: struct {
 
 // What the user wants for each track, and the history of how they got there. The
 // history holds values rather than "modified or not", so that undoing an edit already
-// saved brings the old values back as a change to save.
+// saved brings the old values back as a change to save; the cover is the exception,
+// a file's own being known without its bytes (see the plan's decision on covers).
 Edits :: struct {
 	// The tracks saving would change, with the tags to write into them.
 	pending: map[Track_Id]lib.Tags,
@@ -218,6 +222,8 @@ differs :: proc(field: Field, a, b: ^lib.Tags) -> bool {
 		return a.genre != b.genre
 	case .Comment:
 		return a.comment != b.comment
+	case .Cover:
+		return !lib.same_cover(a.cover, b.cover)
 	}
 	return false
 }
@@ -228,6 +234,8 @@ differs :: proc(field: Field, a, b: ^lib.Tags) -> bool {
 parse_edit :: proc(field: Field, text: string) -> (edit: Edit, ok: bool) {
 	edit.field = field
 	switch field {
+	case .Cover:
+		return edit, false
 	case .Title, .Artist, .Album_Artist, .Album, .Genre, .Comment:
 		if len(text) > 0 do edit.value = text
 		return edit, true
@@ -252,7 +260,14 @@ fits :: proc(edit: Edit) -> bool {
 		return edit.field in TEXT_FIELDS
 	case int:
 		if edit.field == .Year do return v >= 1 && v <= 9999
-		return edit.field not_in TEXT_FIELDS && v >= 1 && v <= int(max(u32))
+		return(
+			edit.field not_in TEXT_FIELDS &&
+			edit.field != .Cover &&
+			v >= 1 &&
+			v <= int(max(u32)) \
+		)
+	case lib.Cover:
+		return edit.field == .Cover
 	}
 	return false
 }
@@ -422,6 +437,10 @@ apply_edit :: proc(tags: ^lib.Tags, edit: Edit) {
 		text(&tags.genre, edit.value)
 	case .Comment:
 		text(&tags.comment, edit.value)
+	case .Cover:
+		if held, has := &tags.cover.(lib.Cover); has do lib.destroy_cover(held)
+		tags.cover = nil
+		if cover, replaced := edit.value.(lib.Cover); replaced do tags.cover = lib.clone_cover(cover)
 	case .Year:
 		number(&tags.year, edit.value)
 	case .Track:
@@ -504,7 +523,7 @@ want :: proc(e: ^Engine, track: Track_Id, wanted: Wanted) {
 		rewritten = lib.formats_after_write(saved.formats, &wanted.tags, versions) != saved.formats
 	}
 	if old, pending := &e.edits.pending[track]; pending do lib.destroy_tags(old)
-	if wanted.tags != saved.tags || rewritten {
+	if !lib.same_tags(wanted.tags, saved.tags) || rewritten {
 		e.edits.pending[track] = lib.clone_tags(wanted.tags)
 	} else {
 		delete_key(&e.edits.pending, track)
@@ -519,7 +538,7 @@ clear_redo :: proc(e: ^Engine) {
 
 @(private = "file")
 same_wanted :: proc(a, b: Wanted) -> bool {
-	return a.tags == b.tags && a.versions == b.versions
+	return lib.same_tags(a.tags, b.tags) && a.versions == b.versions
 }
 
 @(private = "file")

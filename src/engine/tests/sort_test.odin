@@ -177,7 +177,12 @@ groups_count_the_tracks_and_find_the_first_cover :: proc(t: ^testing.T) {
 	defer engine.destroy(&e)
 	for i in 0 ..< 3 {
 		path := fmt.tprintf("/m/%d.mp3", i)
-		add(&e, path, {album = "Hits", artist = i < 2 ? "A" : "b", has_cover = i > 0})
+		tags := lib.Tags {
+			album  = "Hits",
+			artist = i < 2 ? "A" : "b",
+		}
+		if i > 0 do tags.cover = lib.Own_Cover{}
+		add(&e, path, tags)
 	}
 	add(&e, "/m/3.mp3", {album = "another", artist = "a"})
 	g := engine.groups(&e)

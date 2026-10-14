@@ -93,7 +93,7 @@ write_tags :: proc(
 		}
 		source = &scratch
 	}
-	if err := set_fields(source, tags); err != nil do return write_error(err)
+	if err := set_fields(source, tags, allocator); err != nil do return write_error(err)
 
 	if version, ok := versions.id3v1.?; ok {
 		old := &file.v1
@@ -137,7 +137,7 @@ V1_VERSIONS := [Id3v1_Version]id3.V1_Version {
 // change as it is; the year is compared apart, so that a full date keeps its month and
 // day while its year stays.
 @(private = "file")
-set_fields :: proc(tag: ^id3.Tag, tags: Tags) -> id3.Error {
+set_fields :: proc(tag: ^id3.Tag, tags: Tags, allocator: runtime.Allocator) -> id3.Error {
 	text :: proc(value: Maybe(string)) -> string {
 		return value.? or_else ""
 	}
@@ -163,7 +163,42 @@ set_fields :: proc(tag: ^id3.Tag, tags: Tags) -> id3.Error {
 	if number, total := id3.tag_disc(tag); number != disc || total != disc_total {
 		id3.set_disc(tag, disc, disc_total) or_return
 	}
+	set_cover(tag, tags.cover, allocator) or_return
 	return nil
+}
+
+// Writes the cover wanted: a file's own stays as it is; one held in memory takes the
+// place of the picture Colophon showed, as the front cover; none removes that picture
+// alone, the others staying, as 1.0.0 did.
+@(private = "file")
+set_cover :: proc(tag: ^id3.Tag, cover: Cover_State, allocator: runtime.Allocator) -> id3.Error {
+	switch c in cover {
+	case Own_Cover:
+	case Cover:
+		remove_shown_picture(tag, allocator)
+		return id3.set_picture(tag, {mime = c.mime, type = .Front_Cover, data = c.data})
+	case nil:
+		remove_shown_picture(tag, allocator)
+	}
+	return nil
+}
+
+// Removes the picture read_cover gives: the front covers, else the first picture.
+@(private = "file")
+remove_shown_picture :: proc(tag: ^id3.Tag, allocator: runtime.Allocator) {
+	picture, found, err := id3.front_cover(tag, allocator)
+	if err != nil || !found do return
+	defer id3.destroy_picture(&picture, allocator)
+	if picture.type == .Front_Cover {
+		id3.remove_pictures(tag, .Front_Cover)
+		return
+	}
+	for f, i in tag.frames {
+		if kind, known := id3.frame_kind(f.id, tag.version); known && kind == .APIC {
+			id3.remove_frame(tag, i)
+			return
+		}
+	}
 }
 
 // Keeps what the Enhanced TAG of the old ID3v1 tag held beside the text, which
