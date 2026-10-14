@@ -136,7 +136,7 @@ groups :: proc(e: ^Engine, allocator := context.allocator) -> (g: Groups) {
 		if track.error != .None do continue
 		tags := &track.metadata.tags
 		if key, ok := album_key(tags); ok {
-			append(&albums, Album_Entry{lower(key.title), key, Track_Id(i), tags.has_cover})
+			append(&albums, Album_Entry{lower(key.title), key, Track_Id(i), tags.cover != nil})
 		}
 		if artist, ok := tags.artist.?; ok do append(&artists, Artist_Entry{lower(artist), artist})
 	}

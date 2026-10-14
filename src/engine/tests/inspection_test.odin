@@ -228,3 +228,37 @@ the_inspection_counts_the_files_saving_converts :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(e.edits.pending), 1)
 	testing.expect_value(t, summary_of(t, &e).converted, 1)
 }
+
+// 1.0.0's cover test of edits.rs. A cover set from a file counts as a change for the
+// track that already has it, since the scan never reads picture bytes to compare.
+@(test)
+a_cover_is_an_edit_like_any_other :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := folder_with_fixtures(t, {{"v23_cover.mp3", "1.mp3"}, {"v23_full.mp3", "2.mp3"}})
+	defer remove_folder(folder)
+	engine_reading(t, &e, folder)
+	defer engine.destroy(&e)
+	engine.execute(&e, engine.Select_All{})
+	_, mixed := summary_of(t, &e).cover.(engine.Mixed)
+	testing.expect(t, mixed)
+	cover, found := lib.read_cover(fmt.tprintf("%s/1.mp3", folder))
+	defer lib.destroy_cover(&cover)
+	testing.expect(t, found)
+
+	engine.execute(&e, engine.Apply_Edit{{.Cover, cover}})
+
+	s := summary_of(t, &e)
+	key, shared := s.cover.(lib.Cover_Key)
+	testing.expect(t, shared && key.size == len(cover.data))
+	testing.expect_value(t, s.modified, engine.Fields{.Cover})
+	testing.expect_value(t, len(e.edits.pending), 2)
+	testing.expect(t, s.cover_track != nil)
+
+	engine.execute(&e, engine.Apply_Edit{{.Cover, engine.No_Cover{}}})
+	s = summary_of(t, &e)
+	testing.expect_value(t, s.cover, nil)
+	testing.expect_value(t, s.cover_track, nil)
+	engine.execute(&e, engine.Undo{})
+	engine.execute(&e, engine.Undo{})
+	testing.expect_value(t, len(e.edits.pending), 0)
+}

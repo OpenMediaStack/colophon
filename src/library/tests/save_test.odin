@@ -89,7 +89,7 @@ a_save_writes_each_file_then_finishes :: proc(t: ^testing.T) {
 		delete(events)
 	}
 	start := time.tick_now()
-	for len(events) == 0 || events[len(events) - 1] != lib.Save_Event(lib.Save_Finished{}) {
+	for !ended(events[:]) {
 		if time.tick_since(start) > 20 * time.Second do break
 		lib.take_save_events(save, &events)
 		time.sleep(time.Millisecond)
@@ -99,4 +99,12 @@ a_save_writes_each_file_then_finishes :: proc(t: ^testing.T) {
 	testing.expect(t, ok && saved.id == 1 && saved.track.metadata.tags.title == "One")
 	failure, failed := events[1].(lib.Save_Failure)
 	testing.expect(t, failed && failure.id == 2 && failure.error == .Cannot_Write)
+}
+
+// Whether the last event says the save ended.
+@(private = "file")
+ended :: proc(events: []lib.Save_Event) -> bool {
+	if len(events) == 0 do return false
+	_, finished := events[len(events) - 1].(lib.Save_Finished)
+	return finished
 }

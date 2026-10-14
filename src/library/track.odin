@@ -3,6 +3,8 @@
 package library
 
 import "base:runtime"
+import "core:hash"
+import "core:slice"
 import "core:strings"
 import "core:time"
 
@@ -53,7 +55,92 @@ Tags :: struct {
 	disc_total:   Maybe(int),
 	genre:        Maybe(string),
 	comment:      Maybe(string),
-	has_cover:    bool,
+	// nil for none; the file's own, found without reading its bytes; or one held in
+	// memory, to write.
+	cover:        Cover_State,
+}
+
+// The cover of a track. A scan never reads pictures: a file's cover is known by its
+// frame alone, and read on demand with read_cover. A cover to write holds its bytes.
+Cover_State :: union {
+	Own_Cover,
+	Cover,
+}
+
+// The file's own cover, whose bytes stay in the file: its picture frame, of this many
+// bytes.
+Own_Cover :: struct {
+	size: int,
+}
+
+// A cover held in memory: a JPEG or a PNG, with its MIME type. Free it with
+// destroy_cover.
+Cover :: struct {
+	mime: string,
+	data: []u8,
+}
+
+// What tells the covers of two tracks apart without reading the files: a file's own
+// by its frame's size, one in memory by its bytes. Two files whose picture frames
+// have one size therefore look the same.
+Cover_Key :: struct {
+	size: int,
+	hash: u64,
+}
+
+// The key of a cover; nil for none.
+cover_key :: proc(state: Cover_State) -> Maybe(Cover_Key) {
+	switch c in state {
+	case Own_Cover:
+		return Cover_Key{c.size, 0}
+	case Cover:
+		return Cover_Key{len(c.data), hash.fnv64a(c.data)}
+	}
+	return nil
+}
+
+// Whether a track's cover is the same in two sets of its tags: a file's own cover is
+// itself whatever its frame's size, which a conversion changes; one held in memory
+// is its bytes.
+same_cover :: proc(a, b: Cover_State) -> bool {
+	switch c in a {
+	case Own_Cover:
+		_, own := b.(Own_Cover)
+		return own
+	case Cover:
+		other, held := b.(Cover)
+		return held && c.mime == other.mime && slice.equal(c.data, other.data)
+	}
+	return b == nil
+}
+
+// Whether two sets of a track's tags hold the same values.
+same_tags :: proc(a, b: Tags) -> bool {
+	return(
+		a.title == b.title &&
+		a.artist == b.artist &&
+		a.album_artist == b.album_artist &&
+		a.album == b.album &&
+		a.year == b.year &&
+		a.track == b.track &&
+		a.track_total == b.track_total &&
+		a.disc == b.disc &&
+		a.disc_total == b.disc_total &&
+		a.genre == b.genre &&
+		a.comment == b.comment &&
+		same_cover(a.cover, b.cover) \
+	)
+}
+
+// A copy of a cover's strings and bytes, allocated with allocator.
+clone_cover :: proc(cover: Cover, allocator := context.allocator) -> Cover {
+	return {strings.clone(cover.mime, allocator), slice.clone(cover.data, allocator)}
+}
+
+destroy_cover :: proc(cover: ^Cover, allocator := context.allocator) {
+	delete(cover.mime, allocator)
+	delete(cover.data, allocator)
+	cover^ = {}
 }
 
 // The audio of a file whose MPEG frames could be read: a track whose audio cannot
@@ -108,6 +195,7 @@ destroy_tags :: proc(tags: ^Tags, allocator := context.allocator) {
 	delete_text(tags.album, allocator)
 	delete_text(tags.genre, allocator)
 	delete_text(tags.comment, allocator)
+	if cover, held := &tags.cover.(Cover); held do destroy_cover(cover, allocator)
 	tags^ = {}
 }
 
@@ -126,6 +214,7 @@ clone_tags :: proc(
 	clone.album = clone_text(tags.album, allocator) or_return
 	clone.genre = clone_text(tags.genre, allocator) or_return
 	clone.comment = clone_text(tags.comment, allocator) or_return
+	if cover, held := tags.cover.(Cover); held do clone.cover = clone_cover(cover, allocator)
 	return
 }
 

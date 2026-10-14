@@ -24,7 +24,8 @@ skips_an_unreadable_folder_and_reads_the_others :: proc(t: ^testing.T) {
 		if failure, ok := event.(lib.Scan_Error); ok && failure.path == locked do reported = true
 	}
 	testing.expect(t, reported)
-	testing.expect_value(t, events[len(events) - 1], lib.Scan_Event(lib.Scan_Outcome.Completed))
+	outcome, ended := events[len(events) - 1].(lib.Scan_Outcome)
+	testing.expect(t, ended && outcome == .Completed)
 }
 
 @(test)

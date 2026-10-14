@@ -2,6 +2,7 @@ package library_tests
 
 import "core:fmt"
 import "core:os"
+import "core:strings"
 import "core:testing"
 
 import lib ".."
@@ -10,7 +11,11 @@ import lib ".."
 a_cover_is_found_without_reading_it :: proc(t: ^testing.T) {
 	track := lib.read_track(fixture("v23_cover.mp3"))
 	defer lib.destroy_track(&track)
-	testing.expect(t, track.metadata.tags.has_cover)
+	_, own := track.metadata.tags.cover.(lib.Own_Cover)
+	testing.expect(t, own)
+	cover, found := lib.read_cover(fixture("v23_cover.mp3"))
+	defer lib.destroy_cover(&cover)
+	testing.expect(t, found && len(cover.data) > 0 && strings.has_prefix(cover.mime, "image/"))
 }
 
 @(test)

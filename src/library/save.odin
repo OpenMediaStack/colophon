@@ -163,6 +163,21 @@ set_fields :: proc(tag: ^id3.Tag, tags: Tags) -> id3.Error {
 	if number, total := id3.tag_disc(tag); number != disc || total != disc_total {
 		id3.set_disc(tag, disc, disc_total) or_return
 	}
+	set_cover(tag, tags.cover) or_return
+	return nil
+}
+
+// Writes the cover wanted: a file's own stays as it is, one held in memory replaces
+// the front cover, none removes every picture.
+@(private = "file")
+set_cover :: proc(tag: ^id3.Tag, cover: Cover_State) -> id3.Error {
+	switch c in cover {
+	case Own_Cover:
+	case Cover:
+		return id3.set_picture(tag, {mime = c.mime, type = .Front_Cover, data = c.data})
+	case nil:
+		id3.remove_pictures(tag)
+	}
 	return nil
 }
 

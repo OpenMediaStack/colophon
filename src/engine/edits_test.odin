@@ -282,8 +282,37 @@ typed_text_makes_the_edit_of_its_field :: proc(t: ^testing.T) {
 		edit, ok := parse_edit(c.field, c.text)
 		want, valid := c.edit.?
 		testing.expectf(t, ok == valid, "%v %q: %v", c.field, c.text, ok)
-		if ok && valid do testing.expectf(t, edit == want, "%v %q: %v", c.field, c.text, edit)
+		if ok && valid {
+			testing.expectf(t, edit.field == want.field, "%v %q: %v", c.field, c.text, edit)
+			testing.expectf(
+				t,
+				same_value(edit.value, want.value),
+				"%v %q: %v",
+				c.field,
+				c.text,
+				edit,
+			)
+		}
 	}
+}
+
+// Whether two text or number values are the same: an Edit_Value holds covers too,
+// whose bytes make it incomparable.
+@(private = "file")
+same_value :: proc(a, b: Edit_Value) -> bool {
+	switch v in a {
+	case nil:
+		return b == nil
+	case string:
+		other, ok := b.(string)
+		return ok && other == v
+	case int:
+		other, ok := b.(int)
+		return ok && other == v
+	case lib.Cover, No_Cover:
+		return false
+	}
+	return false
 }
 
 @(test)

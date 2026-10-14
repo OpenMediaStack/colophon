@@ -53,6 +53,10 @@ Summary :: struct {
 	disc_total:   Shared(int),
 	genre:        Shared(string),
 	comment:      Shared(string),
+	// The cover the tracks share, by key: a file's own, or one waiting to be saved.
+	cover:        Shared(lib.Cover_Key),
+	// The first selected track with a cover, whose cover to show.
+	cover_track:  Maybe(Track_Id),
 	audio:        Shared(Audio_Line),
 	formats:      Shared(lib.Tag_Formats),
 	// The tag versions saving writes the selected tracks in.
@@ -105,6 +109,8 @@ summarise :: proc(e: ^Engine, selected: []Track_Id) -> (s: Summary) {
 		share(&s.disc_total, tags.disc_total, first)
 		share(&s.genre, tags.genre, first)
 		share(&s.comment, tags.comment, first)
+		share(&s.cover, lib.cover_key(tags.cover), first)
+		if s.cover_track == nil && tags.cover != nil do s.cover_track = id
 		share(&s.audio, audio_line(track.metadata.audio), first)
 		share(&s.formats, Maybe(lib.Tag_Formats)(track.metadata.formats), first)
 		versions, _ := versions_of(e, id)

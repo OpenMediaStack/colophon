@@ -61,7 +61,7 @@ is_open_error :: proc(err: id3.Error) -> bool {
 primary_tags :: proc(path: string, tags: ^id3.Tags, allocator: runtime.Allocator) -> Tags {
 	if tags.v2.version != .None {
 		t := id3_fields(&tags.v2, allocator)
-		t.has_cover = has_picture(&tags.v2)
+		t.cover = own_cover(&tags.v2)
 		return t
 	}
 	// Without ID3v2, odid3 gives each field of the file from ID3v1.
@@ -99,14 +99,28 @@ id3_fields :: proc(tag: ^$T, allocator: runtime.Allocator) -> (t: Tags) {
 	return
 }
 
-// Whether the tag holds a picture of any type: the cover is the front cover, or
-// else the first picture. Picture data is not read, so this looks at frame ids.
+// The file's own cover, by its first picture frame: picture data is not read, so this
+// looks at frame ids and sizes. Which picture read_cover gives, the front cover else
+// the first, is known only once read.
 @(private = "file")
-has_picture :: proc(tag: ^id3.Tag) -> bool {
+own_cover :: proc(tag: ^id3.Tag) -> Cover_State {
 	for f in tag.frames {
-		if kind, known := id3.frame_kind(f.id, tag.version); known && kind == .APIC do return true
+		if kind, known := id3.frame_kind(f.id, tag.version); known && kind == .APIC do return Own_Cover{f.size}
 	}
-	return false
+	return nil
+}
+
+// The cover of the file at path, the front cover else its first picture, read from
+// the file: a scan never reads pictures. found is false for a file without one, or
+// that cannot be read, or whose picture is a link. The cover is allocated with
+// allocator; free it with destroy_cover.
+read_cover :: proc(path: string, allocator := context.allocator) -> (cover: Cover, found: bool) {
+	tags, read_err := id3.read_file(path, {}, context.temp_allocator)
+	if read_err != nil do return
+	defer id3.destroy(&tags)
+	picture, has, err := id3.front_cover(&tags.v2, context.temp_allocator)
+	if err != nil || !has || picture.mime == "-->" do return
+	return clone_cover({picture.mime, picture.data}, allocator), true
 }
 
 @(private = "file")
