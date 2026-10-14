@@ -114,7 +114,10 @@ combo_box :: proc(
 			if !focused do request_focus(ui, id)
 			open_suggestions(combo, id, "")
 		}
-		declare(ui, {id = show_id, role = .Button, label = "Show suggestions", rect = show_all})
+		declare(
+			ui,
+			{id = show_id, role = .Button, label = tr("Show suggestions"), rect = show_all},
+		)
 	}
 	color := .Disabled in options.flags ? ui.theme.text_disabled : ui.theme.text_tertiary
 	draw_icon_centered(ui.renderer, .Chevron_Down, show_all, color)
@@ -245,7 +248,7 @@ draw_suggestions :: proc(
 	fill_rect(r, list, th.surface_2, 6)
 	stroke_rect(r, list, th.border_subtle, 6)
 	list_id := child_id(id, "suggestions")
-	declare(ui, {id = list_id, role = .Group, label = "Suggestions", rect = list})
+	declare(ui, {id = list_id, role = .Group, label = tr("Suggestions"), rect = list})
 	push_parent(ui, list_id)
 	defer pop_parent(ui)
 	push_clip(r, inner)

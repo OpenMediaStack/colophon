@@ -250,7 +250,7 @@ toast :: proc(
 	kind: Toast_Kind,
 	message: string,
 	action := "",
-	close_label := "Close",
+	close_label := "",
 ) -> (
 	result: Toast_Result,
 ) {
@@ -296,7 +296,8 @@ toast :: proc(
 		x += action_width + GAP
 	}
 	close := Rect{x, middle - 12, 24, 24}
-	if icon_button(ui, child_id(id, "close"), close, .X, close_label) do result = .Closed
+	closing := close_label != "" ? close_label : tr("Close")
+	if icon_button(ui, child_id(id, "close"), close, .X, closing) do result = .Closed
 	return
 }
 

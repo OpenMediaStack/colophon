@@ -5,6 +5,8 @@ import "core:os"
 import "core:strings"
 import sdl "vendor:sdl3"
 
+import ui "../ui"
+
 APP_NAME :: "Colophon"
 // The identifier of Colophon 1.0.0, which SDL hands to the system (the Wayland app id).
 APP_ID :: "io.github.openmediastack.colophon"
@@ -38,6 +40,8 @@ run :: proc(options: Options) -> bool {
 	if !sdl.SetAppMetadata(APP_NAME, VERSION, APP_ID) do sdl_failed("SDL_SetAppMetadata")
 	if !sdl.Init({.VIDEO, .EVENTS}) do return sdl_failed("SDL_Init")
 	defer sdl.Quit()
+	catalog: ui.Catalog
+	if init_translations(&catalog) do defer ui.catalog_destroy(&catalog)
 
 	window, renderer, ok := open_window(options)
 	if !ok do return false

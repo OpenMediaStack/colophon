@@ -1,1516 +1,836 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
-"POT-Creation-Date: 2026-10-11 15:07+0000\n"
+"Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
+"POT-Creation-Date: 2026-10-14 17:23+0200\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: ui/about.slint:48
-msgctxt "About"
-msgid "About Colophon"
-msgstr "À propos de Colophon"
-
-#: ui/about.slint:49 ui/about.slint:54 ui/about.slint:146
-msgctxt "About"
-msgid "Third-party licenses"
-msgstr "Licences tierces"
-
-#: ui/about.slint:50
-msgctxt "About"
-msgid "Colophon ships these fonts, icons and crates, each under its own license."
-msgstr "Colophon inclut ces polices, ces icônes et ces crates, chacune sous sa propre licence."
-
-#: ui/about.slint:52
-msgctxt "About"
-msgid "Close"
-msgstr "Fermer"
-
-#: ui/about.slint:54
-msgctxt "About"
-msgid "Back"
-msgstr "Retour"
-
-#: ui/about.slint:93
-msgctxt "About"
-msgid "Version {}"
-msgstr "Version {}"
-
-#: ui/about.slint:103
-msgctxt "About"
-msgid "An MP3 tag editor."
-msgstr "Un éditeur de tags MP3."
-
-#: ui/about.slint:109
-msgctxt "About"
-msgid "Released under the MIT License."
-msgstr "Distribué sous licence MIT."
-
-#: ui/about.slint:194
-msgctxt "About"
-msgid "Third-party licenses scroll bar"
-msgstr "Barre de défilement des licences tierces"
-
-#: ui/about.slint:247
-msgctxt "About"
-msgid "License scroll bar"
-msgstr "Barre de défilement de la licence"
-
-#: ui/app-window.slint:133 ui/app-window.slint:319
-msgctxt "AppWindow"
-msgid "Open Folder…"
-msgstr "Ouvrir un dossier…"
-
-#: ui/app-window.slint:133 ui/app-window.slint:134 ui/app-window.slint:135
-#: ui/app-window.slint:316
-msgctxt "AppWindow"
-msgid "File"
-msgstr "Fichier"
-
-#: ui/app-window.slint:134 ui/app-window.slint:328
-msgctxt "AppWindow"
-msgid "Open Files…"
-msgstr "Ouvrir des fichiers…"
-
-#: ui/app-window.slint:135 ui/app-window.slint:339
-msgctxt "AppWindow"
-msgid "Save"
-msgstr "Enregistrer"
-
-#: ui/app-window.slint:136 ui/app-window.slint:414
-msgctxt "AppWindow"
-msgid "Preferences…"
-msgstr "Préférences…"
-
-#: ui/app-window.slint:136 ui/app-window.slint:352
-msgctxt "AppWindow"
-msgid "Options…"
-msgstr "Options…"
-
-#: ui/app-window.slint:136 ui/app-window.slint:352
-msgctxt "AppWindow"
-msgid "Settings…"
-msgstr "Réglages…"
-
-#: ui/app-window.slint:137 ui/app-window.slint:490
-msgctxt "AppWindow"
-msgid "About Colophon"
-msgstr "À propos de Colophon"
-
-#: ui/app-window.slint:137 ui/app-window.slint:487
-msgctxt "AppWindow"
-msgid "Help"
-msgstr "Aide"
-
-#: ui/app-window.slint:138 ui/app-window.slint:365 ui/app-window.slint:541
-msgctxt "AppWindow"
-msgid "Undo"
-msgstr "Annuler"
-
-#: ui/app-window.slint:138 ui/app-window.slint:139 ui/app-window.slint:140
-#: ui/app-window.slint:142 ui/app-window.slint:143 ui/app-window.slint:362
-msgctxt "AppWindow"
-msgid "Edit"
-msgstr "Édition"
-
-#: ui/app-window.slint:139 ui/app-window.slint:374 ui/app-window.slint:550
-msgctxt "AppWindow"
-msgid "Redo"
-msgstr "Rétablir"
-
-#: ui/app-window.slint:140 ui/app-window.slint:385
-msgctxt "AppWindow"
-msgid "Find"
-msgstr "Rechercher"
-
-#: ui/app-window.slint:141
-msgctxt "AppWindow"
-msgid "Select All"
-msgstr "Tout sélectionner"
-
-#: ui/app-window.slint:142 ui/app-window.slint:396
-msgctxt "AppWindow"
-msgid "Select Album"
-msgstr "Sélectionner l’album"
-
-#: ui/app-window.slint:143 ui/app-window.slint:404
-msgctxt "AppWindow"
-msgid "Number Tracks"
-msgstr "Numéroter les pistes"
-
-#: ui/app-window.slint:144
-msgctxt "AppWindow"
-msgid "Revert"
-msgstr "Rétablir l’original"
-
-#: ui/app-window.slint:145 ui/app-window.slint:427
-msgctxt "AppWindow"
-msgid "Pause"
-msgstr "Pause"
-
-#: ui/app-window.slint:145 ui/app-window.slint:427
-msgctxt "AppWindow"
-msgid "Play"
-msgstr "Lecture"
-
-#: ui/app-window.slint:145 ui/app-window.slint:146 ui/app-window.slint:147
-msgctxt "AppWindow"
-msgid "Controls"
-msgstr "Commandes"
-
-#: ui/app-window.slint:146 ui/app-window.slint:435
-msgctxt "AppWindow"
-msgid "Next Track"
-msgstr "Piste suivante"
-
-#: ui/app-window.slint:147 ui/app-window.slint:443
-msgctxt "AppWindow"
-msgid "Previous Track"
-msgstr "Piste précédente"
-
-#: ui/app-window.slint:148
-msgctxt "AppWindow"
-msgid "Write ID3v2.4 to the selected files"
-msgstr "Écrire l’ID3v2.4 dans les fichiers sélectionnés"
-
-#: ui/app-window.slint:148 ui/app-window.slint:149 ui/app-window.slint:150
-#: ui/app-window.slint:152 ui/app-window.slint:153
-msgctxt "AppWindow"
-msgid "Tags"
-msgstr "Tags"
-
-#: ui/app-window.slint:149
-msgctxt "AppWindow"
-msgid "Write ID3v2.3 to the selected files"
-msgstr "Écrire l’ID3v2.3 dans les fichiers sélectionnés"
-
-#: ui/app-window.slint:150
-msgctxt "AppWindow"
-msgid "Write ID3v2.2 to the selected files"
-msgstr "Écrire l’ID3v2.2 dans les fichiers sélectionnés"
-
-#: ui/app-window.slint:151
-msgctxt "AppWindow"
-msgid "Remove ID3v2 from the selected files…"
-msgstr "Retirer l’ID3v2 des fichiers sélectionnés…"
-
-#: ui/app-window.slint:152
-msgctxt "AppWindow"
-msgid "Write ID3v1.1 to the selected files"
-msgstr "Écrire l’ID3v1.1 dans les fichiers sélectionnés"
-
-#: ui/app-window.slint:153
-msgctxt "AppWindow"
-msgid "Write ID3v1.0 to the selected files"
-msgstr "Écrire l’ID3v1.0 dans les fichiers sélectionnés"
-
-#: ui/app-window.slint:154
-msgctxt "AppWindow"
-msgid "Remove ID3v1 from the selected files…"
-msgstr "Retirer l’ID3v1 des fichiers sélectionnés…"
-
-#: ui/app-window.slint:155 ui/app-window.slint:466
-msgctxt "AppWindow"
-msgid "Hide Sidebar"
-msgstr "Masquer la barre latérale"
-
-#: ui/app-window.slint:155 ui/app-window.slint:466
-msgctxt "AppWindow"
-msgid "Show Sidebar"
-msgstr "Afficher la barre latérale"
-
-#: ui/app-window.slint:155 ui/app-window.slint:156 ui/app-window.slint:157
-#: ui/app-window.slint:159 ui/app-window.slint:160 ui/app-window.slint:162
-#: ui/app-window.slint:163 ui/app-window.slint:165 ui/app-window.slint:166
-msgctxt "AppWindow"
-msgid "View"
-msgstr "Présentation"
-
-#: ui/app-window.slint:156 ui/app-window.slint:475
-msgctxt "AppWindow"
-msgid "Hide Inspector"
-msgstr "Masquer l’inspecteur"
-
-#: ui/app-window.slint:156 ui/app-window.slint:475
-msgctxt "AppWindow"
-msgid "Show Inspector"
-msgstr "Afficher l’inspecteur"
-
-#: ui/app-window.slint:157
-msgctxt "AppWindow"
-msgid "Hide the Artist column"
-msgstr "Masquer la colonne Artiste"
-
-#: ui/app-window.slint:157
-msgctxt "AppWindow"
-msgid "Show the Artist column"
-msgstr "Afficher la colonne Artiste"
-
-#: ui/app-window.slint:158
-msgctxt "AppWindow"
-msgid "Hide the Album column"
-msgstr "Masquer la colonne Album"
-
-#: ui/app-window.slint:158
-msgctxt "AppWindow"
-msgid "Show the Album column"
-msgstr "Afficher la colonne Album"
-
-#: ui/app-window.slint:159
-msgctxt "AppWindow"
-msgid "Hide the Year column"
-msgstr "Masquer la colonne Année"
-
-#: ui/app-window.slint:159
-msgctxt "AppWindow"
-msgid "Show the Year column"
-msgstr "Afficher la colonne Année"
-
-#: ui/app-window.slint:160
-msgctxt "AppWindow"
-msgid "Hide the Genre column"
-msgstr "Masquer la colonne Genre"
-
-#: ui/app-window.slint:160
-msgctxt "AppWindow"
-msgid "Show the Genre column"
-msgstr "Afficher la colonne Genre"
-
-#: ui/app-window.slint:161
-msgctxt "AppWindow"
-msgid "Hide the Time column"
-msgstr "Masquer la colonne Durée"
-
-#: ui/app-window.slint:161
-msgctxt "AppWindow"
-msgid "Show the Time column"
-msgstr "Afficher la colonne Durée"
-
-#: ui/app-window.slint:162
-msgctxt "AppWindow"
-msgid "Hide the Bitrate column"
-msgstr "Masquer la colonne Débit"
-
-#: ui/app-window.slint:162
-msgctxt "AppWindow"
-msgid "Show the Bitrate column"
-msgstr "Afficher la colonne Débit"
-
-#: ui/app-window.slint:163
-msgctxt "AppWindow"
-msgid "Hide the Tags column (ID3 versions)"
-msgstr "Masquer la colonne Tags (versions ID3)"
-
-#: ui/app-window.slint:163
-msgctxt "AppWindow"
-msgid "Show the Tags column (ID3 versions)"
-msgstr "Afficher la colonne Tags (versions ID3)"
-
-#: ui/app-window.slint:164
-msgctxt "AppWindow"
-msgid "Hide the File column"
-msgstr "Masquer la colonne Fichier"
-
-#: ui/app-window.slint:164
-msgctxt "AppWindow"
-msgid "Show the File column"
-msgstr "Afficher la colonne Fichier"
-
-#: ui/app-window.slint:165
-msgctxt "AppWindow"
-msgid "Hide the Folder column"
-msgstr "Masquer la colonne Dossier"
-
-#: ui/app-window.slint:165
-msgctxt "AppWindow"
-msgid "Show the Folder column"
-msgstr "Afficher la colonne Dossier"
-
-#: ui/app-window.slint:166
-msgctxt "AppWindow"
-msgid "Reset to default columns"
-msgstr "Rétablir les colonnes par défaut"
-
-#: ui/app-window.slint:167
-msgctxt "AppWindow"
-msgid "Write ID3v2.4 by default"
-msgstr "Écrire l’ID3v2.4 par défaut"
-
-#: ui/app-window.slint:167 ui/app-window.slint:168 ui/app-window.slint:169
-#: ui/app-window.slint:171 ui/app-window.slint:172
-msgctxt "AppWindow"
-msgid "Settings"
-msgstr "Réglages"
-
-#: ui/app-window.slint:168
-msgctxt "AppWindow"
-msgid "Write ID3v2.3 by default"
-msgstr "Écrire l’ID3v2.3 par défaut"
-
-#: ui/app-window.slint:169
-msgctxt "AppWindow"
-msgid "ID3v1 policy: keep where it exists"
-msgstr "ID3v1 : le garder là où il existe"
-
-#: ui/app-window.slint:170
-msgctxt "AppWindow"
-msgid "ID3v1 policy: always write"
-msgstr "ID3v1 : toujours l’écrire"
-
-#: ui/app-window.slint:171
-msgctxt "AppWindow"
-msgid "ID3v1 policy: never write"
-msgstr "ID3v1 : ne jamais l’écrire"
-
-#: ui/app-window.slint:172
-msgctxt "AppWindow"
-msgid "Turn developer mode off"
-msgstr "Désactiver le mode développeur"
-
-#: ui/app-window.slint:172
-msgctxt "AppWindow"
-msgid "Turn developer mode on"
-msgstr "Activer le mode développeur"
-
-#. The application's name, then the source the table lists.
-#: ui/app-window.slint:271
-msgctxt "AppWindow"
-msgid "All tracks"
-msgstr "Toutes les pistes"
-
-#. The application's name, then the source the table lists.
-#: ui/app-window.slint:271
-msgctxt "AppWindow"
-msgid "Recently changed"
-msgstr "Modifiés récemment"
-
-#. The application's name, then the source the table lists.
-#: ui/app-window.slint:271
-msgctxt "AppWindow"
-msgid "Unreadable files"
-msgstr "Fichiers illisibles"
-
-#: ui/app-window.slint:455
-msgctxt "AppWindow"
-msgid "Command Palette…"
-msgstr "Palette de commandes…"
-
-#: ui/app-window.slint:515
-msgctxt "AppWindow"
-msgid "Open folder"
-msgstr "Ouvrir un dossier"
-
-#: ui/app-window.slint:584
-msgctxt "AppWindow"
-msgid "Command palette"
-msgstr "Palette de commandes"
-
-#: ui/app-window.slint:607
-msgctxt "AppWindow"
-msgid "Toggle sidebar"
-msgstr "Afficher ou masquer la barre latérale"
-
-#: ui/app-window.slint:618
-msgctxt "AppWindow"
-msgid "Toggle inspector"
-msgstr "Afficher ou masquer l’inspecteur"
-
-#: ui/app-window.slint:791
-msgctxt "AppWindow"
-msgid "Show in Finder"
-msgstr "Afficher dans le Finder"
-
-#: ui/app-window.slint:791
-msgctxt "AppWindow"
-msgid "Show in Explorer"
-msgstr "Afficher dans l’Explorateur"
-
-#: ui/app-window.slint:791
-msgctxt "AppWindow"
-msgid "Show in Folder"
-msgstr "Afficher dans le dossier"
-
-#: ui/app-window.slint:846
-msgctxt "AppWindow"
-msgid "Drop to open these folders and files"
-msgstr "Déposez pour ouvrir ces dossiers et fichiers"
-
-#. No Cancel button when empty: Escape still cancels.
-#: ui/dialog.slint:17
-msgctxt "Dialog"
-msgid "Cancel"
-msgstr "Annuler"
-
-#: ui/empty-state.slint:38
-msgctxt "EmptyState"
-msgid "Open your music folder"
-msgstr "Ouvrez votre dossier de musique"
-
-#: ui/empty-state.slint:51
-msgctxt "EmptyState"
-msgid "Colophon reads the tags of every MP3 in a folder and its subfolders. Nothing is written to your files until you save."
-msgstr "Colophon lit les tags de chaque MP3 d’un dossier et de ses sous-dossiers. Rien n’est écrit dans vos fichiers tant que vous n’enregistrez pas."
-
-#: ui/empty-state.slint:60
-msgctxt "EmptyState"
-msgid "Open folder…"
-msgstr "Ouvrir un dossier…"
-
-#: ui/inspector.slint:216
-msgctxt "EditField"
-msgid "Multiple values"
-msgstr "Valeurs multiples"
-
-#: ui/inspector.slint:422
-msgctxt "EditField"
+#: src/ui/combo_box.odin:117
 msgid "Show suggestions"
 msgstr "Afficher les suggestions"
 
-#: ui/inspector.slint:525
-msgctxt "Inspector"
-msgid "{}, {} bytes"
-msgstr "{}, {} octets"
-
-#: ui/inspector.slint:526
-msgctxt "Inspector"
-msgid "Compressed or encrypted"
-msgstr "Compressée ou chiffrée"
-
-#: ui/inspector.slint:527
-msgctxt "Inspector"
-msgid "{n} byte of data"
-msgid_plural "{n} bytes of data"
-msgstr[0] "{n} octet de données"
-msgstr[1] "{n} octets de données"
-
-#: ui/inspector.slint:537
-msgctxt "Inspector"
-msgid "at {}"
-msgstr "à {}"
-
-#: ui/inspector.slint:537
-msgctxt "Inspector"
-msgid "{n} byte"
-msgid_plural "{n} bytes"
-msgstr[0] "{n} octet"
-msgstr[1] "{n} octets"
-
-#: ui/inspector.slint:539
-msgctxt "Inspector"
-msgid "read only"
-msgstr "lecture seule"
-
-#: ui/inspector.slint:540
-msgctxt "Inspector"
-msgid "grouped"
-msgstr "groupée"
-
-#: ui/inspector.slint:541
-msgctxt "Inspector"
-msgid "compressed"
-msgstr "compressée"
-
-#: ui/inspector.slint:542
-msgctxt "Inspector"
-msgid "encrypted"
-msgstr "chiffrée"
-
-#: ui/inspector.slint:543
-msgctxt "Inspector"
-msgid "unsynchronised"
-msgstr "désynchronisée"
-
-#: ui/inspector.slint:544
-msgctxt "Inspector"
-msgid "data length"
-msgstr "longueur des données"
-
-#: ui/inspector.slint:549
-msgctxt "Inspector"
-msgid "Unsynchronised"
-msgstr "Désynchronisé"
-
-#: ui/inspector.slint:550
-msgctxt "Inspector"
-msgid "Extended header"
-msgstr "En-tête étendu"
-
-#: ui/inspector.slint:551
-msgctxt "Inspector"
-msgid "Experimental"
-msgstr "Expérimental"
-
-#: ui/inspector.slint:552
-msgctxt "Inspector"
-msgid "Footer"
-msgstr "Pied"
-
-#: ui/inspector.slint:566
-msgctxt "Inspector"
-msgid "{n} byte"
-msgid_plural "{n} bytes"
-msgstr[0] "{n} octet"
-msgstr[1] "{n} octets"
-
-#: ui/inspector.slint:569
-msgctxt "Inspector"
-msgid "{} KB"
-msgstr "{} Ko"
-
-#: ui/inspector.slint:572
-msgctxt "Inspector"
-msgid "{0}.{1} MB"
-msgstr "{0},{1} Mo"
-
-#: ui/inspector.slint:574
-msgctxt "Inspector"
-msgid "{0}.{1} GB"
-msgstr "{0},{1} Go"
-
-#: ui/inspector.slint:582 ui/inspector.slint:784 ui/inspector.slint:791
-msgctxt "Inspector"
-msgid "Title"
-msgstr "Titre"
-
-#: ui/inspector.slint:582 ui/inspector.slint:797 ui/inspector.slint:804
-msgctxt "Inspector"
-msgid "Artist"
-msgstr "Artiste"
-
-#: ui/inspector.slint:582 ui/inspector.slint:823 ui/inspector.slint:830
-msgctxt "Inspector"
-msgid "Album"
-msgstr "Album"
-
-#: ui/inspector.slint:582 ui/inspector.slint:836 ui/inspector.slint:843
-msgctxt "Inspector"
-msgid "Year"
-msgstr "Année"
-
-#: ui/inspector.slint:582 ui/inspector.slint:936 ui/inspector.slint:945
-msgctxt "Inspector"
-msgid "Comment"
-msgstr "Commentaire"
-
-#: ui/inspector.slint:582 ui/inspector.slint:850 ui/inspector.slint:862
-msgctxt "Inspector"
-msgid "Track"
-msgstr "Piste"
-
-#: ui/inspector.slint:582 ui/inspector.slint:922 ui/inspector.slint:929
-msgctxt "Inspector"
-msgid "Genre"
-msgstr "Genre"
-
-#: ui/inspector.slint:591
-msgctxt "Inspector"
-msgid "Saving converts {n} file."
-msgid_plural "Saving converts {n} files."
-msgstr[0] "L’enregistrement convertit {n} fichier."
-msgstr[1] "L’enregistrement convertit {n} fichiers."
-
-#: ui/inspector.slint:594
-msgctxt "Inspector"
-msgid "Saving removes the tags of {n} file."
-msgid_plural "Saving removes the tags of {n} files."
-msgstr[0] "L’enregistrement supprime les tags de {n} fichier."
-msgstr[1] "L’enregistrement supprime les tags de {n} fichiers."
-
-#: ui/inspector.slint:597
-msgctxt "Inspector"
-msgid "Saving converts {n} file to {0}."
-msgid_plural "Saving converts {n} files to {0}."
-msgstr[0] "L’enregistrement convertit {n} fichier en {0}."
-msgstr[1] "L’enregistrement convertit {n} fichiers en {0}."
-
-#: ui/inspector.slint:599
-msgctxt "Inspector"
-msgid "Saving converts {n} file from {0} to {1}."
-msgid_plural "Saving converts {n} files from {0} to {1}."
-msgstr[0] "L’enregistrement convertit {n} fichier de {0} en {1}."
-msgstr[1] "L’enregistrement convertit {n} fichiers de {0} en {1}."
-
-#: ui/inspector.slint:604 ui/inspector.slint:999 ui/inspector.slint:1010
-msgctxt "Inspector"
-msgid "Multiple values"
-msgstr "Valeurs multiples"
-
-#: ui/inspector.slint:606
-msgctxt "Inspector"
-msgid "{} kbps"
-msgstr "{} kbit/s"
-
-#: ui/inspector.slint:608
-msgctxt "Inspector"
-msgid "{} kHz"
-msgstr "{} kHz"
-
-#: ui/inspector.slint:608
-msgctxt "Inspector"
-msgid "{0}.{1} kHz"
-msgstr "{0},{1} kHz"
-
-#: ui/inspector.slint:613
-msgctxt "Inspector"
-msgid "Inspector"
-msgstr "Inspecteur"
-
-#: ui/inspector.slint:623
-msgctxt "Inspector"
-msgid "Select tracks to see their tags"
-msgstr "Sélectionnez des morceaux pour voir leurs tags"
-
-#: ui/inspector.slint:630
-msgctxt "Inspector"
-msgid "{} selects every track"
-msgstr "{} sélectionne tous les morceaux"
-
-#: ui/inspector.slint:659
-msgctxt "Inspector"
-msgid "Replace Cover…"
-msgstr "Remplacer la pochette…"
-
-#: ui/inspector.slint:666
-msgctxt "Inspector"
-msgid "Extract Cover…"
-msgstr "Extraire la pochette…"
-
-#: ui/inspector.slint:674
-msgctxt "Inspector"
-msgid "Remove Cover"
-msgstr "Supprimer la pochette"
-
-#: ui/inspector.slint:689
-msgctxt "Inspector"
-msgid "Cover"
-msgstr "Pochette"
-
-#: ui/inspector.slint:689
-msgctxt "Inspector"
-msgid "Several covers"
-msgstr "Plusieurs pochettes"
-
-#: ui/inspector.slint:689
-msgctxt "Inspector"
-msgid "No cover"
-msgstr "Pas de pochette"
-
-#: ui/inspector.slint:713
-msgctxt "Inspector"
-msgid "{n} track selected"
-msgid_plural "{n} tracks selected"
-msgstr[0] "{n} morceau sélectionné"
-msgstr[1] "{n} morceaux sélectionnés"
-
-#: ui/inspector.slint:727
-msgctxt "Inspector"
-msgid "{n} file could not be read"
-msgid_plural "{n} files could not be read"
-msgstr[0] "{n} fichier illisible"
-msgstr[1] "{n} fichiers illisibles"
-
-#: ui/inspector.slint:738
-msgctxt "Inspector"
-msgid "Replace cover…"
-msgstr "Remplacer la pochette…"
-
-#: ui/inspector.slint:751 ui/inspector.slint:994
-msgctxt "Inspector"
-msgid "Tags"
-msgstr "Tags"
-
-#: ui/inspector.slint:767
-msgctxt "Inspector"
-msgid "ID3v1 will keep only part of: {}"
-msgstr "L’ID3v1 ne gardera qu’une partie de : {}"
-
-#: ui/inspector.slint:771
-msgctxt "Inspector"
-msgid "This track has no number, unlike the rest of its album."
-msgstr "Cette piste n’a pas de numéro, contrairement au reste de son album."
-
-#: ui/inspector.slint:771
-msgctxt "Inspector"
-msgid "Some of these tracks have no number, unlike the rest of their albums."
-msgstr "Certaines de ces pistes n’ont pas de numéro, contrairement au reste de leur album."
-
-#: ui/inspector.slint:775
-msgctxt "Inspector"
-msgid "Its album artist differs from the rest of its album."
-msgstr "Son artiste d’album diffère de celui du reste de son album."
-
-#: ui/inspector.slint:775
-msgctxt "Inspector"
-msgid "Some of these tracks have an album artist that differs from the rest of their albums."
-msgstr "Certaines de ces pistes ont un artiste d’album différent du reste de leur album."
-
-#: ui/inspector.slint:810 ui/inspector.slint:817
-msgctxt "Inspector"
-msgid "Album artist"
-msgstr "Artiste de l’album"
-
-#: ui/inspector.slint:864 ui/inspector.slint:900
-msgctxt "Inspector"
-msgid "Multiple"
-msgstr "Multiples"
-
-#: ui/inspector.slint:869 ui/inspector.slint:905
-msgctxt "Inspector"
-msgid "of"
-msgstr "sur"
-
-#: ui/inspector.slint:877
-msgctxt "Inspector"
-msgid "Track total"
-msgstr "Nombre de pistes"
-
-#: ui/inspector.slint:886 ui/inspector.slint:898
-msgctxt "Inspector"
-msgid "Disc"
-msgstr "Disque"
-
-#: ui/inspector.slint:913
-msgctxt "Inspector"
-msgid "Disc total"
-msgstr "Nombre de disques"
-
-#: ui/inspector.slint:958
-msgctxt "Inspector"
-msgid "File"
-msgstr "Fichier"
-
-#: ui/inspector.slint:971
-msgctxt "Inspector"
-msgid "Audio"
-msgstr "Audio"
-
-#: ui/inspector.slint:982
-msgctxt "Inspector"
-msgid "Size"
-msgstr "Taille"
-
-#: ui/inspector.slint:987
-msgctxt "Inspector"
-msgid "{} total"
-msgstr "{} au total"
-
-#: ui/inspector.slint:999 ui/inspector.slint:1040 ui/inspector.slint:1060
-msgctxt "Inspector"
-msgid "None"
-msgstr "Aucun"
-
-#: ui/inspector.slint:1005
-msgctxt "Inspector"
-msgid "Saved as"
-msgstr "Enregistré en"
-
-#: ui/inspector.slint:1021
-msgctxt "Inspector"
-msgid "Tag format"
-msgstr "Format des tags"
-
-#: ui/inspector.slint:1034 ui/inspector.slint:1038
-msgctxt "Inspector"
-msgid "Write ID3v2"
-msgstr "Écrire l’ID3v2"
-
-#: ui/inspector.slint:1054 ui/inspector.slint:1058
-msgctxt "Inspector"
-msgid "Write ID3v1"
-msgstr "Écrire l’ID3v1"
-
-#: ui/inspector.slint:1084 ui/inspector.slint:1093
-msgctxt "Inspector"
-msgid "Text encoding"
-msgstr "Encodage du texte"
-
-#: ui/inspector.slint:1095 ui/inspector.slint:1119
-msgctxt "Inspector"
-msgid "Auto"
-msgstr "Auto"
-
-#: ui/inspector.slint:1109 ui/inspector.slint:1117
-msgctxt "Inspector"
-msgid "Padding"
-msgstr "Remplissage"
-
-#: ui/inspector.slint:1137
-msgctxt "Inspector"
-msgid "Unsynchronisation"
-msgstr "Désynchronisation"
-
-#: ui/inspector.slint:1151
-msgctxt "Inspector"
-msgid "These apply to every file saved in developer mode. UTF-16BE and UTF-8 need ID3v2.4; earlier versions get UTF-16."
-msgstr "Ces réglages valent pour chaque fichier enregistré en mode développeur. UTF-16BE et UTF-8 demandent l’ID3v2.4 ; les versions antérieures reçoivent de l’UTF-16."
-
-#: ui/inspector.slint:1162
-msgctxt "Inspector"
-msgid "Rewrite Selected Files"
-msgstr "Réécrire les fichiers sélectionnés"
-
-#: ui/inspector.slint:1175
-msgctxt "Inspector"
-msgid "Frames"
-msgstr "Trames"
-
-#: ui/inspector.slint:1184
-msgctxt "Inspector"
-msgid "ID3v2.{} · {} bytes · {} bytes of padding"
-msgstr "ID3v2.{} · {} octets · {} octets de remplissage"
-
-#: ui/inspector.slint:1184
-msgctxt "Inspector"
-msgid "No ID3v2 tag"
-msgstr "Aucun tag ID3v2"
-
-#: ui/inspector.slint:1235
-msgctxt "Inspector"
-msgid "ID3v1 at {}, 128 bytes"
-msgstr "ID3v1 à {}, 128 octets"
-
-#: ui/inspector.slint:1252
-msgctxt "Inspector"
-msgid "Inspector scroll bar"
-msgstr "Barre de défilement de l’inspecteur"
-
-#: ui/inspector.slint:1276
-msgctxt "Inspector"
-msgid "Revert"
-msgstr "Rétablir l’original"
-
-#: ui/inspector.slint:1284
-msgctxt "Inspector"
-msgid "Saving…"
-msgstr "Enregistrement…"
-
-#: ui/inspector.slint:1284
-msgctxt "Inspector"
-msgid "Save {n} file"
-msgid_plural "Save {n} files"
-msgstr[0] "Enregistrer {n} fichier"
-msgstr[1] "Enregistrer {n} fichiers"
-
-#: ui/inspector.slint:1331
-msgctxt "Inspector"
-msgid "Could not read this file"
-msgstr "Impossible de lire ce fichier"
-
-#: ui/inspector.slint:1351
-msgctxt "Inspector"
-msgid "Problem"
-msgstr "Problème"
-
-#: ui/inspector.slint:1356
-msgctxt "Inspector"
-msgid "Colophon could not open this file. It may have been moved or deleted, or Colophon may not be allowed to read it."
-msgstr "Colophon n’a pas pu ouvrir ce fichier. Il a peut-être été déplacé ou supprimé, ou Colophon n’a pas le droit de le lire."
-
-#: ui/inspector.slint:1357
-msgctxt "Inspector"
-msgid "This file is damaged, or it is not an MP3: Colophon could not make sense of it."
-msgstr "Ce fichier est abîmé, ou ce n’est pas un MP3 : Colophon n’a pas pu le comprendre."
-
-#: ui/inspector.slint:1358
-msgctxt "Inspector"
-msgid "Reading this file failed in a way it never should. This is a bug in Colophon, and the file itself may be fine."
-msgstr "La lecture de ce fichier a échoué d’une façon qui ne devrait jamais arriver. C’est un bogue de Colophon, et le fichier lui-même est peut-être intact."
-
-#: ui/inspector.slint:1367
-msgctxt "Inspector"
-msgid "Details"
-msgstr "Détails"
-
-#: ui/inspector.slint:1374
-msgctxt "Inspector"
-msgid "File size"
-msgstr "Taille du fichier"
-
-#: ui/inspector.slint:1398
-msgctxt "Inspector"
-msgid "Copy details"
-msgstr "Copier les détails"
-
-#: ui/palette.slint:117
-msgctxt "CommandPalette"
-msgid "Command palette"
-msgstr "Palette de commandes"
-
-#: ui/palette.slint:143
-msgctxt "CommandPalette"
-msgid "Type a command"
-msgstr "Tapez une commande"
-
-#: ui/palette.slint:156
-msgctxt "CommandPalette"
-msgid "Command"
-msgstr "Commande"
-
-#: ui/palette.slint:217 ui/palette.slint:230
-msgctxt "CommandPalette"
-msgid "Commands"
-msgstr "Commandes"
-
-#: ui/palette.slint:217
-msgctxt "CommandPalette"
-msgid "No command holds “{}”"
-msgstr "Aucune commande ne contient « {} »"
-
-#: ui/palette.slint:297
-msgctxt "CommandPalette"
-msgid "Commands scroll bar"
-msgstr "Barre de défilement des commandes"
-
-#: ui/palette.slint:316
-msgctxt "CommandPalette"
-msgid "↑↓ to move"
-msgstr "↑↓ pour se déplacer"
-
-#: ui/palette.slint:323
-msgctxt "CommandPalette"
-msgid "↵ to run"
-msgstr "↵ pour lancer"
-
-#: ui/palette.slint:330
-msgctxt "CommandPalette"
-msgid "esc to close"
-msgstr "esc pour fermer"
-
-#: ui/player.slint:103
-msgctxt "PlayerBar"
-msgid "Player"
-msgstr "Lecteur"
-
-#: ui/player.slint:117
-msgctxt "PlayerBar"
-msgid "Previous track"
-msgstr "Piste précédente"
-
-#: ui/player.slint:131
-msgctxt "PlayerBar"
-msgid "Pause"
-msgstr "Pause"
-
-#: ui/player.slint:131
-msgctxt "PlayerBar"
-msgid "Play"
-msgstr "Lecture"
-
-#: ui/player.slint:158
-msgctxt "PlayerBar"
-msgid "Next track"
-msgstr "Piste suivante"
-
-#: ui/player.slint:211
-msgctxt "PlayerBar"
-msgid "Position"
-msgstr "Position"
-
-#: ui/player.slint:285
-msgctxt "PlayerBar"
-msgid "Volume"
-msgstr "Volume"
-
-#: ui/settings.slint:30
-msgctxt "Settings"
-msgid "Settings"
-msgstr "Réglages"
-
-#: ui/settings.slint:31
-msgctxt "Settings"
-msgid "Done"
-msgstr "Terminé"
-
-#: ui/settings.slint:46 ui/settings.slint:50
-msgctxt "Settings"
-msgid "ID3v2 version"
-msgstr "Version ID3v2"
-
-#: ui/settings.slint:63
-msgctxt "Settings"
-msgid "Read by every player, the oldest included."
-msgstr "Lue par tous les lecteurs, même les plus anciens."
-
-#: ui/settings.slint:63
-msgctxt "Settings"
-msgid "The current version, with UTF-8 text."
-msgstr "La version actuelle, avec du texte en UTF-8."
-
-#: ui/settings.slint:69 ui/settings.slint:73
-msgctxt "Settings"
-msgid "ID3v1 tag"
-msgstr "Tag ID3v1"
-
-#: ui/settings.slint:74
-msgctxt "Settings"
-msgid "Keep"
-msgstr "Garder"
-
-#: ui/settings.slint:74
-msgctxt "Settings"
-msgid "Always"
-msgstr "Toujours"
-
-#: ui/settings.slint:74
-msgctxt "Settings"
-msgid "Never"
-msgstr "Jamais"
-
-#: ui/settings.slint:86
-msgctxt "Settings"
-msgid "Rewritten in the files that have one, added to none."
-msgstr "Réécrit dans les fichiers qui en ont un, ajouté à aucun."
-
-#: ui/settings.slint:86
-msgctxt "Settings"
-msgid "Written in every file saved."
-msgstr "Écrit dans chaque fichier enregistré."
-
-#: ui/settings.slint:86
-msgctxt "Settings"
-msgid "Removed from the files saved, after asking."
-msgstr "Retiré des fichiers enregistrés, après confirmation."
-
-#: ui/settings.slint:92
-msgctxt "Settings"
-msgid "Developer"
-msgstr "Développeur"
-
-#: ui/settings.slint:96
-msgctxt "Settings"
-msgid "Developer mode"
-msgstr "Mode développeur"
-
-#: ui/settings.slint:108
-msgctxt "Settings"
-msgid "Choose the tag versions of each file in the inspector, ID3v2.2 included."
-msgstr "Choisir les versions des tags de chaque fichier dans l’inspecteur, ID3v2.2 compris."
-
-#: ui/sidebar.slint:116
-msgctxt "Sidebar"
-msgid "Sidebar"
-msgstr "Barre latérale"
-
-#: ui/sidebar.slint:128
-msgctxt "Sidebar"
-msgid "Library"
-msgstr "Bibliothèque"
-
-#: ui/sidebar.slint:135
-msgctxt "Sidebar"
-msgid "All tracks"
-msgstr "Toutes les pistes"
-
-#: ui/sidebar.slint:135
-msgctxt "Sidebar"
-msgid "Recently changed"
-msgstr "Modifiés récemment"
-
-#: ui/sidebar.slint:135
-msgctxt "Sidebar"
-msgid "Unreadable files"
-msgstr "Fichiers illisibles"
-
-#: ui/sidebar.slint:144
-msgctxt "Sidebar"
-msgid "Folders"
-msgstr "Dossiers"
-
-#: ui/sidebar.slint:159
-msgctxt "Sidebar"
-msgid "Albums"
-msgstr "Albums"
-
-#: ui/sidebar.slint:184
-msgctxt "Sidebar"
-msgid "{n} more album"
-msgid_plural "{n} more albums"
-msgstr[0] "{n} autre album"
-msgstr[1] "{n} autres albums"
-
-#: ui/sidebar.slint:199 ui/sidebar.slint:221
-msgctxt "Sidebar"
-msgid "Artists"
-msgstr "Artistes"
-
-#: ui/sidebar.slint:252
-msgctxt "Sidebar"
-msgid "Sidebar scroll bar"
-msgstr "Barre de défilement de la barre latérale"
-
-#: ui/status-bar.slint:33
-msgctxt "StatusBar"
-msgid "No folder open"
-msgstr "Aucun dossier ouvert"
-
-#: ui/status-bar.slint:34
-msgctxt "StatusBar"
-msgid "Reading… {n} track found"
-msgid_plural "Reading… {n} tracks found"
-msgstr[0] "Lecture… {n} morceau trouvé"
-msgstr[1] "Lecture… {n} morceaux trouvés"
-
-#: ui/status-bar.slint:35
-msgctxt "StatusBar"
-msgid "Reading stopped, {n} track"
-msgid_plural "Reading stopped, {n} tracks"
-msgstr[0] "Lecture arrêtée, {n} morceau"
-msgstr[1] "Lecture arrêtée, {n} morceaux"
-
-#: ui/status-bar.slint:36
-msgctxt "StatusBar"
-msgid "Could not read this folder"
-msgstr "Impossible de lire ce dossier"
-
-#: ui/status-bar.slint:37
-msgctxt "StatusBar"
-msgid "{n} track"
-msgid_plural "{n} tracks"
-msgstr[0] "{n} morceau"
-msgstr[1] "{n} morceaux"
-
-#: ui/status-bar.slint:38
-msgctxt "StatusBar"
-msgid "{n} selected"
-msgid_plural "{n} selected"
-msgstr[0] "{n} sélectionné"
-msgstr[1] "{n} sélectionnés"
-
-#: ui/status-bar.slint:45
-msgctxt "StatusBar"
-msgid "Stop"
-msgstr "Arrêter"
-
-#: ui/status-bar.slint:56
-msgctxt "StatusBar"
-msgid "Saving… {0} of {1}"
-msgstr "Enregistrement… {0} sur {1}"
-
-#: ui/status-bar.slint:63
-msgctxt "StatusBar"
-msgid "{n} file could not be saved"
-msgid_plural "{n} files could not be saved"
-msgstr[0] "{n} fichier n’a pas pu être enregistré"
-msgstr[1] "{n} fichiers n’ont pas pu être enregistrés"
-
-#: ui/status-bar.slint:70
-msgctxt "StatusBar"
-msgid "{n} file with unsaved changes"
-msgid_plural "{n} files with unsaved changes"
-msgstr[0] "{n} fichier avec des modifications non enregistrées"
-msgstr[1] "{n} fichiers avec des modifications non enregistrées"
-
-#: ui/status-bar.slint:77
-msgctxt "StatusBar"
-msgid "{n} file could not be read"
-msgid_plural "{n} files could not be read"
-msgstr[0] "{n} fichier illisible"
-msgstr[1] "{n} fichiers illisibles"
-
-#: ui/status-bar.slint:95
-msgctxt "StatusBar"
-msgid "Developer mode"
-msgstr "Mode développeur"
-
-#: ui/suggestions.slint:34
-msgctxt "SuggestionList"
+#: src/ui/combo_box.odin:248
 msgid "Suggestions"
 msgstr "Suggestions"
 
-#: ui/tag-removal.slint:22
-msgctxt "ConfirmTagRemoval"
-msgid "Remove the ID3v1 tag from {n} file?"
-msgid_plural "Remove the ID3v1 tag from {n} files?"
-msgstr[0] "Supprimer le tag ID3v1 de {n} fichier ?"
-msgstr[1] "Supprimer le tag ID3v1 de {n} fichiers ?"
-
-#: ui/tag-removal.slint:22
-msgctxt "ConfirmTagRemoval"
-msgid "Remove the ID3v2 tag from {n} file?"
-msgid_plural "Remove the ID3v2 tag from {n} files?"
-msgstr[0] "Supprimer le tag ID3v2 de {n} fichier ?"
-msgstr[1] "Supprimer le tag ID3v2 de {n} fichiers ?"
-
-#: ui/tag-removal.slint:23
-msgctxt "ConfirmTagRemoval"
-msgid "Some old players and car stereos only read ID3v1. After saving, these files will no longer have one."
-msgstr "Certains vieux lecteurs et autoradios ne lisent que l’ID3v1. Une fois enregistrés, ces fichiers n’en auront plus."
-
-#: ui/tag-removal.slint:23
-msgctxt "ConfirmTagRemoval"
-msgid "ID3v2 holds what ID3v1 cannot: the album artist, the track total, long titles and comments, the cover. After saving, these files will lose them."
-msgstr "L’ID3v2 contient ce que l’ID3v1 ne peut pas garder : l’artiste de l’album, le nombre de pistes, les titres et commentaires longs, la pochette. Une fois enregistrés, ces fichiers les perdront."
-
-#: ui/tag-removal.slint:24
-msgctxt "ConfirmTagRemoval"
-msgid "Remove ID3v1"
-msgstr "Supprimer l’ID3v1"
-
-#: ui/tag-removal.slint:24
-msgctxt "ConfirmTagRemoval"
-msgid "Remove ID3v2"
-msgstr "Supprimer l’ID3v2"
-
-#: ui/tag-removal.slint:25
-msgctxt "ConfirmTagRemoval"
-msgid "Keep ID3v1"
-msgstr "Garder l’ID3v1"
-
-#: ui/tag-removal.slint:25
-msgctxt "ConfirmTagRemoval"
-msgid "Keep ID3v2"
-msgstr "Garder l’ID3v2"
-
-#: ui/tag-removal.slint:40
-msgctxt "ConfirmTagRemoval"
-msgid "Files"
-msgstr "Fichiers"
-
-#: ui/tag-removal.slint:55
-msgctxt "ConfirmTagRemoval"
-msgid "and {n} other file"
-msgid_plural "and {n} other files"
-msgstr[0] "et {n} autre fichier"
-msgstr[1] "et {n} autres fichiers"
-
-#: ui/toast.slint:31
-msgctxt "ToastView"
-msgid "Retry"
-msgstr "Réessayer"
-
-#: ui/toast.slint:59
-msgctxt "ToastView"
-msgid "Saved {n} file"
-msgid_plural "Saved {n} files"
-msgstr[0] "{n} fichier enregistré"
-msgstr[1] "{n} fichiers enregistrés"
-
-#: ui/toast.slint:60
-msgctxt "ToastView"
-msgid "{n} file could not be saved"
-msgid_plural "{n} files could not be saved"
-msgstr[0] "{n} fichier n’a pas pu être enregistré"
-msgstr[1] "{n} fichiers n’ont pas pu être enregistrés"
-
-#: ui/toast.slint:61
-msgctxt "ToastView"
-msgid "Could not play “{}”"
-msgstr "Impossible de lire « {} »"
-
-#: ui/toast.slint:62
-msgctxt "ToastView"
-msgid "“{}” is not a JPEG or PNG image"
-msgstr "« {} » n’est pas une image JPEG ou PNG"
-
-#: ui/toast.slint:63
-msgctxt "ToastView"
-msgid "Could not write the cover to “{}”"
-msgstr "Impossible d’écrire la pochette dans « {} »"
-
-#: ui/toast.slint:99
-msgctxt "ToastView"
+#: src/ui/overlay.odin:299
 msgid "Close"
 msgstr "Fermer"
 
-#: ui/toolbar.slint:39
-msgctxt "SaveButton"
-msgid "Saving…"
-msgstr "Enregistrement…"
-
-#: ui/toolbar.slint:39
-msgctxt "SaveButton"
-msgid "Save"
-msgstr "Enregistrer"
-
-#: ui/toolbar.slint:39
-msgctxt "SaveButton"
-msgid "Save {n} file"
-msgid_plural "Save {n} files"
-msgstr[0] "Enregistrer {n} fichier"
-msgstr[1] "Enregistrer {n} fichiers"
-
-#: ui/toolbar.slint:95
-msgctxt "FilterField"
-msgid "Filter by title, artist, album"
-msgstr "Filtrer par titre, artiste, album"
-
-#: ui/toolbar.slint:106
-msgctxt "FilterField"
-msgid "Filter"
-msgstr "Filtre"
-
-#: ui/toolbar.slint:131
-msgctxt "FilterField"
-msgid "Clear the filter"
-msgstr "Effacer le filtre"
-
-#: ui/track-table.slint:140
-msgctxt "HeaderCell"
-msgid "Sort by {}"
-msgstr "Trier par {}"
-
-#: ui/track-table.slint:438
-msgctxt "TableRow"
-msgid "Unreadable"
-msgstr "Illisible"
-
-#: ui/track-table.slint:447
-msgctxt "TableRow"
-msgid "Unsaved changes"
-msgstr "Modifications non enregistrées"
-
-#: ui/track-table.slint:456
-msgctxt "TableRow"
-msgid "Unlike the rest of its album"
-msgstr "Différente du reste de son album"
-
-#: ui/track-table.slint:465
-msgctxt "TableRow"
-msgid "Playing"
-msgstr "En lecture"
-
-#: ui/track-table.slint:771 ui/track-table.slint:809 ui/track-table.slint:986
-msgctxt "TrackTable"
-msgid "Title"
-msgstr "Titre"
-
-#: ui/track-table.slint:772 ui/track-table.slint:809 ui/track-table.slint:989
-msgctxt "TrackTable"
-msgid "Artist"
-msgstr "Artiste"
-
-#: ui/track-table.slint:773 ui/track-table.slint:809 ui/track-table.slint:992
-msgctxt "TrackTable"
-msgid "Album"
-msgstr "Album"
-
-#: ui/track-table.slint:774 ui/track-table.slint:809 ui/track-table.slint:995
-msgctxt "TrackTable"
-msgid "Year"
-msgstr "Année"
-
-#: ui/track-table.slint:775 ui/track-table.slint:809 ui/track-table.slint:998
-msgctxt "TrackTable"
-msgid "Genre"
-msgstr "Genre"
-
-#: ui/track-table.slint:776 ui/track-table.slint:1001
-msgctxt "TrackTable"
-msgid "Time"
-msgstr "Durée"
-
-#: ui/track-table.slint:777 ui/track-table.slint:1004
-msgctxt "TrackTable"
-msgid "Bitrate"
-msgstr "Débit"
-
-#: ui/track-table.slint:778 ui/track-table.slint:1007
-msgctxt "TrackTable"
-msgid "Tags"
-msgstr "Tags"
-
-#: ui/track-table.slint:779 ui/track-table.slint:1010
-msgctxt "TrackTable"
-msgid "File"
-msgstr "Fichier"
-
-#: ui/track-table.slint:780 ui/track-table.slint:1013
-msgctxt "TrackTable"
-msgid "Folder"
-msgstr "Dossier"
-
-#: ui/track-table.slint:809
-msgctxt "TrackTable"
-msgid "Track"
-msgstr "Piste"
-
-#: ui/track-table.slint:1114
-msgctxt "TrackTable"
-msgid "Reset to default columns"
-msgstr "Rétablir les colonnes par défaut"
-
-#: ui/track-table.slint:1207
-msgctxt "TrackTable"
-msgid "Choose columns"
-msgstr "Choisir les colonnes"
-
-#: ui/track-table.slint:1225
-msgctxt "TrackTable"
-msgid "Play"
-msgstr "Lire"
-
-#: ui/track-table.slint:1235
-msgctxt "TrackTable"
-msgid "Select Album"
-msgstr "Sélectionner l’album"
-
-#: ui/track-table.slint:1242
-msgctxt "TrackTable"
-msgid "Number Tracks"
-msgstr "Numéroter les pistes"
-
-#: ui/track-table.slint:1251
-msgctxt "TrackTable"
-msgid "Revert"
-msgstr "Rétablir l’original"
-
-#: ui/track-table.slint:1269
-msgctxt "TrackTable"
-msgid "Tracks"
-msgstr "Morceaux"
-
-#: ui/track-table.slint:1348
-msgctxt "TrackTable"
-msgid "Vertical scroll bar"
-msgstr "Barre de défilement verticale"
-
-#: ui/track-table.slint:1368
-msgctxt "TrackTable"
+#: src/ui/scroll.odin:122
 msgid "Horizontal scroll bar"
 msgstr "Barre de défilement horizontale"
 
-#: ui/unsaved-changes.slint:13
-msgctxt "UnsavedChanges"
-msgid "{0} has changes that are not saved yet."
-msgstr "{0} a des modifications qui ne sont pas encore enregistrées."
+#: src/ui/scroll.odin:122
+msgid "Vertical scroll bar"
+msgstr "Barre de défilement verticale"
 
-#: ui/unsaved-changes.slint:13
-msgctxt "UnsavedChanges"
-msgid "{0} and {1} have changes that are not saved yet."
-msgstr "{0} et {1} ont des modifications qui ne sont pas encore enregistrées."
+#: src/ui/table.odin:587
+msgid "Unreadable"
+msgstr "Illisible"
 
-#: ui/unsaved-changes.slint:13
-msgctxt "UnsavedChanges"
-msgid "{0}, {1} and {2} have changes that are not saved yet."
-msgstr "{0}, {1} et {2} ont des modifications qui ne sont pas encore enregistrées."
+#: src/ui/table.odin:590
+msgid "Playing"
+msgstr "En lecture"
 
-#: ui/unsaved-changes.slint:13
-msgctxt "UnsavedChanges"
-msgid "{0}, {1} and {2} other files have changes that are not saved yet."
-msgstr "{0}, {1} et {2} autres fichiers ont des modifications qui ne sont pas encore enregistrées."
+#: src/ui/table.odin:593
+msgid "Unsaved changes"
+msgstr "Modifications non enregistrées"
 
-#: ui/unsaved-changes.slint:16
-msgctxt "UnsavedChanges"
-msgid "Save changes to {n} file before quitting?"
-msgid_plural "Save changes to {n} files before quitting?"
-msgstr[0] "Enregistrer les modifications de {n} fichier avant de quitter ?"
-msgstr[1] "Enregistrer les modifications de {n} fichiers avant de quitter ?"
+#: src/ui/table.odin:596
+msgid "Unlike the rest of its album"
+msgstr "Différente du reste de son album"
 
-#: ui/unsaved-changes.slint:17
-msgctxt "UnsavedChanges"
-msgid "Quitting without saving discards them."
-msgstr "Si vous quittez sans enregistrer, elles seront perdues."
+#: src/ui/table.odin:748
+msgid "Choose columns"
+msgstr "Choisir les colonnes"
 
-#: ui/unsaved-changes.slint:18
-msgctxt "UnsavedChanges"
-msgid "Save {n} file"
-msgid_plural "Save {n} files"
-msgstr[0] "Enregistrer {n} fichier"
-msgstr[1] "Enregistrer {n} fichiers"
+#~ msgid "About Colophon"
+#~ msgstr "À propos de Colophon"
 
-#: ui/unsaved-changes.slint:19
-msgctxt "UnsavedChanges"
-msgid "Don’t Save"
-msgstr "Ne pas enregistrer"
+#~ msgid "Third-party licenses"
+#~ msgstr "Licences tierces"
+
+#~ msgid "Colophon ships these fonts, icons and crates, each under its own license."
+#~ msgstr "Colophon inclut ces polices, ces icônes et ces crates, chacune sous sa propre licence."
+
+#~ msgid "Back"
+#~ msgstr "Retour"
+
+#~ msgid "Version {}"
+#~ msgstr "Version {}"
+
+#~ msgid "An MP3 tag editor."
+#~ msgstr "Un éditeur de tags MP3."
+
+#~ msgid "Released under the MIT License."
+#~ msgstr "Distribué sous licence MIT."
+
+#~ msgid "Third-party licenses scroll bar"
+#~ msgstr "Barre de défilement des licences tierces"
+
+#~ msgid "License scroll bar"
+#~ msgstr "Barre de défilement de la licence"
+
+#~ msgid "Open Folder…"
+#~ msgstr "Ouvrir un dossier…"
+
+#~ msgid "File"
+#~ msgstr "Fichier"
+
+#~ msgid "Open Files…"
+#~ msgstr "Ouvrir des fichiers…"
+
+#~ msgid "Save"
+#~ msgstr "Enregistrer"
+
+#~ msgid "Preferences…"
+#~ msgstr "Préférences…"
+
+#~ msgid "Options…"
+#~ msgstr "Options…"
+
+#~ msgid "Settings…"
+#~ msgstr "Réglages…"
+
+#~ msgid "Help"
+#~ msgstr "Aide"
+
+#~ msgid "Undo"
+#~ msgstr "Annuler"
+
+#~ msgid "Edit"
+#~ msgstr "Édition"
+
+#~ msgid "Redo"
+#~ msgstr "Rétablir"
+
+#~ msgid "Find"
+#~ msgstr "Rechercher"
+
+#~ msgid "Select All"
+#~ msgstr "Tout sélectionner"
+
+#~ msgid "Select Album"
+#~ msgstr "Sélectionner l’album"
+
+#~ msgid "Number Tracks"
+#~ msgstr "Numéroter les pistes"
+
+#~ msgid "Revert"
+#~ msgstr "Rétablir l’original"
+
+#~ msgid "Pause"
+#~ msgstr "Pause"
+
+#~ msgctxt "Player"
+#~ msgid "Play"
+#~ msgstr "Lecture"
+
+#~ msgid "Controls"
+#~ msgstr "Commandes"
+
+#~ msgid "Next Track"
+#~ msgstr "Piste suivante"
+
+#~ msgid "Previous Track"
+#~ msgstr "Piste précédente"
+
+#~ msgid "Write ID3v2.4 to the selected files"
+#~ msgstr "Écrire l’ID3v2.4 dans les fichiers sélectionnés"
+
+#~ msgid "Tags"
+#~ msgstr "Tags"
+
+#~ msgid "Write ID3v2.3 to the selected files"
+#~ msgstr "Écrire l’ID3v2.3 dans les fichiers sélectionnés"
+
+#~ msgid "Write ID3v2.2 to the selected files"
+#~ msgstr "Écrire l’ID3v2.2 dans les fichiers sélectionnés"
+
+#~ msgid "Remove ID3v2 from the selected files…"
+#~ msgstr "Retirer l’ID3v2 des fichiers sélectionnés…"
+
+#~ msgid "Write ID3v1.1 to the selected files"
+#~ msgstr "Écrire l’ID3v1.1 dans les fichiers sélectionnés"
+
+#~ msgid "Write ID3v1.0 to the selected files"
+#~ msgstr "Écrire l’ID3v1.0 dans les fichiers sélectionnés"
+
+#~ msgid "Remove ID3v1 from the selected files…"
+#~ msgstr "Retirer l’ID3v1 des fichiers sélectionnés…"
+
+#~ msgid "Hide Sidebar"
+#~ msgstr "Masquer la barre latérale"
+
+#~ msgid "Show Sidebar"
+#~ msgstr "Afficher la barre latérale"
+
+#~ msgid "View"
+#~ msgstr "Présentation"
+
+#~ msgid "Hide Inspector"
+#~ msgstr "Masquer l’inspecteur"
+
+#~ msgid "Show Inspector"
+#~ msgstr "Afficher l’inspecteur"
+
+#~ msgid "Hide the Artist column"
+#~ msgstr "Masquer la colonne Artiste"
+
+#~ msgid "Show the Artist column"
+#~ msgstr "Afficher la colonne Artiste"
+
+#~ msgid "Hide the Album column"
+#~ msgstr "Masquer la colonne Album"
+
+#~ msgid "Show the Album column"
+#~ msgstr "Afficher la colonne Album"
+
+#~ msgid "Hide the Year column"
+#~ msgstr "Masquer la colonne Année"
+
+#~ msgid "Show the Year column"
+#~ msgstr "Afficher la colonne Année"
+
+#~ msgid "Hide the Genre column"
+#~ msgstr "Masquer la colonne Genre"
+
+#~ msgid "Show the Genre column"
+#~ msgstr "Afficher la colonne Genre"
+
+#~ msgid "Hide the Time column"
+#~ msgstr "Masquer la colonne Durée"
+
+#~ msgid "Show the Time column"
+#~ msgstr "Afficher la colonne Durée"
+
+#~ msgid "Hide the Bitrate column"
+#~ msgstr "Masquer la colonne Débit"
+
+#~ msgid "Show the Bitrate column"
+#~ msgstr "Afficher la colonne Débit"
+
+#~ msgid "Hide the Tags column (ID3 versions)"
+#~ msgstr "Masquer la colonne Tags (versions ID3)"
+
+#~ msgid "Show the Tags column (ID3 versions)"
+#~ msgstr "Afficher la colonne Tags (versions ID3)"
+
+#~ msgid "Hide the File column"
+#~ msgstr "Masquer la colonne Fichier"
+
+#~ msgid "Show the File column"
+#~ msgstr "Afficher la colonne Fichier"
+
+#~ msgid "Hide the Folder column"
+#~ msgstr "Masquer la colonne Dossier"
+
+#~ msgid "Show the Folder column"
+#~ msgstr "Afficher la colonne Dossier"
+
+#~ msgid "Reset to default columns"
+#~ msgstr "Rétablir les colonnes par défaut"
+
+#~ msgid "Write ID3v2.4 by default"
+#~ msgstr "Écrire l’ID3v2.4 par défaut"
+
+#~ msgid "Settings"
+#~ msgstr "Réglages"
+
+#~ msgid "Write ID3v2.3 by default"
+#~ msgstr "Écrire l’ID3v2.3 par défaut"
+
+#~ msgid "ID3v1 policy: keep where it exists"
+#~ msgstr "ID3v1 : le garder là où il existe"
+
+#~ msgid "ID3v1 policy: always write"
+#~ msgstr "ID3v1 : toujours l’écrire"
+
+#~ msgid "ID3v1 policy: never write"
+#~ msgstr "ID3v1 : ne jamais l’écrire"
+
+#~ msgid "Turn developer mode off"
+#~ msgstr "Désactiver le mode développeur"
+
+#~ msgid "Turn developer mode on"
+#~ msgstr "Activer le mode développeur"
+
+#~ msgid "All tracks"
+#~ msgstr "Toutes les pistes"
+
+#~ msgid "Recently changed"
+#~ msgstr "Modifiés récemment"
+
+#~ msgid "Unreadable files"
+#~ msgstr "Fichiers illisibles"
+
+#~ msgid "Command Palette…"
+#~ msgstr "Palette de commandes…"
+
+#~ msgid "Open folder"
+#~ msgstr "Ouvrir un dossier"
+
+#~ msgid "Command palette"
+#~ msgstr "Palette de commandes"
+
+#~ msgid "Toggle sidebar"
+#~ msgstr "Afficher ou masquer la barre latérale"
+
+#~ msgid "Toggle inspector"
+#~ msgstr "Afficher ou masquer l’inspecteur"
+
+#~ msgid "Show in Finder"
+#~ msgstr "Afficher dans le Finder"
+
+#~ msgid "Show in Explorer"
+#~ msgstr "Afficher dans l’Explorateur"
+
+#~ msgid "Show in Folder"
+#~ msgstr "Afficher dans le dossier"
+
+#~ msgid "Drop to open these folders and files"
+#~ msgstr "Déposez pour ouvrir ces dossiers et fichiers"
+
+#~ msgid "Cancel"
+#~ msgstr "Annuler"
+
+#~ msgid "Open your music folder"
+#~ msgstr "Ouvrez votre dossier de musique"
+
+#~ msgid "Colophon reads the tags of every MP3 in a folder and its subfolders. Nothing is written to your files until you save."
+#~ msgstr "Colophon lit les tags de chaque MP3 d’un dossier et de ses sous-dossiers. Rien n’est écrit dans vos fichiers tant que vous n’enregistrez pas."
+
+#~ msgid "Open folder…"
+#~ msgstr "Ouvrir un dossier…"
+
+#~ msgid "Multiple values"
+#~ msgstr "Valeurs multiples"
+
+#~ msgid "{}, {} bytes"
+#~ msgstr "{}, {} octets"
+
+#~ msgid "Compressed or encrypted"
+#~ msgstr "Compressée ou chiffrée"
+
+#~ msgid "{n} byte of data"
+#~ msgid_plural "{n} bytes of data"
+#~ msgstr[0] "{n} octet de données"
+#~ msgstr[1] "{n} octets de données"
+
+#~ msgid "at {}"
+#~ msgstr "à {}"
+
+#~ msgid "{n} byte"
+#~ msgid_plural "{n} bytes"
+#~ msgstr[0] "{n} octet"
+#~ msgstr[1] "{n} octets"
+
+#~ msgid "read only"
+#~ msgstr "lecture seule"
+
+#~ msgid "grouped"
+#~ msgstr "groupée"
+
+#~ msgid "compressed"
+#~ msgstr "compressée"
+
+#~ msgid "encrypted"
+#~ msgstr "chiffrée"
+
+#~ msgid "unsynchronised"
+#~ msgstr "désynchronisée"
+
+#~ msgid "data length"
+#~ msgstr "longueur des données"
+
+#~ msgid "Unsynchronised"
+#~ msgstr "Désynchronisé"
+
+#~ msgid "Extended header"
+#~ msgstr "En-tête étendu"
+
+#~ msgid "Experimental"
+#~ msgstr "Expérimental"
+
+#~ msgid "Footer"
+#~ msgstr "Pied"
+
+#~ msgid "{n} byte"
+#~ msgid_plural "{n} bytes"
+#~ msgstr[0] "{n} octet"
+#~ msgstr[1] "{n} octets"
+
+#~ msgid "{} KB"
+#~ msgstr "{} Ko"
+
+#~ msgid "{0}.{1} MB"
+#~ msgstr "{0},{1} Mo"
+
+#~ msgid "{0}.{1} GB"
+#~ msgstr "{0},{1} Go"
+
+#~ msgid "Title"
+#~ msgstr "Titre"
+
+#~ msgid "Artist"
+#~ msgstr "Artiste"
+
+#~ msgid "Album"
+#~ msgstr "Album"
+
+#~ msgid "Year"
+#~ msgstr "Année"
+
+#~ msgid "Comment"
+#~ msgstr "Commentaire"
+
+#~ msgid "Track"
+#~ msgstr "Piste"
+
+#~ msgid "Genre"
+#~ msgstr "Genre"
+
+#~ msgid "Saving converts {n} file."
+#~ msgid_plural "Saving converts {n} files."
+#~ msgstr[0] "L’enregistrement convertit {n} fichier."
+#~ msgstr[1] "L’enregistrement convertit {n} fichiers."
+
+#~ msgid "Saving removes the tags of {n} file."
+#~ msgid_plural "Saving removes the tags of {n} files."
+#~ msgstr[0] "L’enregistrement supprime les tags de {n} fichier."
+#~ msgstr[1] "L’enregistrement supprime les tags de {n} fichiers."
+
+#~ msgid "Saving converts {n} file to {0}."
+#~ msgid_plural "Saving converts {n} files to {0}."
+#~ msgstr[0] "L’enregistrement convertit {n} fichier en {0}."
+#~ msgstr[1] "L’enregistrement convertit {n} fichiers en {0}."
+
+#~ msgid "Saving converts {n} file from {0} to {1}."
+#~ msgid_plural "Saving converts {n} files from {0} to {1}."
+#~ msgstr[0] "L’enregistrement convertit {n} fichier de {0} en {1}."
+#~ msgstr[1] "L’enregistrement convertit {n} fichiers de {0} en {1}."
+
+#~ msgid "{} kbps"
+#~ msgstr "{} kbit/s"
+
+#~ msgid "{} kHz"
+#~ msgstr "{} kHz"
+
+#~ msgid "{0}.{1} kHz"
+#~ msgstr "{0},{1} kHz"
+
+#~ msgid "Inspector"
+#~ msgstr "Inspecteur"
+
+#~ msgid "Select tracks to see their tags"
+#~ msgstr "Sélectionnez des morceaux pour voir leurs tags"
+
+#~ msgid "{} selects every track"
+#~ msgstr "{} sélectionne tous les morceaux"
+
+#~ msgid "Replace Cover…"
+#~ msgstr "Remplacer la pochette…"
+
+#~ msgid "Extract Cover…"
+#~ msgstr "Extraire la pochette…"
+
+#~ msgid "Remove Cover"
+#~ msgstr "Supprimer la pochette"
+
+#~ msgid "Cover"
+#~ msgstr "Pochette"
+
+#~ msgid "Several covers"
+#~ msgstr "Plusieurs pochettes"
+
+#~ msgid "No cover"
+#~ msgstr "Pas de pochette"
+
+#~ msgid "{n} track selected"
+#~ msgid_plural "{n} tracks selected"
+#~ msgstr[0] "{n} morceau sélectionné"
+#~ msgstr[1] "{n} morceaux sélectionnés"
+
+#~ msgid "{n} file could not be read"
+#~ msgid_plural "{n} files could not be read"
+#~ msgstr[0] "{n} fichier illisible"
+#~ msgstr[1] "{n} fichiers illisibles"
+
+#~ msgid "Replace cover…"
+#~ msgstr "Remplacer la pochette…"
+
+#~ msgid "ID3v1 will keep only part of: {}"
+#~ msgstr "L’ID3v1 ne gardera qu’une partie de : {}"
+
+#~ msgid "This track has no number, unlike the rest of its album."
+#~ msgstr "Cette piste n’a pas de numéro, contrairement au reste de son album."
+
+#~ msgid "Some of these tracks have no number, unlike the rest of their albums."
+#~ msgstr "Certaines de ces pistes n’ont pas de numéro, contrairement au reste de leur album."
+
+#~ msgid "Its album artist differs from the rest of its album."
+#~ msgstr "Son artiste d’album diffère de celui du reste de son album."
+
+#~ msgid "Some of these tracks have an album artist that differs from the rest of their albums."
+#~ msgstr "Certaines de ces pistes ont un artiste d’album différent du reste de leur album."
+
+#~ msgid "Album artist"
+#~ msgstr "Artiste de l’album"
+
+#~ msgid "Multiple"
+#~ msgstr "Multiples"
+
+#~ msgid "of"
+#~ msgstr "sur"
+
+#~ msgid "Track total"
+#~ msgstr "Nombre de pistes"
+
+#~ msgid "Disc"
+#~ msgstr "Disque"
+
+#~ msgid "Disc total"
+#~ msgstr "Nombre de disques"
+
+#~ msgid "Audio"
+#~ msgstr "Audio"
+
+#~ msgid "Size"
+#~ msgstr "Taille"
+
+#~ msgid "{} total"
+#~ msgstr "{} au total"
+
+#~ msgid "None"
+#~ msgstr "Aucun"
+
+#~ msgid "Saved as"
+#~ msgstr "Enregistré en"
+
+#~ msgid "Tag format"
+#~ msgstr "Format des tags"
+
+#~ msgid "Write ID3v2"
+#~ msgstr "Écrire l’ID3v2"
+
+#~ msgid "Write ID3v1"
+#~ msgstr "Écrire l’ID3v1"
+
+#~ msgid "Text encoding"
+#~ msgstr "Encodage du texte"
+
+#~ msgid "Auto"
+#~ msgstr "Auto"
+
+#~ msgid "Padding"
+#~ msgstr "Remplissage"
+
+#~ msgid "Unsynchronisation"
+#~ msgstr "Désynchronisation"
+
+#~ msgid "These apply to every file saved in developer mode. UTF-16BE and UTF-8 need ID3v2.4; earlier versions get UTF-16."
+#~ msgstr "Ces réglages valent pour chaque fichier enregistré en mode développeur. UTF-16BE et UTF-8 demandent l’ID3v2.4 ; les versions antérieures reçoivent de l’UTF-16."
+
+#~ msgid "Rewrite Selected Files"
+#~ msgstr "Réécrire les fichiers sélectionnés"
+
+#~ msgid "Frames"
+#~ msgstr "Trames"
+
+#~ msgid "ID3v2.{} · {} bytes · {} bytes of padding"
+#~ msgstr "ID3v2.{} · {} octets · {} octets de remplissage"
+
+#~ msgid "No ID3v2 tag"
+#~ msgstr "Aucun tag ID3v2"
+
+#~ msgid "ID3v1 at {}, 128 bytes"
+#~ msgstr "ID3v1 à {}, 128 octets"
+
+#~ msgid "Inspector scroll bar"
+#~ msgstr "Barre de défilement de l’inspecteur"
+
+#~ msgid "Saving…"
+#~ msgstr "Enregistrement…"
+
+#~ msgid "Save {n} file"
+#~ msgid_plural "Save {n} files"
+#~ msgstr[0] "Enregistrer {n} fichier"
+#~ msgstr[1] "Enregistrer {n} fichiers"
+
+#~ msgid "Could not read this file"
+#~ msgstr "Impossible de lire ce fichier"
+
+#~ msgid "Problem"
+#~ msgstr "Problème"
+
+#~ msgid "Colophon could not open this file. It may have been moved or deleted, or Colophon may not be allowed to read it."
+#~ msgstr "Colophon n’a pas pu ouvrir ce fichier. Il a peut-être été déplacé ou supprimé, ou Colophon n’a pas le droit de le lire."
+
+#~ msgid "This file is damaged, or it is not an MP3: Colophon could not make sense of it."
+#~ msgstr "Ce fichier est abîmé, ou ce n’est pas un MP3 : Colophon n’a pas pu le comprendre."
+
+#~ msgid "Reading this file failed in a way it never should. This is a bug in Colophon, and the file itself may be fine."
+#~ msgstr "La lecture de ce fichier a échoué d’une façon qui ne devrait jamais arriver. C’est un bogue de Colophon, et le fichier lui-même est peut-être intact."
+
+#~ msgid "Details"
+#~ msgstr "Détails"
+
+#~ msgid "File size"
+#~ msgstr "Taille du fichier"
+
+#~ msgid "Copy details"
+#~ msgstr "Copier les détails"
+
+#~ msgid "Type a command"
+#~ msgstr "Tapez une commande"
+
+#~ msgid "Command"
+#~ msgstr "Commande"
+
+#~ msgid "Commands"
+#~ msgstr "Commandes"
+
+#~ msgid "No command holds “{}”"
+#~ msgstr "Aucune commande ne contient « {} »"
+
+#~ msgid "Commands scroll bar"
+#~ msgstr "Barre de défilement des commandes"
+
+#~ msgid "↑↓ to move"
+#~ msgstr "↑↓ pour se déplacer"
+
+#~ msgid "↵ to run"
+#~ msgstr "↵ pour lancer"
+
+#~ msgid "esc to close"
+#~ msgstr "esc pour fermer"
+
+#~ msgid "Player"
+#~ msgstr "Lecteur"
+
+#~ msgid "Previous track"
+#~ msgstr "Piste précédente"
+
+#~ msgid "Next track"
+#~ msgstr "Piste suivante"
+
+#~ msgid "Position"
+#~ msgstr "Position"
+
+#~ msgid "Volume"
+#~ msgstr "Volume"
+
+#~ msgid "Done"
+#~ msgstr "Terminé"
+
+#~ msgid "ID3v2 version"
+#~ msgstr "Version ID3v2"
+
+#~ msgid "Read by every player, the oldest included."
+#~ msgstr "Lue par tous les lecteurs, même les plus anciens."
+
+#~ msgid "The current version, with UTF-8 text."
+#~ msgstr "La version actuelle, avec du texte en UTF-8."
+
+#~ msgid "ID3v1 tag"
+#~ msgstr "Tag ID3v1"
+
+#~ msgid "Keep"
+#~ msgstr "Garder"
+
+#~ msgid "Always"
+#~ msgstr "Toujours"
+
+#~ msgid "Never"
+#~ msgstr "Jamais"
+
+#~ msgid "Rewritten in the files that have one, added to none."
+#~ msgstr "Réécrit dans les fichiers qui en ont un, ajouté à aucun."
+
+#~ msgid "Written in every file saved."
+#~ msgstr "Écrit dans chaque fichier enregistré."
+
+#~ msgid "Removed from the files saved, after asking."
+#~ msgstr "Retiré des fichiers enregistrés, après confirmation."
+
+#~ msgid "Developer"
+#~ msgstr "Développeur"
+
+#~ msgid "Developer mode"
+#~ msgstr "Mode développeur"
+
+#~ msgid "Choose the tag versions of each file in the inspector, ID3v2.2 included."
+#~ msgstr "Choisir les versions des tags de chaque fichier dans l’inspecteur, ID3v2.2 compris."
+
+#~ msgid "Sidebar"
+#~ msgstr "Barre latérale"
+
+#~ msgid "Library"
+#~ msgstr "Bibliothèque"
+
+#~ msgid "Folders"
+#~ msgstr "Dossiers"
+
+#~ msgid "Albums"
+#~ msgstr "Albums"
+
+#~ msgid "{n} more album"
+#~ msgid_plural "{n} more albums"
+#~ msgstr[0] "{n} autre album"
+#~ msgstr[1] "{n} autres albums"
+
+#~ msgid "Artists"
+#~ msgstr "Artistes"
+
+#~ msgid "Sidebar scroll bar"
+#~ msgstr "Barre de défilement de la barre latérale"
+
+#~ msgid "No folder open"
+#~ msgstr "Aucun dossier ouvert"
+
+#~ msgid "Reading… {n} track found"
+#~ msgid_plural "Reading… {n} tracks found"
+#~ msgstr[0] "Lecture… {n} morceau trouvé"
+#~ msgstr[1] "Lecture… {n} morceaux trouvés"
+
+#~ msgid "Reading stopped, {n} track"
+#~ msgid_plural "Reading stopped, {n} tracks"
+#~ msgstr[0] "Lecture arrêtée, {n} morceau"
+#~ msgstr[1] "Lecture arrêtée, {n} morceaux"
+
+#~ msgid "Could not read this folder"
+#~ msgstr "Impossible de lire ce dossier"
+
+#~ msgid "{n} track"
+#~ msgid_plural "{n} tracks"
+#~ msgstr[0] "{n} morceau"
+#~ msgstr[1] "{n} morceaux"
+
+#~ msgid "{n} selected"
+#~ msgid_plural "{n} selected"
+#~ msgstr[0] "{n} sélectionné"
+#~ msgstr[1] "{n} sélectionnés"
+
+#~ msgid "Stop"
+#~ msgstr "Arrêter"
+
+#~ msgid "Saving… {0} of {1}"
+#~ msgstr "Enregistrement… {0} sur {1}"
+
+#~ msgid "{n} file could not be saved"
+#~ msgid_plural "{n} files could not be saved"
+#~ msgstr[0] "{n} fichier n’a pas pu être enregistré"
+#~ msgstr[1] "{n} fichiers n’ont pas pu être enregistrés"
+
+#~ msgid "{n} file with unsaved changes"
+#~ msgid_plural "{n} files with unsaved changes"
+#~ msgstr[0] "{n} fichier avec des modifications non enregistrées"
+#~ msgstr[1] "{n} fichiers avec des modifications non enregistrées"
+
+#~ msgid "Remove the ID3v1 tag from {n} file?"
+#~ msgid_plural "Remove the ID3v1 tag from {n} files?"
+#~ msgstr[0] "Supprimer le tag ID3v1 de {n} fichier ?"
+#~ msgstr[1] "Supprimer le tag ID3v1 de {n} fichiers ?"
+
+#~ msgid "Remove the ID3v2 tag from {n} file?"
+#~ msgid_plural "Remove the ID3v2 tag from {n} files?"
+#~ msgstr[0] "Supprimer le tag ID3v2 de {n} fichier ?"
+#~ msgstr[1] "Supprimer le tag ID3v2 de {n} fichiers ?"
+
+#~ msgid "Some old players and car stereos only read ID3v1. After saving, these files will no longer have one."
+#~ msgstr "Certains vieux lecteurs et autoradios ne lisent que l’ID3v1. Une fois enregistrés, ces fichiers n’en auront plus."
+
+#~ msgid "ID3v2 holds what ID3v1 cannot: the album artist, the track total, long titles and comments, the cover. After saving, these files will lose them."
+#~ msgstr "L’ID3v2 contient ce que l’ID3v1 ne peut pas garder : l’artiste de l’album, le nombre de pistes, les titres et commentaires longs, la pochette. Une fois enregistrés, ces fichiers les perdront."
+
+#~ msgid "Remove ID3v1"
+#~ msgstr "Supprimer l’ID3v1"
+
+#~ msgid "Remove ID3v2"
+#~ msgstr "Supprimer l’ID3v2"
+
+#~ msgid "Keep ID3v1"
+#~ msgstr "Garder l’ID3v1"
+
+#~ msgid "Keep ID3v2"
+#~ msgstr "Garder l’ID3v2"
+
+#~ msgid "Files"
+#~ msgstr "Fichiers"
+
+#~ msgid "and {n} other file"
+#~ msgid_plural "and {n} other files"
+#~ msgstr[0] "et {n} autre fichier"
+#~ msgstr[1] "et {n} autres fichiers"
+
+#~ msgid "Retry"
+#~ msgstr "Réessayer"
+
+#~ msgid "Saved {n} file"
+#~ msgid_plural "Saved {n} files"
+#~ msgstr[0] "{n} fichier enregistré"
+#~ msgstr[1] "{n} fichiers enregistrés"
+
+#~ msgid "Could not play “{}”"
+#~ msgstr "Impossible de lire « {} »"
+
+#~ msgid "“{}” is not a JPEG or PNG image"
+#~ msgstr "« {} » n’est pas une image JPEG ou PNG"
+
+#~ msgid "Could not write the cover to “{}”"
+#~ msgstr "Impossible d’écrire la pochette dans « {} »"
+
+#~ msgid "Filter by title, artist, album"
+#~ msgstr "Filtrer par titre, artiste, album"
+
+#~ msgid "Filter"
+#~ msgstr "Filtre"
+
+#~ msgid "Clear the filter"
+#~ msgstr "Effacer le filtre"
+
+#~ msgid "Sort by {}"
+#~ msgstr "Trier par {}"
+
+#~ msgid "Time"
+#~ msgstr "Durée"
+
+#~ msgid "Bitrate"
+#~ msgstr "Débit"
+
+#~ msgid "Folder"
+#~ msgstr "Dossier"
+
+#~ msgid "Play"
+#~ msgstr "Lire"
+
+#~ msgid "Tracks"
+#~ msgstr "Morceaux"
+
+#~ msgid "{0} has changes that are not saved yet."
+#~ msgstr "{0} a des modifications qui ne sont pas encore enregistrées."
+
+#~ msgid "{0} and {1} have changes that are not saved yet."
+#~ msgstr "{0} et {1} ont des modifications qui ne sont pas encore enregistrées."
+
+#~ msgid "{0}, {1} and {2} have changes that are not saved yet."
+#~ msgstr "{0}, {1} et {2} ont des modifications qui ne sont pas encore enregistrées."
+
+#~ msgid "{0}, {1} and {2} other files have changes that are not saved yet."
+#~ msgstr "{0}, {1} et {2} autres fichiers ont des modifications qui ne sont pas encore enregistrées."
+
+#~ msgid "Save changes to {n} file before quitting?"
+#~ msgid_plural "Save changes to {n} files before quitting?"
+#~ msgstr[0] "Enregistrer les modifications de {n} fichier avant de quitter ?"
+#~ msgstr[1] "Enregistrer les modifications de {n} fichiers avant de quitter ?"
+
+#~ msgid "Quitting without saving discards them."
+#~ msgstr "Si vous quittez sans enregistrer, elles seront perdues."
+
+#~ msgid "Don’t Save"
+#~ msgstr "Ne pas enregistrer"

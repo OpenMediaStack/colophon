@@ -119,7 +119,7 @@ scroll_bar :: proc(ui: ^Ui, id: Widget_Id, rect: Rect, content: [2]f32, s: ^Scro
 	if .Hovered in interaction do states += {.Hovered}
 	if .Held in interaction do states += {.Pressed}
 	draw_scroll_thumb(ui.renderer, ui.theme, thumb, states)
-	label := vertical ? "Vertical scroll bar" : "Horizontal scroll bar"
+	label := vertical ? tr("Vertical scroll bar") : tr("Horizontal scroll bar")
 	declare(ui, {id = id, role = .Slider, label = label, rect = track, value = ""})
 }
 
