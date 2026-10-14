@@ -118,7 +118,12 @@ the_chooser_shows_and_hides_columns_but_the_title :: proc(t: ^testing.T) {
 	choose(t, &s, "File")
 	testing.expect(t, shows(&s, "07.mp3"))
 	choose(t, &s, "Folder")
-	testing.expect(t, shows(&s, fmt.tprintf("%s/Small Hours", display_folder(folder, s.app.home))))
+	// The folder as the engine names it, with the system's separators.
+	album, _ := filepath.join(
+		{s.app.engine.library.roots[0], "Small Hours"},
+		context.temp_allocator,
+	)
+	testing.expect(t, shows(&s, display_folder(album, s.app.home)))
 	choose(t, &s, "Genre")
 	testing.expect(t, !shows(&s, "Folk"))
 	testing.expect(t, !shows(&s, "Sort by Genre"))
