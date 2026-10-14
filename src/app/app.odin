@@ -19,6 +19,7 @@ App :: struct {
 	// selection, the track whose menu is open.
 	tracks:      Tracks,
 	genres:      Genres,
+	warnings:    Warnings_Cache,
 	sidebar:     Sidebar,
 	inspector:   Inspector,
 	// How many commands ran: a frame in which one ran is followed by another at once,
@@ -82,6 +83,7 @@ app_destroy :: proc(app: ^App) {
 	destroy_tracks(&app.tracks)
 	forget_notice(app)
 	delete(app.genres.list, app.engine.allocator)
+	delete(app.warnings.found)
 	forget_dropped(app)
 	delete(app.drop.paths)
 	engine.destroy(&app.engine)
@@ -111,6 +113,34 @@ genres :: proc(app: ^App) -> []string {
 		g.made, g.library_revision = true, e.library_revision
 	}
 	return g.list
+}
+
+// What looks wrong in the tracks beside the rest of their albums, for the table's
+// marks and the inspector's warnings, made again when the library or the edits
+// change: the engine walks the whole library for them, 4 to 6 ms for 10,000 tracks.
+Warnings_Cache :: struct {
+	found:    map[engine.Track_Id]engine.Warnings,
+	made:     bool,
+	revision: u64,
+}
+
+// The tracks whose tags look wrong, with what does, valid until the next command.
+warnings :: proc(app: ^App) -> map[engine.Track_Id]engine.Warnings {
+	w := &app.warnings
+	e := &app.engine
+	if !w.made || w.revision != e.revision {
+		delete(w.found)
+		w.found = engine.warnings(e, e.allocator)
+		w.made, w.revision = true, e.revision
+	}
+	return w.found
+}
+
+// What looks wrong in any of the selected tracks.
+selection_warnings :: proc(app: ^App) -> (found: engine.Warnings) {
+	all := warnings(app)
+	for track in app.engine.selection.tracks do found += all[track]
+	return
 }
 
 // Something was opened: a folder, or files. The panels wait for it.

@@ -122,10 +122,15 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 
 	// The content's height, for the scroll.
 	height: f32 = 2 * INSPECTOR_PADDING + 64 + SECTION_GAP + 16
-	lost := lost_names(s.id3v1_losses)
+	// The warnings under the Tags header, wrapped to the panel's width.
+	warnings := make([dynamic]string, context.temp_allocator)
+	if lost := lost_names(s.id3v1_losses); lost != "" {
+		append(&warnings, ui.fill(ui.tr("ID3v1 will keep only part of: {}"), lost))
+	}
+	for warning in selection_warnings(app) do append(&warnings, warning_text(warning, s.count))
 	if i.tags_open {
 		height += 8 + 8 * (ui.BUTTON_HEIGHT + FIELD_GAP) + COMMENT_HEIGHT
-		if lost != "" do height += WARNING_HEIGHT
+		for text in warnings do height += warning_height(r, text, width)
 	}
 	height += SECTION_GAP + 16
 	if i.file_open do height += 8 + f32(s.modified != {} ? 4 : 3) * 20
@@ -190,17 +195,7 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 
 	if section_header(ctx, 0, ui.tr("Tags"), {x, y, width, 16}, &i.tags_open) {
 		y += 16 + 8
-		if lost != "" {
-			warning_row(
-				ctx,
-				ui.fill(ui.tr("ID3v1 will keep only part of: {}"), lost),
-				x,
-				y,
-				width,
-				0,
-			)
-			y += WARNING_HEIGHT
-		}
+		for text, index in warnings do y += warning_row(ctx, text, x, y, width, index)
 		y = tag_fields(ctx, app, s, x, y, width)
 	} else {
 		y += 16
@@ -251,26 +246,64 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	if ui.button(ctx, ui.widget_id("Revert"), revert_rect, revert_label, revert_options) do execute(app, engine.Revert{})
 }
 
+// A line of a warning, and the room under its last line.
 @(private = "file")
-WARNING_HEIGHT :: 22
+WARNING_LINE :: 16
+@(private = "file")
+WARNING_GAP :: 6
 
-// A warning under the Tags header: what saving would lose, and with slice 35 a track
-// unlike the rest of its album.
+// What a warning says of the selected tracks, as 1.0.0 worded it.
 @(private = "file")
-warning_row :: proc(ctx: ^ui.Ui, text: string, x, y, width: f32, index: int) {
+warning_text :: proc(warning: engine.Warning, count: int) -> string {
+	switch warning {
+	case .Missing_Number:
+		if count == 1 do return ui.tr("This track has no number, unlike the rest of its album.")
+		return ui.tr("Some of these tracks have no number, unlike the rest of their albums.")
+	case .Odd_Album_Artist:
+		if count == 1 do return ui.tr("Its album artist differs from the rest of its album.")
+		return ui.tr(
+			"Some of these tracks have an album artist that differs from the rest of their albums.",
+		)
+	}
+	return ""
+}
+
+// A warning under the Tags header, wrapped to the width: what saving would lose, a
+// track unlike the rest of its album. Gives its height.
+@(private = "file")
+warning_row :: proc(ctx: ^ui.Ui, text: string, x, y, width: f32, index: int) -> (height: f32) {
 	r := ctx.renderer
 	th := ctx.theme
-	ui.draw_icon(r, .Triangle_Alert, {x, y + 4, 14, 14}, th.warning)
-	ui.draw_text_fit(r, text, x + 20, y + WARNING_HEIGHT / 2, width - 20, .Small, th.warning)
+	lines := ui.wrap_text(r, text, .Small, width - 20, context.temp_allocator)
+	height = warning_height(r, text, width)
+	ui.draw_icon(r, .Triangle_Alert, {x, y + 1, 14, 14}, th.warning)
+	for line, i in lines {
+		ui.draw_text(
+			r,
+			line,
+			x + 20,
+			y + f32(i) * WARNING_LINE + WARNING_LINE / 2,
+			.Small,
+			th.warning,
+		)
+	}
 	ui.declare(
 		ctx,
 		{
 			id = ui.widget_id("Inspector warning", index),
 			role = .Label,
 			label = text,
-			rect = {x, y, width, WARNING_HEIGHT},
+			rect = {x, y, width, height},
 		},
 	)
+	return
+}
+
+// The height a warning takes, wrapped to the width.
+@(private = "file")
+warning_height :: proc(r: ^ui.Renderer, text: string, width: f32) -> f32 {
+	lines := ui.wrap_text(r, text, .Small, width - 20, context.temp_allocator)
+	return f32(max(len(lines), 1)) * WARNING_LINE + WARNING_GAP
 }
 
 // The fields an ID3v1 tag would keep only part of, named in 1.0.0's order and joined
