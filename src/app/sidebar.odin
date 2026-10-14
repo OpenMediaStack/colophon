@@ -41,8 +41,9 @@ Item :: struct {
 	mono:   bool,
 	// The count in the error colour when there are any: files that could not be read.
 	alarm:  bool,
-	// A colour of its own, for an album.
+	// A colour of its own, for an album, and its cover once drawn small.
 	swatch: Maybe(ui.Color),
+	cover:  Maybe(ui.Texture_Id),
 }
 
 // The sidebar: the library as a whole, its folders, its albums and its artists, each a
@@ -123,6 +124,7 @@ sidebar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 				count  = album.tracks,
 				swatch = swatch(album.key),
 			}
+			if track, has := album.cover_track.?; has do item.cover = thumbnail(ctx, app, track)
 			y = row(ctx, app, ui.child_id(id, "album", i), {x, y, width, ROW_HEIGHT}, item)
 		}
 		if more_albums > 0 {
@@ -239,7 +241,12 @@ row :: proc(ctx: ^ui.Ui, app: ^App, id: ui.Widget_Id, rect: ui.Rect, item: Item)
 	middle := rect.y + rect.h / 2
 	x := rect.x + 8
 	if colour, has := item.swatch.?; has {
-		ui.fill_rect(r, {x, middle - SWATCH / 2, SWATCH, SWATCH}, colour, 3)
+		square := ui.Rect{x, middle - SWATCH / 2, SWATCH, SWATCH}
+		if texture, drawn := item.cover.?; drawn {
+			ui.draw_image(r, texture, square, 3)
+		} else {
+			ui.fill_rect(r, square, colour, 3)
+		}
 		x += SWATCH + 8
 	}
 	count := fmt.tprint(item.count)
@@ -288,8 +295,9 @@ section_height :: proc(rows: int) -> f32 {
 	return f32(rows) * (ROW_HEIGHT + ROW_GAP)
 }
 
-// A colour of an album's own, from its name, in place of its cover until slice 36 reads
-// covers: a hue the same on every launch, in the mockup's saturation and value.
+// A colour of an album's own, from its name, shown until its cover is drawn small, or
+// when it has none: a hue the same on every launch, in the mockup's saturation and
+// value.
 @(private = "file")
 swatch :: proc(key: engine.Album_Key) -> ui.Color {
 	h := u64(0xcbf29ce484222325)

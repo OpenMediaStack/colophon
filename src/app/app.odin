@@ -20,6 +20,7 @@ App :: struct {
 	tracks:         Tracks,
 	genres:         Genres,
 	warnings:       Warnings_Cache,
+	thumbnails:     Thumbnails,
 	// The cover read for the save dialog, until it answers.
 	cover_to_write: Maybe(lib.Cover),
 	sidebar:        Sidebar,
@@ -76,6 +77,7 @@ Drop :: struct {
 // wake is called from the engine's threads when they have news for the loop.
 app_init :: proc(app: ^App, wake := lib.Wake{}, allocator := context.allocator) {
 	engine.init(&app.engine, wake, allocator)
+	init_thumbnails(&app.thumbnails, wake, allocator)
 	app.platform = ui.PLATFORM
 	init_inspector(&app.inspector)
 	app.drop.paths = make([dynamic]string, allocator)
@@ -91,6 +93,7 @@ app_destroy :: proc(app: ^App) {
 	delete(app.genres.list, app.engine.allocator)
 	delete(app.warnings.found)
 	forget_cover_to_write(app)
+	destroy_thumbnails(&app.thumbnails)
 	forget_dropped(app)
 	delete(app.drop.paths)
 	engine.destroy(&app.engine)

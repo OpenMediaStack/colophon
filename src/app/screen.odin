@@ -54,6 +54,7 @@ layout_of :: proc(app: ^App, window: ui.Rect) -> (l: Layout) {
 main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	th := ctx.theme
 	follow_save(app, ctx.input.time)
+	poll_thumbnails(ctx, app)
 	l := layout_of(app, window)
 	// The lines between the regions: the window shows through the point between them.
 	ui.fill_rect(ctx.renderer, window, th.border_subtle)
