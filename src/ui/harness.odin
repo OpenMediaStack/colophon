@@ -102,7 +102,7 @@ release :: proc(h: ^Harness, button := Mouse_Button.Left) {
 
 // Presses a key with modifiers, and runs a frame.
 press_key :: proc(h: ^Harness, key: Key, modifiers := Modifiers{}) {
-	append(&h.ui.input.keys, Key_Press{key, modifiers, false})
+	append(&h.ui.input.keys, Key_Press{key, modifiers, false, len(h.ui.input.text.buf)})
 	run_frame(h)
 }
 

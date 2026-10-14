@@ -231,7 +231,7 @@ sdl_events_become_input :: proc(t: ^testing.T) {
 		down = true,
 	}
 	testing.expect_value(t, input_from_sdl(&input, &event), Event_Use.Taken)
-	testing.expect_value(t, input.keys[0], Key_Press{.S, {.Super, .Shift}, false})
+	testing.expect_value(t, input.keys[0], Key_Press{.S, {.Super, .Shift}, false, 0})
 
 	event = {}
 	event.text = {
@@ -410,7 +410,7 @@ a_held_key_repeats_only_where_asked :: proc(t: ^testing.T) {
 	b: Board
 	board_harness(&h, &b)
 	defer destroy_board(&h)
-	append(&h.ui.input.keys, Key_Press{.Enter, {}, true})
+	append(&h.ui.input.keys, Key_Press{.Enter, {}, true, 0})
 	ui_begin_frame(&h.ui, 1)
 	testing.expect(t, !take_key(&h.ui, .Enter))
 	testing.expect(t, take_key(&h.ui, .Enter, repeats = true))

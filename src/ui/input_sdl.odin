@@ -57,7 +57,7 @@ input_from_sdl :: proc(input: ^Input, event: ^sdl.Event, points_per_unit: f32 = 
 		e := event.key
 		input.modifiers = modifiers_of(e.mod)
 		key := key_of(e.key)
-		if key != .None do append(&input.keys, Key_Press{key, input.modifiers, e.repeat})
+		if key != .None do append(&input.keys, Key_Press{key, input.modifiers, e.repeat, len(input.text.buf)})
 	case .KEY_UP:
 		input.modifiers = modifiers_of(event.key.mod)
 	case .TEXT_INPUT:

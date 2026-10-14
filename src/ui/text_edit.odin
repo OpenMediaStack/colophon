@@ -17,7 +17,8 @@ PLATFORM ::
 	.Darwin else (Platform.Windows when ODIN_OS == .Windows else Platform.Linux)
 
 // The text of the field being edited, with its caret, its selection and its own undo
-// history. Offsets are in bytes, always on a character boundary. Make it with
+// history. Offsets are in bytes; the keys and clicks keep them between characters as
+// the reader sees them (grapheme clusters: a letter and its accent mark are one). Make it with
 // text_edit_init, free it with text_edit_destroy.
 Text_Edit :: struct {
 	buffer: [dynamic]u8,
@@ -44,12 +45,14 @@ Edit_Kind :: enum u8 {
 	Deleting,
 }
 
+// Makes an empty edit; free it with text_edit_destroy.
 text_edit_init :: proc(e: ^Text_Edit, allocator := context.allocator) {
 	e.buffer = make([dynamic]u8, allocator)
 	e.undo = make([dynamic]Edit_Step, allocator)
 	e.redo = make([dynamic]Edit_Step, allocator)
 }
 
+// Frees what text_edit_init made.
 text_edit_destroy :: proc(e: ^Text_Edit) {
 	clear_history(e)
 	delete(e.buffer)
@@ -68,6 +71,7 @@ selected_text :: proc(e: ^Text_Edit) -> string {
 	return string(e.buffer[min(e.caret, e.anchor):max(e.caret, e.anchor)])
 }
 
+// Whether some text is selected.
 has_selection :: proc(e: ^Text_Edit) -> bool {
 	return e.caret != e.anchor
 }
@@ -83,13 +87,16 @@ edit_reset :: proc(e: ^Text_Edit, text: string, select_all: bool) {
 	e.last = .None
 }
 
-// Puts the caret at offset, extending the selection when extend.
+// Puts the caret at offset, or at the start of the character it falls in, extending
+// the selection when extend.
 edit_move :: proc(e: ^Text_Edit, offset: int, extend := false) {
 	e.caret = clamp(offset, 0, len(e.buffer))
+	if !is_char_boundary(edit_text(e), e.caret) do e.caret = previous_char(edit_text(e), e.caret)
 	if !extend do e.anchor = e.caret
 	e.last = .None
 }
 
+// Selects the whole text.
 edit_select_all :: proc(e: ^Text_Edit) {
 	e.anchor = 0
 	e.caret = len(e.buffer)
@@ -121,14 +128,16 @@ edit_select_word :: proc(e: ^Text_Edit, offset: int) {
 	e.last = .None
 }
 
-// Replaces the selection with text, which loses its line breaks: a field holds one
-// line.
+// Replaces the selection with text, which loses its line breaks and control
+// characters, a tab becoming a space: a field holds one line, and a NUL would split a
+// tag's value in two.
 edit_insert :: proc(e: ^Text_Edit, text: string) {
 	if len(text) == 0 do return
 	remember(e, .Typing)
 	delete_selection(e)
-	for r in text {
-		if r == '\n' || r == '\r' do continue
+	for c in text {
+		r := c == '\t' ? ' ' : c
+		if r < 0x20 || r == 0x7F do continue
 		bytes, n := utf8.encode_rune(r)
 		inject_at(&e.buffer, e.caret, ..bytes[:n])
 		e.caret += n
@@ -160,22 +169,43 @@ edit_redo :: proc(e: ^Text_Edit) -> bool {
 	return true
 }
 
-// The offset of the character before offset.
+// The start of the character before offset, as the reader sees characters.
+@(private)
 previous_char :: proc(s: string, offset: int) -> int {
-	at := min(offset, len(s)) - 1
-	for at > 0 && !utf8.rune_start(s[at]) do at -= 1
-	return max(at, 0)
+	before := 0
+	it := utf8.decode_grapheme_iterator_make(s)
+	for _, grapheme in utf8.decode_grapheme_iterate(&it) {
+		if grapheme.byte_index >= offset do break
+		before = grapheme.byte_index
+	}
+	return before
 }
 
-// The offset of the character after offset.
+// The end of the character from offset, as the reader sees characters.
+@(private)
 next_char :: proc(s: string, offset: int) -> int {
-	if offset >= len(s) do return len(s)
-	_, n := utf8.decode_rune_in_string(s[offset:])
-	return offset + n
+	it := utf8.decode_grapheme_iterator_make(s)
+	for _, grapheme in utf8.decode_grapheme_iterate(&it) {
+		if grapheme.byte_index > offset do return grapheme.byte_index
+	}
+	return len(s)
+}
+
+// Whether offset lies between two characters as the reader sees them.
+@(private)
+is_char_boundary :: proc(s: string, offset: int) -> bool {
+	if offset <= 0 || offset >= len(s) do return true
+	it := utf8.decode_grapheme_iterator_make(s)
+	for _, grapheme in utf8.decode_grapheme_iterate(&it) {
+		if grapheme.byte_index == offset do return true
+		if grapheme.byte_index > offset do return false
+	}
+	return false
 }
 
 // Where the caret goes to move a word left: the start of the word before it, on every
 // system.
+@(private)
 word_left :: proc(s: string, offset: int) -> int {
 	at := offset
 	for at > 0 && char_class(rune_before(s, at)) != .Word do at = previous_char(s, at)
@@ -183,11 +213,12 @@ word_left :: proc(s: string, offset: int) -> int {
 	return at
 }
 
-// Where the caret goes to move a word right: the end of the word after it on macOS,
-// the start of the next word on Windows and Linux.
+// Where the caret goes to move a word right: the end of the word after it on macOS and
+// Linux, as GTK and 1.0.0 did, the start of the next word on Windows.
+@(private)
 word_right :: proc(s: string, offset: int, platform := PLATFORM) -> int {
 	at := offset
-	if platform == .Mac {
+	if platform != .Windows {
 		for at < len(s) && char_class(rune_at(s, at)) != .Word do at = next_char(s, at)
 		for at < len(s) && char_class(rune_at(s, at)) == .Word do at = next_char(s, at)
 	} else {
@@ -275,6 +306,8 @@ edit_key :: proc(
 		if press.key == .X do edit_delete_to(e, e.caret)
 	case .V:
 		if !command || shift || clipboard.get == nil do return
+		// A paste is a step of its own to undo, apart from the typing around it.
+		e.last = .None
 		edit_insert(e, clipboard.get(clipboard.data, context.temp_allocator))
 		e.last = .None
 	case .Z:
@@ -311,7 +344,10 @@ char_class :: proc(r: rune) -> Char_Class {
 	switch {
 	case unicode.is_space(r):
 		return .Space
-	case unicode.is_letter(r), unicode.is_digit(r), r == '_', r == '\'', unicode.is_combining(r):
+	case unicode.is_letter(r), unicode.is_digit(r), unicode.is_combining(r):
+		return .Word
+	// Apostrophes inside a word, typed or typographic: "l’été" is one word.
+	case r == '_', r == '\'', r == '\u2019', r == '\u02BC':
 		return .Word
 	}
 	return .Punctuation
@@ -337,7 +373,7 @@ delete_selection :: proc(e: ^Text_Edit) {
 }
 
 // Keeps the text as it is before a change of kind, unless the change goes on with
-// the last one: typing a word, deleting several characters.
+// the last one: a run of typing or of deleting, until the caret moves.
 @(private = "file")
 remember :: proc(e: ^Text_Edit, kind: Edit_Kind) {
 	if e.last != kind || len(e.undo) == 0 {

@@ -196,18 +196,17 @@ the_caret_blinks :: proc(t: ^testing.T) {
 	form_harness(&h, &f)
 	defer destroy_form(&h, &f)
 	click(&h, "Title")
-	caret_drawn :: proc(h: ^Harness) -> bool {
-		th := h.ui.theme
-		for list in h.renderer.lists {
-			for v in list.vertices do if v.color == th.accent do return true
-		}
-		return false
+	// The caret is the only thing that comes and goes: four vertices more or less.
+	vertices :: proc(h: ^Harness) -> (n: int) {
+		for list in h.renderer.lists do n += len(list.vertices)
+		return
 	}
-	testing.expect(t, caret_drawn(&h))
+	shown := vertices(&h)
 	wait(&h, 0.6)
-	testing.expect(t, !caret_drawn(&h))
+	hidden := vertices(&h)
+	testing.expect_value(t, shown - hidden, 4)
 	wait(&h, 0.6)
-	testing.expect(t, caret_drawn(&h))
+	testing.expect_value(t, vertices(&h), shown)
 }
 
 // Every state of the text field in the brief's component sheet, in both themes.
@@ -267,4 +266,70 @@ draw_field_sheet :: proc(r: ^Renderer, area: Rect, kind: Theme_Kind) {
 		)
 		y += 36
 	}
+}
+
+@(test)
+keys_that_type_text_stay_in_the_field :: proc(t: ^testing.T) {
+	h: Harness
+	f: Form
+	form_harness(&h, &f)
+	defer destroy_form(&h, &f)
+	click(&h, "Title")
+	append(&h.ui.input.keys, Key_Press{.Space, {}, false, 0})
+	strings.write_string(&h.ui.input.text, " ")
+	append(&h.ui.input.keys, Key_Press{.A, {}, false, 1})
+	strings.write_string(&h.ui.input.text, "a")
+	ui_begin_frame(&h.ui, 1)
+	form_frame(&h.ui, &f)
+	testing.expect_value(t, len(h.ui.input.keys), 0)
+	ui_end_frame(&h.ui)
+}
+
+@(test)
+keys_and_text_keep_their_order :: proc(t: ^testing.T) {
+	h: Harness
+	f: Form
+	form_harness(&h, &f)
+	defer destroy_form(&h, &f)
+	click_at(&h, "Title", 190)
+	append(&h.ui.input.keys, Key_Press{.Backspace, {}, false, 0})
+	strings.write_string(&h.ui.input.text, "x")
+	run_frame(&h)
+	testing.expect_value(t, edit_text(&h.ui.edit), "Paper Satellitex")
+}
+
+@(test)
+escape_brings_back_the_value_the_field_had_when_the_focus_came :: proc(t: ^testing.T) {
+	h: Harness
+	f: Form
+	form_harness(&h, &f)
+	defer destroy_form(&h, &f)
+	click(&h, "Title")
+	type_text(&h, "!")
+	// An app that takes in each change, as the inspector does.
+	strings.builder_reset(&f.values[0])
+	strings.write_string(&f.values[0], "Paper Satellites!")
+	press_key(&h, .Escape)
+	testing.expect_value(t, f.cancels[0], 1)
+	run_frame(&h)
+	info, _ := find_widget(&h.ui, "Title")
+	testing.expect_value(t, h.ui.focus, 0)
+	testing.expect_value(t, string(h.ui.edit_start[:]), "Paper Satellites")
+	_ = info
+}
+
+@(test)
+a_field_whose_focus_another_widget_takes_commits :: proc(t: ^testing.T) {
+	h: Harness
+	f: Form
+	form_harness(&h, &f)
+	defer destroy_form(&h, &f)
+	click(&h, "Title")
+	type_text(&h, "!")
+	request_focus(&h.ui, widget_id("Artist"))
+	ui_end_frame(&h.ui)
+	run_frame(&h)
+	testing.expect_value(t, f.commits[0], 1)
+	testing.expect_value(t, value_of(&f, 0), "Paper Satellites!")
+	testing.expect(t, has_focus(&h.ui, widget_id("Artist")))
 }
