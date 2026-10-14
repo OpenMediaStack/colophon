@@ -30,6 +30,7 @@ harness_init :: proc(
 	h.frame = frame
 	h.data = data
 	h.scale = 1
+	h.ui.viewport = {0, 0, 1280, 800}
 	h.clipboard = strings.builder_make(allocator)
 	h.ui.clipboard = {
 		data = &h.clipboard,

@@ -2,6 +2,7 @@ package ui
 
 import "core:math"
 import "core:strings"
+import "core:unicode/utf8"
 import fs "vendor:fontstash"
 
 Font :: enum u8 {
@@ -212,4 +213,41 @@ set_font_state :: proc(r: ^Renderer, style: Text_Style) {
 	fs.SetSpacing(&r.atlas.fonts, info.tracking * size)
 	fs.SetAlignHorizontal(&r.atlas.fonts, .LEFT)
 	fs.SetAlignVertical(&r.atlas.fonts, .MIDDLE)
+}
+
+// text cut into lines no wider than width, at spaces where it can, inside words where
+// a word alone is wider, and at its line breaks. The lines are slices of text, in a
+// list allocated with allocator.
+wrap_text :: proc(
+	r: ^Renderer,
+	text: string,
+	style: Text_Style,
+	width: f32,
+	allocator := context.allocator,
+) -> []string {
+	lines := make([dynamic]string, allocator)
+	paragraphs := text
+	for paragraph in strings.split_lines_iterator(&paragraphs) {
+		rest := paragraph
+		if len(rest) == 0 do append(&lines, rest)
+		for len(rest) > 0 {
+			if text_width(r, rest, style) <= width {
+				append(&lines, rest)
+				break
+			}
+			// The longest start that fits, back to its last space if it has one.
+			length := 0
+			for advance in text_advances(r, rest, style) {
+				if advance.x > width do break
+				length = advance.end
+			}
+			end := length
+			if space := strings.last_index_byte(rest[:length], ' '); space > 0 do end = space
+			// One character at least, whole, when none fits.
+			if end == 0 do _, end = utf8.decode_rune_in_string(rest)
+			append(&lines, strings.trim_right_space(rest[:end]))
+			rest = strings.trim_left_space(rest[end:])
+		}
+	}
+	return lines[:]
 }

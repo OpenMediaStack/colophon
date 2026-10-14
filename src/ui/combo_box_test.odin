@@ -29,6 +29,8 @@ Genre_Form :: struct {
 	track:   [2]strings.Builder,
 	// The genres offered, GENRES unless set.
 	choices: []string,
+	// A toast drawn after the combo box, a popup of its own.
+	toast:   bool,
 }
 
 @(private = "file")
@@ -52,6 +54,7 @@ genre_frame :: proc(ui: ^Ui, data: rawptr) {
 	}
 	// A button drawn after the combo, under where its suggestions open.
 	if button(ui, widget_id("Behind"), {10, 44, 200, 28}, "Behind") do f.behind += 1
+	if f.toast do toast(ui, widget_id("Toast"), {0, 0, 1280, 800}, .Success, "Saved 3 files")
 	number, total := number_pair(
 		ui,
 		widget_id("Track"),
@@ -129,6 +132,22 @@ a_click_picks_a_suggestion_and_what_lies_under_it_gets_nothing :: proc(t: ^testi
 	testing.expect(t, !h.ui.combo.open)
 	run_frame(&h)
 	testing.expect_value(t, f.commits, 1)
+}
+
+@(test)
+a_toast_drawn_after_the_list_leaves_it_the_mouse :: proc(t: ^testing.T) {
+	h: Harness
+	f := Genre_Form {
+		toast = true,
+	}
+	genre_harness(&h, &f)
+	defer destroy_genre_form(&h, &f)
+	click(&h, "Genre")
+	press_key(&h, .A, COMMAND)
+	type_text(&h, "rock")
+	run_frame(&h)
+	testing.expect(t, click(&h, "Acid Rock"))
+	testing.expect_value(t, strings.to_string(f.genre), "Acid Rock")
 }
 
 @(test)

@@ -229,6 +229,9 @@ draw_suggestions :: proc(
 		rect.w,
 		f32(visible) * ITEM_HEIGHT + 2 * LIST_INSET,
 	}
+	// Above the field when there is no room under it.
+	v := ui.viewport
+	if list.y + list.h > v.y + v.h && rect.y - LIST_GAP - list.h >= v.y do list.y = rect.y - LIST_GAP - list.h
 	inner := rect_inset(list, 1, LIST_INSET)
 	content := f32(len(shown)) * ITEM_HEIGHT
 	most := max(content - inner.h, 0)
@@ -236,6 +239,7 @@ draw_suggestions :: proc(
 	defer end_popup(ui)
 	if mouse_over(ui, list) do combo.scroll += ui.input.wheel.y
 	combo.scroll = clamp(combo.scroll, 0, most)
+	draw_shadow(r, list, 6, 8, 24, th.shadow_menu)
 	fill_rect(r, list, th.surface_2, 6)
 	stroke_rect(r, list, th.border_subtle, 6)
 	list_id := child_id(id, "suggestions")
