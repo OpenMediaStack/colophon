@@ -248,7 +248,8 @@ sdl_events_become_input :: proc(t: ^testing.T) {
 		direction = .FLIPPED,
 	}
 	testing.expect_value(t, input_from_sdl(&input, &event), Event_Use.Taken)
-	testing.expect_value(t, input.wheel, [2]f32{0, -WHEEL_POINTS})
+	notch: f32 = ODIN_OS == .Darwin ? TRAVEL_POINTS : WHEEL_POINTS
+	testing.expect_value(t, input.wheel, [2]f32{0, -notch})
 }
 
 @(test)

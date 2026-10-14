@@ -3,8 +3,12 @@ package ui
 import "core:strings"
 import sdl "vendor:sdl3"
 
-// How far one notch of a mouse wheel scrolls.
+// How far one notch of a mouse wheel scrolls, on Windows and Linux.
 WHEEL_POINTS :: 40
+// How far a unit scrolls where SDL counts a trackpad's travel in tenths of a point,
+// macOS and Wayland, so that the content stays under the fingers. A line of a mouse
+// wheel on macOS scrolls as far, as the system's own scroll views do.
+TRAVEL_POINTS :: 10
 
 // What input_from_sdl did with an event.
 Event_Use :: enum u8 {
@@ -51,7 +55,7 @@ input_from_sdl :: proc(input: ^Input, event: ^sdl.Event, points_per_unit: f32 = 
 	case .MOUSE_WHEEL:
 		// SDL gives the direction the user set, natural scrolling included.
 		e := event.wheel
-		input.wheel += {e.x, -e.y} * WHEEL_POINTS
+		input.wheel += {e.x, -e.y} * wheel_points(e)
 		input.mouse = {e.mouse_x, e.mouse_y} * points_per_unit
 	case .KEY_DOWN:
 		e := event.key
@@ -151,4 +155,20 @@ key_of :: proc(code: sdl.Keycode) -> Key {
 		return .Equals
 	}
 	return .None
+}
+
+// How far a unit of an SDL wheel event scrolls, in points. Windows and X11 count
+// notches. Wayland counts notches too, or a touchpad's travel in tenths of a point,
+// which comes fractional.
+@(private = "file")
+wheel_points :: proc(e: sdl.MouseWheelEvent) -> f32 {
+	when ODIN_OS == .Darwin {
+		return TRAVEL_POINTS
+	} else when ODIN_OS == .Linux {
+		fractional := e.x != f32(i32(e.x)) || e.y != f32(i32(e.y))
+		if fractional && string(sdl.GetCurrentVideoDriver()) == "wayland" do return TRAVEL_POINTS
+		return WHEEL_POINTS
+	} else {
+		return WHEEL_POINTS
+	}
 }

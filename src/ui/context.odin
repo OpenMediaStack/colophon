@@ -274,10 +274,11 @@ Ui :: struct {
 	popup_next:      Maybe(Rect),
 	in_popup:        bool,
 	popup_layer:     Layer,
-	// The scroll area under the mouse, from the last frame, and the one this frame
-	// finds: the innermost wins, as it is drawn after the one around it.
-	scroll_hot:      Widget_Id,
-	scroll_hot_next: Widget_Id,
+	// The scroll area under the mouse along each axis, from the last frame, and the one
+	// this frame finds: the innermost that can scroll along it wins, as it is drawn
+	// after the one around it.
+	scroll_hot:      [2]Widget_Id,
+	scroll_hot_next: [2]Widget_Id,
 	// What a drag started from: a scroll bar's offset when its thumb was pressed.
 	drag_from:       f32,
 	// The combo box whose suggestions are open, and its list's state.
@@ -324,7 +325,7 @@ ui_begin_frame :: proc(ui: ^Ui, scale: f32) {
 	ui.popup = ui.popup_next
 	ui.popup_next = nil
 	ui.scroll_hot = ui.scroll_hot_next
-	ui.scroll_hot_next = 0
+	ui.scroll_hot_next = {}
 	ui.cursor = .Default
 	clear(&ui.widgets)
 	renderer_begin_frame(ui.renderer, scale)
