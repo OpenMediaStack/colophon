@@ -129,7 +129,7 @@ text_field :: proc(
 			CLEAR_BUTTON,
 		}
 		clear_label := options.clear_label != "" ? options.clear_label : "Clear"
-		if icon_button(ui, child_id(id, "clear"), clear, .X, clear_label, 12) {
+		if icon_button(ui, child_id(id, "clear"), clear, .X, clear_label, 12, focusable = false) {
 			if focused do edit_reset(&ui.edit, "", false)
 			result.changed = true
 			result.text = ""
@@ -149,6 +149,16 @@ text_field :: proc(
 		},
 	)
 	return
+}
+
+// Gives a field the focus with all its text selected, or selects all its text when it
+// has the focus already: a shortcut that reaches the filter.
+focus_field :: proc(ui: ^Ui, id: Widget_Id) {
+	if has_focus(ui, id) && ui.edit_owner == id {
+		edit_select_all(&ui.edit)
+		return
+	}
+	request_focus(ui, id, by_key = true)
 }
 
 // The keys, the typed text and the mouse on the focused field.

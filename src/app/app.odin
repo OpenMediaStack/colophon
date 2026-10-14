@@ -7,7 +7,16 @@ import ui "../ui"
 // Colophon's state above the engine: what the screens need between frames that the
 // engine does not already know. Make it with app_init, free it with app_destroy.
 App :: struct {
-	engine: engine.Engine,
+	engine:   engine.Engine,
+	// How many commands ran: a frame in which one ran is followed by another at once,
+	// so that what it changed shows.
+	commands: int,
+}
+
+// Runs a command of the engine, counting it for the loop.
+execute :: proc(app: ^App, command: engine.Command) {
+	app.commands += 1
+	engine.execute(&app.engine, command)
 }
 
 // wake is called from the engine's threads when they have news for the loop.

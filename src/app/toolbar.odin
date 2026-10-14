@@ -14,6 +14,10 @@ toolbar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	e := &app.engine
 	open := folder_open(app)
 	ui.fill_rect(r, rect, th.surface_2)
+	toolbar_id := ui.widget_id("Toolbar")
+	ui.declare(ctx, {id = toolbar_id, role = .Group, label = ui.tr("Toolbar"), rect = rect})
+	ui.push_parent(ctx, toolbar_id)
+	defer ui.pop_parent(ctx)
 	y := rect.y + (rect.h - BUTTON) / 2
 	x := rect.x + 8
 
@@ -39,7 +43,7 @@ toolbar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		ui.tr("Undo"),
 		disabled = !engine.can_undo(e),
 	) {
-		engine.execute(e, engine.Undo{})
+		execute(app, engine.Undo{})
 	}
 	x += BUTTON + GAP
 	if ui.toolbar_button(
@@ -50,7 +54,7 @@ toolbar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		ui.tr("Redo"),
 		disabled = !engine.can_redo(e),
 	) {
-		engine.execute(e, engine.Redo{})
+		execute(app, engine.Redo{})
 	}
 	x += BUTTON + GAP + 8
 
@@ -59,8 +63,9 @@ toolbar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	inspector_rect := ui.Rect{right - BUTTON, y, BUTTON, BUTTON}
 	sidebar_rect := ui.Rect{inspector_rect.x - GAP - BUTTON, y, BUTTON, BUTTON}
 	palette_options := ui.Button_Options {
-		kind = .Secondary,
-		name = ui.tr("Command palette"),
+		kind  = .Secondary,
+		name  = ui.tr("Command palette"),
+		small = true,
 	}
 	palette_key := shortcut_hint("K")
 	palette_width := ui.button_width(r, palette_key, palette_options)
@@ -77,7 +82,7 @@ toolbar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		checked = view.sidebar_visible && open,
 		disabled = !open,
 	) {
-		engine.execute(e, engine.Toggle_Sidebar{})
+		execute(app, engine.Toggle_Sidebar{})
 	}
 	if ui.toolbar_button(
 		ctx,
@@ -88,7 +93,7 @@ toolbar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		checked = view.inspector_visible && open,
 		disabled = !open,
 	) {
-		engine.execute(e, engine.Toggle_Inspector{})
+		execute(app, engine.Toggle_Inspector{})
 	}
 
 	// The filter shares the room left with the space after it, up to its widest.
@@ -120,7 +125,7 @@ save_button :: proc(ctx: ^ui.Ui, app: ^App, at: [2]f32) -> f32 {
 	}
 	width := ui.button_width(ctx.renderer, label, options)
 	rect := ui.Rect{at.x, at.y, width, ui.BUTTON_HEIGHT}
-	if ui.button(ctx, ui.widget_id("Save"), rect, label, options) do engine.execute(e, engine.Save{})
+	if ui.button(ctx, ui.widget_id("Save"), rect, label, options) do execute(app, engine.Save{})
 	return width
 }
 
@@ -144,8 +149,8 @@ filter_field :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		clear_label = ui.tr("Clear the filter"),
 	}
 	result := ui.text_field(ctx, ui.widget_id("Filter"), rect, e.filter, ui.tr("Filter"), options)
-	if result.changed do engine.execute(e, engine.Filter{result.text})
-	if result.cancelled do engine.execute(e, engine.Filter{""})
+	if result.changed do execute(app, engine.Filter{result.text})
+	if result.cancelled do execute(app, engine.Filter{""})
 	middle := rect.y + rect.h / 2
 	ui.draw_icon(r, .Search, {rect.x + 8, middle - ICON / 2, ICON, ICON}, th.text_tertiary)
 	if empty do ui.draw_text(r, hint, rect.x + rect.w - 8, middle, .Small, th.text_tertiary, .Right)

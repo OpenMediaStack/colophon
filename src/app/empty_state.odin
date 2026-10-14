@@ -46,8 +46,17 @@ empty_state :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	)
 	y += 22 + SPACING
 
-	for line in lines {
-		ui.draw_text(r, line, centre_x, y + LINE / 2, .Body, th.text_secondary, .Center)
+	for line, i in lines {
+		width := ui.draw_text(r, line, centre_x, y + LINE / 2, .Body, th.text_secondary, .Center)
+		ui.declare(
+			ctx,
+			{
+				id = ui.widget_id("Empty state line", i),
+				role = .Label,
+				label = line,
+				rect = {centre_x - width / 2, y, width, LINE},
+			},
+		)
 		y += LINE
 	}
 	y += SPACING

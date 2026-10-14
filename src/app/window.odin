@@ -1,5 +1,6 @@
 package main
 
+import "base:runtime"
 import "core:c"
 import "core:fmt"
 import "core:strings"
@@ -77,9 +78,21 @@ open_window :: proc(w: ^Window, options: Options) -> bool {
 	size := options.window_size
 	w.window = sdl.CreateWindow(APP_NAME, size.x, size.y, {.RESIZABLE, .HIGH_PIXEL_DENSITY})
 	if w.window == nil do return sdl_failed("SDL_CreateWindow")
-	if !sdl.SetWindowMinimumSize(w.window, MINIMUM_WINDOW_SIZE.x, MINIMUM_WINDOW_SIZE.y) {
-		sdl_failed("SDL_SetWindowMinimumSize")
+	// SDL sizes windows in points on macOS and Wayland but in pixels on Windows and
+	// X11: the sizes asked are in points, so they grow by the display's scale there.
+	density := sdl.GetWindowPixelDensity(w.window)
+	scale := sdl.GetWindowDisplayScale(w.window)
+	units: f32 = density > 0 && scale > 0 ? scale / density : 1
+	if units != 1 {
+		if !sdl.SetWindowSize(w.window, c.int(f32(size.x) * units), c.int(f32(size.y) * units)) {
+			sdl_failed("SDL_SetWindowSize")
+		}
 	}
+	least := [2]c.int {
+		c.int(f32(MINIMUM_WINDOW_SIZE.x) * units),
+		c.int(f32(MINIMUM_WINDOW_SIZE.y) * units),
+	}
+	if !sdl.SetWindowMinimumSize(w.window, least.x, least.y) do sdl_failed("SDL_SetWindowMinimumSize")
 	w.renderer = sdl.CreateRenderer(w.window, nil)
 	if w.renderer == nil do return sdl_failed("SDL_CreateRenderer")
 	if !sdl.SetRenderVSync(w.renderer, 1) do sdl_failed("SDL_SetRenderVSync")
@@ -101,8 +114,13 @@ close_window :: proc(w: ^Window) {
 
 // Draws a frame after each batch of events, until the window closes (true) or
 // drawing fails (false). The loop waits for events, or until the Ui asked for a frame.
+// SDL's loop stops while the window is resized on macOS and Windows: an event watch
+// draws the window at its new size from inside the resize.
 @(private = "file")
 event_loop :: proc(w: ^Window, app: ^App) -> bool {
+	live := Live{w, app}
+	if !sdl.AddEventWatch(live_resize, &live) do sdl_failed("SDL_AddEventWatch")
+	defer sdl.RemoveEventWatch(live_resize, &live)
 	for {
 		update(w, app)
 		draw(w) or_return
@@ -111,9 +129,34 @@ event_loop :: proc(w: ^Window, app: ^App) -> bool {
 	}
 }
 
+// What the event watch draws with.
+@(private = "file")
+Live :: struct {
+	w:   ^Window,
+	app: ^App,
+}
+
+// Called by SDL for every event as it is pushed, on the thread that pushes it: a
+// resize or an exposure of the window, which come on the main thread while SDL's
+// loop stops, draws a frame at once.
+@(private = "file")
+live_resize :: proc "c" (userdata: rawptr, event: ^sdl.Event) -> bool {
+	#partial switch event.type {
+	case .WINDOW_RESIZED, .WINDOW_EXPOSED:
+	case:
+		return true
+	}
+	context = runtime.default_context()
+	live := (^Live)(userdata)
+	update(live.w, live.app)
+	if draw(live.w) do sdl.RenderPresent(live.w.renderer)
+	return true
+}
+
 // Runs the frames of the screen with the input gathered: one, and a few more at once
-// while the hover or the focus settle. Then the window follows the Ui: the text input
-// for the focused field, the cursor.
+// while the hover or the focus settle, or while a command ran, so that what it changed
+// shows. Then the window follows the Ui: the text input for the focused field, the
+// cursor.
 @(private = "file")
 update :: proc(w: ^Window, app: ^App) {
 	free_all(context.temp_allocator)
@@ -125,9 +168,11 @@ update :: proc(w: ^Window, app: ^App) {
 	w.ctx.viewport = {0, 0, f32(width) / scale, f32(height) / scale}
 	w.ctx.input.time = f64(sdl.GetTicksNS()) / 1e9
 	for _ in 0 ..< SETTLING_FRAMES {
+		commands := app.commands
 		ui.ui_begin_frame(&w.ctx, scale)
 		main_screen(&w.ctx, app, w.ctx.viewport)
-		if !ui.ui_end_frame(&w.ctx) do break
+		redraw := ui.ui_end_frame(&w.ctx)
+		if !redraw && app.commands == commands do break
 	}
 	follow_focus(w)
 	follow_cursor(w)

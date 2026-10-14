@@ -74,6 +74,19 @@ hiding_the_inspector_makes_room_for_the_sidebar :: proc(t: ^testing.T) {
 	testing.expect(t, !shows(&s, "Inspector"))
 }
 
+// With the inspector shown, the sidebar needs 220 and the centre 560: 1100 keeps it,
+// a point less drops it.
+@(test)
+the_sidebar_gives_way_just_below_the_centre_width_it_needs :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_a_folder(t, &s, {1100, 600})
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	testing.expect(t, layout_of(&s.app, {0, 0, 1100, 600}).sidebar_shown)
+	testing.expect(t, !layout_of(&s.app, {0, 0, 1099, 600}).sidebar_shown)
+	testing.expect_value(t, layout_of(&s.app, {0, 0, 1100, 600}).centre.w, 558)
+}
+
 @(test)
 hidden_panels_are_not_shown :: proc(t: ^testing.T) {
 	s: Screen

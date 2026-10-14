@@ -14,6 +14,10 @@ status_bar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	th := ctx.theme
 	e := &app.engine
 	ui.fill_rect(r, rect, th.surface_0)
+	bar_id := ui.widget_id("Status bar")
+	ui.declare(ctx, {id = bar_id, role = .Group, label = ui.tr("Status bar"), rect = rect})
+	ui.push_parent(ctx, bar_id)
+	defer ui.pop_parent(ctx)
 	middle := rect.y + rect.h / 2
 	x := rect.x + 12
 	x += note(ctx, status_text(e), x, rect, th.text_secondary, 0) + GAP
@@ -24,7 +28,7 @@ status_bar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		}
 		label := ui.tr("Stop")
 		stop := ui.Rect{x, middle - 10, ui.button_width(r, label, options), 20}
-		if ui.button(ctx, ui.widget_id("Stop"), stop, label, options) do engine.execute(e, engine.Stop_Scan{})
+		if ui.button(ctx, ui.widget_id("Stop"), stop, label, options) do execute(app, engine.Stop_Scan{})
 		x += stop.w + GAP
 	}
 	if progress, saving := engine.saving(e).?; saving {
@@ -77,7 +81,7 @@ note :: proc(ctx: ^ui.Ui, text: string, x: f32, bar: ui.Rect, color: ui.Color, i
 }
 
 // What the library holds, as the status bar says it: the reading in progress, or the
-// tracks found, and how many are selected. Temporary.
+// tracks found, and how many are selected. Allocated with the temporary allocator.
 @(private = "file")
 status_text :: proc(e: ^engine.Engine) -> string {
 	count := len(e.library.tracks)
