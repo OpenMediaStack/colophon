@@ -1,7 +1,6 @@
 package main
 
 import "core:fmt"
-import "core:os"
 import "core:path/filepath"
 import "core:strings"
 import "core:testing"
@@ -52,13 +51,6 @@ screen_with_a_change :: proc(t: ^testing.T, s: ^Screen) -> (folder, path: string
 title_on_disk :: proc(path: string) -> string {
 	track := lib.read_track(path, context.temp_allocator)
 	return track.metadata.tags.title.? or_else ""
-}
-
-@(private = "file")
-set_read_only :: proc(t: ^testing.T, path: string, read_only: bool) {
-	mode :=
-		read_only ? os.Permissions{.Read_User, .Read_Group, .Read_Other} : os.Permissions_Default
-	testing.expect(t, os.change_mode(path, mode) == nil)
 }
 
 // Polls the engine as the loop does, running frames, until the window closes.
@@ -189,8 +181,8 @@ a_file_that_cannot_be_saved_is_reported :: proc(t: ^testing.T) {
 	defer remove_folder(folder)
 	defer delete(path)
 	defer screen_destroy(&s)
-	set_read_only(t, path, true)
-	defer set_read_only(t, path, false)
+	testing.expect(t, set_read_only(path, true))
+	defer set_read_only(path, false)
 	retype(&s, "Title", "Neon Overpass")
 	ui.press_key(&s.h, .Enter)
 	ui.press_key(&s.h, .S, ui.COMMAND)
@@ -220,13 +212,13 @@ a_failed_save_can_be_retried_from_its_toast :: proc(t: ^testing.T) {
 	defer remove_folder(folder)
 	defer delete(path)
 	defer screen_destroy(&s)
-	set_read_only(t, path, true)
+	testing.expect(t, set_read_only(path, true))
 	retype(&s, "Album", "Analog Hearts")
 	ui.press_key(&s.h, .Enter)
 	execute(&s.app, engine.Save{})
 	wait_for_save(t, &s)
 	testing.expect(t, shows(&s, "1 file could not be saved"))
-	set_read_only(t, path, false)
+	testing.expect(t, set_read_only(path, false))
 	testing.expect(t, ui.click(&s.h, "Retry"))
 	wait_for_save(t, &s)
 	testing.expect_value(t, len(s.app.engine.edits.pending), 0)
@@ -327,8 +319,8 @@ a_file_that_cannot_be_saved_keeps_the_window_open :: proc(t: ^testing.T) {
 	defer remove_folder(folder)
 	defer delete(path)
 	defer screen_destroy(&s)
-	set_read_only(t, path, true)
-	defer set_read_only(t, path, false)
+	testing.expect(t, set_read_only(path, true))
+	defer set_read_only(path, false)
 	close_requested(&s)
 	testing.expect(t, dialog_click(&s, "Save 1 file"))
 	wait_for_save(t, &s)

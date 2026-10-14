@@ -364,8 +364,8 @@ a_save_reports_how_it_ended :: proc(t: ^testing.T) {
 
 	// A file that cannot be written counts as failed, its changes still pending.
 	path, _ := filepath.join({folder, "1.mp3"}, context.temp_allocator)
-	testing.expect(t, os.change_mode(path, {.Read_User, .Read_Group, .Read_Other}) == nil)
-	defer os.change_mode(path, os.Permissions_Default)
+	testing.expect(t, set_read_only(path, true))
+	defer set_read_only(path, false)
 	engine.execute(&e, engine.Apply_Edit{{.Album, "Paper Hearts"}})
 	engine.execute(&e, engine.Save{})
 	poll_until_saved(t, &e)
