@@ -75,6 +75,25 @@ the_warnings_of_several_tracks_speak_of_some_of_them :: proc(t: ^testing.T) {
 	)
 	testing.expect(t, warned(&s, 0))
 	testing.expect(t, !warned(&s, 1))
+	// A number emptied on one track adds the other warning; both wrap to several lines
+	// in the panel, and the fields follow them.
+	execute(&s.app, engine.Select{e.listed[1]})
+	execute(&s.app, engine.Apply_Edit{{.Track, nil}})
+	execute(&s.app, engine.Select_All{})
+	ui.run_frame(&s.h)
+	number, found := ui.find_widget(
+		&s.h.ui,
+		"Some of these tracks have no number, unlike the rest of their albums.",
+	)
+	testing.expect(t, found)
+	artist, _ := ui.find_widget(
+		&s.h.ui,
+		"Some of these tracks have an album artist that differs from the rest of their albums.",
+	)
+	title, _ := ui.find_widget(&s.h.ui, "Title")
+	testing.expect(t, number.rect.h > 20)
+	testing.expect(t, artist.rect.y >= number.rect.y + number.rect.h)
+	testing.expect(t, title.rect.y >= artist.rect.y + artist.rect.h)
 }
 
 // A track without a number beside its album, saved so, marked in the table and
@@ -96,6 +115,8 @@ the_warnings_match_their_references :: proc(t: ^testing.T) {
 		execute(&s.app, engine.Apply_Edit{{.Track, nil}})
 		execute(&s.app, engine.Save{})
 		wait_for_save(t, &s)
+		// The capture is the warning's, not the toast's.
+		forget_notice(&s.app)
 		ui.move_mouse(&s.h, {0, 0})
 		ui.run_frame(&s.h)
 		expect_screen(t, &s, kind == .Dark ? "warnings-dark.png" : "warnings-light.png")

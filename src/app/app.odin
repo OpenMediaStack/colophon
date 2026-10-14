@@ -124,7 +124,8 @@ Warnings_Cache :: struct {
 	revision: u64,
 }
 
-// The tracks whose tags look wrong, with what does, valid until the next command.
+// The tracks whose tags look wrong, with what does. The cache owns the map, which is
+// valid until the next command, or the next poll with a scan's or a save's news.
 warnings :: proc(app: ^App) -> map[engine.Track_Id]engine.Warnings {
 	w := &app.warnings
 	e := &app.engine

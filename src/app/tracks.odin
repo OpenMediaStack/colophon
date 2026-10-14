@@ -411,7 +411,7 @@ tag_cell :: proc(tags: ^lib.Tags, metadata: ^lib.Metadata, column: engine.Table_
 	return ""
 }
 
-// What a row is going through. The warnings come with slice 35.
+// What a row is going through.
 @(private)
 track_states :: proc(data: rawptr, row: int) -> (states: ui.Row_States) {
 	app := (^App)(data)

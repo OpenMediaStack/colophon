@@ -123,14 +123,14 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	// The content's height, for the scroll.
 	height: f32 = 2 * INSPECTOR_PADDING + 64 + SECTION_GAP + 16
 	// The warnings under the Tags header, wrapped to the panel's width.
-	warnings := make([dynamic]string, context.temp_allocator)
+	notes := make([dynamic]string, context.temp_allocator)
 	if lost := lost_names(s.id3v1_losses); lost != "" {
-		append(&warnings, ui.fill(ui.tr("ID3v1 will keep only part of: {}"), lost))
+		append(&notes, ui.fill(ui.tr("ID3v1 will keep only part of: {}"), lost))
 	}
-	for warning in selection_warnings(app) do append(&warnings, warning_text(warning, s.count))
+	for warning in selection_warnings(app) do append(&notes, warning_text(warning, s.count))
 	if i.tags_open {
 		height += 8 + 8 * (ui.BUTTON_HEIGHT + FIELD_GAP) + COMMENT_HEIGHT
-		for text in warnings do height += warning_height(r, text, width)
+		for text in notes do height += warning_height(r, text, width)
 	}
 	height += SECTION_GAP + 16
 	if i.file_open do height += 8 + f32(s.modified != {} ? 4 : 3) * 20
@@ -195,7 +195,7 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 
 	if section_header(ctx, 0, ui.tr("Tags"), {x, y, width, 16}, &i.tags_open) {
 		y += 16 + 8
-		for text, index in warnings do y += warning_row(ctx, text, x, y, width, index)
+		for text, index in notes do y += warning_row(ctx, text, x, y, width, index)
 		y = tag_fields(ctx, app, s, x, y, width)
 	} else {
 		y += 16
@@ -275,7 +275,7 @@ warning_row :: proc(ctx: ^ui.Ui, text: string, x, y, width: f32, index: int) -> 
 	r := ctx.renderer
 	th := ctx.theme
 	lines := ui.wrap_text(r, text, .Small, width - 20, context.temp_allocator)
-	height = warning_height(r, text, width)
+	height = f32(max(len(lines), 1)) * WARNING_LINE + WARNING_GAP
 	ui.draw_icon(r, .Triangle_Alert, {x, y + 1, 14, 14}, th.warning)
 	for line, i in lines {
 		ui.draw_text(
@@ -299,7 +299,8 @@ warning_row :: proc(ctx: ^ui.Ui, text: string, x, y, width: f32, index: int) -> 
 	return
 }
 
-// The height a warning takes, wrapped to the width.
+// The height a warning takes, wrapped to the width: what warning_row gives, for the
+// scroll's content before the rows are drawn.
 @(private = "file")
 warning_height :: proc(r: ^ui.Renderer, text: string, width: f32) -> f32 {
 	lines := ui.wrap_text(r, text, .Small, width - 20, context.temp_allocator)
