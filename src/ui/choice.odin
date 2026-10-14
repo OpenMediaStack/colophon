@@ -16,6 +16,8 @@ checkbox :: proc(
 	if checked do states += {.Checked}
 	if disabled {
 		states += {.Disabled}
+		// It still takes the clicks meant for it, which must not reach what lies under it.
+		block_mouse(ui, rect)
 		release_focus(ui, id)
 	} else {
 		interaction := interact(ui, id, rect)
@@ -39,7 +41,7 @@ checkbox :: proc(
 			role = .Check_Box,
 			label = label,
 			rect = rect,
-			states = choice_states(states),
+			states = widget_states(states) + {.Checkable},
 			focusable = !disabled,
 		},
 	)
@@ -81,7 +83,9 @@ Segment :: struct {
 
 // A row of choices, one of them selected, or none while the selection mixes several:
 // the tag versions of the inspector, the write policy of the settings. Gives the
-// choice clicked, or picked with the arrow keys while it had the focus.
+// choice clicked, or picked with the arrow keys while it had the focus. The segments
+// share the width equally, or by the length of their labels when fit_labels, for
+// labels of very different lengths, which are then smaller.
 segmented :: proc(
 	ui: ^Ui,
 	id: Widget_Id,
@@ -90,6 +94,7 @@ segmented :: proc(
 	segments: []Segment,
 	selected: Maybe(int),
 	disabled := false,
+	fit_labels := false,
 ) -> (
 	chosen: Maybe(int),
 ) {
@@ -99,18 +104,35 @@ segmented :: proc(
 	stroke_rect(r, rect, disabled ? th.border_subtle : th.border_strong, 4)
 	focused := has_focus(ui, id) && !disabled
 	if disabled do release_focus(ui, id)
-	if focused {
+	if focused && len(segments) > 0 {
 		current := selected.? or_else -1
 		if take_key(ui, .Left) do chosen = max(current - 1, 0)
 		if take_key(ui, .Right) do chosen = min(current + 1, len(segments) - 1)
 		if take_key(ui, .Tab) do move_focus(ui, .Forward)
 		if take_key(ui, .Tab, {.Shift}) do move_focus(ui, .Back)
-		draw_focus_ring(r, th, rect, 4)
 	}
+	// The ring shows when the focus came by the keyboard: a click chooses, and leaves
+	// the arrow keys to move on from there.
+	if focused && ui.focus_by_key do draw_focus_ring(r, th, rect, 4)
+	declare(
+		ui,
+		{
+			id = id,
+			role = .Group,
+			label = label,
+			rect = rect,
+			states = disabled ? {.Disabled} : {},
+			focusable = !disabled,
+		},
+	)
+	push_parent(ui, id)
+	defer pop_parent(ui)
 	inner := rect_inset(rect, 2, 2)
-	width := (inner.w - 2 * f32(len(segments) - 1)) / f32(max(len(segments), 1))
+	widths := segment_widths(r, segments, inner.w, fit_labels)
+	x := inner.x
 	for segment, i in segments {
-		cell := Rect{inner.x + f32(i) * (width + 2), inner.y, width, inner.h}
+		cell := Rect{x, inner.y, widths[i], inner.h}
+		x += widths[i] + SEGMENT_GAP
 		cell_id := child_id(id, "segment", i)
 		is_selected := selected == i
 		hovered := false
@@ -129,8 +151,7 @@ segmented :: proc(
 		case hovered:
 			fill_rect(r, cell, th.border_subtle, 3)
 		}
-		style :=
-			segment.numeric ? (is_selected ? Text_Style.Numeric_Strong : Text_Style.Numeric) : (is_selected ? Text_Style.Body_Strong : Text_Style.Body)
+		style := segment_style(segment, is_selected, fit_labels)
 		color := is_selected ? th.text_primary : th.text_secondary
 		if disabled do color = th.text_disabled
 		draw_text_fit(
@@ -143,7 +164,9 @@ segmented :: proc(
 			color,
 			.Center,
 		)
-		states: Widget_States = is_selected ? {.Checked} : {}
+		states: Widget_States = {.Checkable}
+		if is_selected do states += {.Checked}
+		if hovered do states += {.Hovered}
 		if disabled do states += {.Disabled}
 		declare(
 			ui,
@@ -156,26 +179,39 @@ segmented :: proc(
 			},
 		)
 	}
-	declare(
-		ui,
-		{
-			id = id,
-			role = .Group,
-			label = label,
-			rect = rect,
-			states = disabled ? {.Disabled} : {},
-			focusable = !disabled,
-		},
-	)
 	if chosen == selected do chosen = nil
 	return
 }
 
 @(private = "file")
-choice_states :: proc(states: Button_States) -> (w: Widget_States) {
-	if .Hovered in states do w += {.Hovered}
-	if .Focused in states do w += {.Focused}
-	if .Disabled in states do w += {.Disabled}
-	if .Checked in states do w += {.Checked}
-	return
+SEGMENT_GAP :: 2
+
+// The widths of the segments in width: equal shares, or when fit_labels each label's
+// own width and an equal share of what is left, as 1.0.0's fit-labels.
+@(private = "file")
+segment_widths :: proc(r: ^Renderer, segments: []Segment, width: f32, fit_labels: bool) -> []f32 {
+	widths := make([]f32, len(segments), context.temp_allocator)
+	if len(segments) == 0 do return widths
+	spare := width - SEGMENT_GAP * f32(len(segments) - 1)
+	if fit_labels {
+		for segment, i in segments {
+			widths[i] = text_width(r, segment.label, segment_style(segment, false, true)) + 6
+			spare -= widths[i]
+		}
+	}
+	for &w in widths do w += spare / f32(len(segments))
+	return widths
+}
+
+// Numbers in JetBrains Mono, words in Inter, smaller when the labels set the widths, and
+// medium for the selected segment.
+@(private = "file")
+segment_style :: proc(segment: Segment, selected, fit_labels: bool) -> Text_Style {
+	switch {
+	case segment.numeric:
+		return selected ? .Numeric_Strong : .Numeric
+	case fit_labels:
+		return selected ? .Small_Strong : .Small
+	}
+	return selected ? .Body_Strong : .Body
 }

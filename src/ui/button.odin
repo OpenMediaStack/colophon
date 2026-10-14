@@ -250,7 +250,8 @@ button_states :: proc(
 	return states, activated || .Clicked in result
 }
 
-@(private = "file")
+// What a widget drawn in states is, for the accessibility tree.
+@(private)
 widget_states :: proc(states: Button_States) -> (w: Widget_States) {
 	if .Hovered in states do w += {.Hovered}
 	if .Pressed in states do w += {.Pressed}
