@@ -5,7 +5,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Odin's strings and comments are C's as far as xgettext needs; a third argument is
+# Odin's strings and comments are C's as far as xgettext needs, so pass tr one plain
+# literal, never a raw string in backticks nor a sum of strings; a third argument is
 # the context (msgctxt) that tells the same English words apart.
 find src -name '*.odin' -not -name '*_test.odin' | sort | xgettext \
 	--files-from=- \

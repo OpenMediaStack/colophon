@@ -2,18 +2,18 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-14 17:23+0200\n"
+"POT-Creation-Date: 2026-10-14 17:24+0200\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: src/ui/combo_box.odin:117
+#: src/ui/combo_box.odin:119
 msgid "Show suggestions"
 msgstr "Afficher les suggestions"
 
-#: src/ui/combo_box.odin:248
+#: src/ui/combo_box.odin:251
 msgid "Suggestions"
 msgstr "Suggestions"
 

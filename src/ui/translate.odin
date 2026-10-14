@@ -41,11 +41,13 @@ Locale :: struct {
 @(private = "file")
 current: ^Catalog
 
-// Reads a catalogue from the text of a .po file into c, which catalog_destroy frees.
-// Fuzzy and obsolete entries are left out, as are messages not translated. ok is
-// false when the text holds no translation.
+// Reads a catalogue from the text of a .po file into c, a zero Catalog, which
+// catalog_destroy frees. Fuzzy and obsolete entries are left out, as are messages not
+// translated. ok is false when the text holds no translation; c is then empty, and
+// destroying it is harmless.
 catalog_init :: proc(c: ^Catalog, po: string) -> (ok: bool) {
 	if virtual.arena_init_growing(&c.arena) != nil do return false
+	defer if !ok do catalog_destroy(c)
 	c.messages = make(map[string]map[string][]string, virtual.arena_allocator(&c.arena))
 	e: Po_Entry
 	e.ctx = strings.builder_make(context.temp_allocator)
@@ -56,7 +58,7 @@ catalog_init :: proc(c: ^Catalog, po: string) -> (ok: bool) {
 	text := po
 	for raw in strings.split_lines_iterator(&text) {
 		line := strings.trim_space(raw)
-		keyword, _, quoted := strings.partition(line, " ")
+		keyword, quoted := split_keyword(line)
 		switch {
 		case len(line) == 0:
 			finish_entry(c, &e)
@@ -65,7 +67,8 @@ catalog_init :: proc(c: ^Catalog, po: string) -> (ok: bool) {
 			// Comments and flags come before their entry: the one before is done.
 			if e.form_count > 0 do finish_entry(c, &e)
 			if strings.has_prefix(line, "#,") && strings.contains(line, "fuzzy") do e.fuzzy = true
-			// An obsolete entry, #~, is left out.
+			// An obsolete entry, #~, is left out, and takes its flags with it.
+			if strings.has_prefix(line, "#~") do e.fuzzy = false
 			field = nil
 		case line[0] == '"':
 			if field != nil do unquote_into(field, line)
@@ -105,7 +108,7 @@ use_catalog :: proc(c: ^Catalog) {
 // The translation of text in the language in use, or text itself. ctx tells the same
 // English words apart where they mean different things, as gettext's msgctxt.
 tr :: proc(text: string, ctx := "") -> string {
-	return translate(current, text, ctx)
+	return catalog_tr(current, text, ctx)
 }
 
 // The words for a count of something in the language in use, in the form its count
@@ -117,19 +120,17 @@ tr_n :: proc(
 	ctx := "",
 	allocator := context.temp_allocator,
 ) -> string {
-	return translate_n(current, singular, plural, n, ctx, allocator)
+	return catalog_tr_n(current, singular, plural, n, ctx, allocator)
 }
 
-// tr from a catalogue, nil for English.
-@(private)
-translate :: proc(c: ^Catalog, text: string, ctx: string) -> string {
+// tr from a catalogue that is not in use, nil for English: a test of a translation.
+catalog_tr :: proc(c: ^Catalog, text: string, ctx := "") -> string {
 	if forms, found := lookup(c, text, ctx); found do return forms[0]
 	return text
 }
 
-// tr_n from a catalogue, nil for English.
-@(private)
-translate_n :: proc(
+// tr_n from a catalogue that is not in use, nil for English.
+catalog_tr_n :: proc(
 	c: ^Catalog,
 	singular, plural: string,
 	n: int,
@@ -142,12 +143,14 @@ translate_n :: proc(
 		if form < len(forms) do template = forms[form]
 	}
 	digits: [24]u8
-	words, _ := strings.replace_all(
+	words, allocated := strings.replace_all(
 		template,
 		"{n}",
 		strconv.write_int(digits[:], i64(n), 10),
 		allocator,
 	)
+	// Without {n}, the template itself came back: the caller still owns what it gets.
+	if !allocated do words = strings.clone(words, allocator)
 	return words
 }
 
@@ -176,14 +179,30 @@ choose_translation :: proc(
 ) -> Maybe(Translation) {
 	for locale in preferred {
 		if strings.equal_fold(locale.language, "en") do return nil
-		exact := strings.concatenate(
-			{locale.language, "_", locale.country},
-			context.temp_allocator,
-		)
-		for t in translations do if locale.country != "" && strings.equal_fold(t.language, exact) do return t
-		for t in translations do if strings.equal_fold(t.language, locale.language) do return t
+		if locale.country != "" {
+			exact := strings.concatenate(
+				{locale.language, "_", locale.country},
+				context.temp_allocator,
+			)
+			if t, found := find_translation(translations, exact).?; found do return t
+		}
+		if t, found := find_translation(translations, locale.language).?; found do return t
 	}
 	return nil
+}
+
+@(private = "file")
+find_translation :: proc(translations: []Translation, language: string) -> Maybe(Translation) {
+	for t in translations do if strings.equal_fold(t.language, language) do return t
+	return nil
+}
+
+// A line's keyword and what follows it, apart by any whitespace: msgid "...".
+@(private = "file")
+split_keyword :: proc(line: string) -> (keyword, rest: string) {
+	at := strings.index_any(line, " \t")
+	if at < 0 do return line, ""
+	return line[:at], strings.trim_left_space(line[at:])
 }
 
 // One entry of a .po file while it is read: up to four plural forms.
@@ -209,14 +228,15 @@ finish_entry :: proc(c: ^Catalog, e: ^Po_Entry) {
 	}
 	if !e.started || e.form_count == 0 do return
 	id := strings.to_string(e.id)
+	ctx := strings.to_string(e.ctx)
 	if len(id) == 0 {
-		c.plural = plural_rule(strings.to_string(e.forms[0]))
+		// The header, unless a context names an entry with an empty text.
+		if len(ctx) == 0 do c.plural = plural_rule(strings.to_string(e.forms[0]))
 		return
 	}
 	if e.fuzzy do return
 	for f in e.forms[:e.form_count] do if strings.builder_len(f) == 0 do return
 	allocator := virtual.arena_allocator(&c.arena)
-	ctx := strings.to_string(e.ctx)
 	if ctx not_in c.messages do c.messages[strings.clone(ctx, allocator)] = make(map[string][]string, allocator)
 	forms := make([]string, e.form_count, allocator)
 	for f, i in e.forms[:e.form_count] do forms[i] = strings.clone(strings.to_string(f), allocator)
@@ -224,20 +244,24 @@ finish_entry :: proc(c: ^Catalog, e: ^Po_Entry) {
 	by_id[strings.clone(id, allocator)] = forms
 }
 
-// The rule of a header's Plural-Forms: the forms of English and French, and of the
-// languages with one form; English's for any other.
+// The rule of a header's Plural-Forms: the forms of English and French, however an
+// editor spells them (n > 1, or n > 1 ? 1 : 0), and of the languages with one form;
+// English's for any other.
 @(private = "file")
 plural_rule :: proc(header: string) -> Plural_Rule {
 	for line in strings.split_lines(header, context.temp_allocator) {
 		name, _, value := strings.partition(line, ":")
 		if !strings.equal_fold(strings.trim_space(name), "Plural-Forms") do continue
-		_, _, expression := strings.partition(value, "plural=")
 		compact := make([dynamic]u8, context.temp_allocator)
-		for b in transmute([]u8)expression do if b != ' ' && b != '(' && b != ')' && b != ';' do append(&compact, b)
-		switch string(compact[:]) {
-		case "n>1":
+		for b in transmute([]u8)value do if b != ' ' && b != '(' && b != ')' do append(&compact, b)
+		forms := string(compact[:])
+		if strings.contains(forms, "nplurals=1;") do return .Same
+		_, _, expression := strings.partition(forms, "plural=")
+		expression = strings.trim_right(expression, ";")
+		switch {
+		case strings.has_prefix(expression, "n>1"):
 			return .Zero_One_Other
-		case "0":
+		case expression == "0":
 			return .Same
 		}
 	}

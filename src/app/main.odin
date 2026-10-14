@@ -40,8 +40,10 @@ run :: proc(options: Options) -> bool {
 	if !sdl.SetAppMetadata(APP_NAME, VERSION, APP_ID) do sdl_failed("SDL_SetAppMetadata")
 	if !sdl.Init({.VIDEO, .EVENTS}) do return sdl_failed("SDL_Init")
 	defer sdl.Quit()
+	// Destroying a catalogue that holds no translation is harmless.
 	catalog: ui.Catalog
-	if init_translations(&catalog) do defer ui.catalog_destroy(&catalog)
+	init_translations(&catalog)
+	defer ui.catalog_destroy(&catalog)
 
 	window, renderer, ok := open_window(options)
 	if !ok do return false

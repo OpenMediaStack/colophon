@@ -7,8 +7,8 @@ import ui "../ui"
 TRANSLATIONS := []ui.Translation{{"fr", #load("../../translations/fr.po", string)}}
 
 // Reads the translation for the language the system prefers into catalog, and makes
-// tr read it: once, before the first frame. loaded says whether catalog holds one,
-// to free with catalog_destroy.
+// tr read it: once, before the first frame. loaded says whether catalog holds one;
+// free it with catalog_destroy either way.
 init_translations :: proc(catalog: ^ui.Catalog) -> (loaded: bool) {
 	locales := ui.preferred_locales()
 	defer ui.delete_locales(locales)
