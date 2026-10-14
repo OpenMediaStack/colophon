@@ -221,93 +221,97 @@ Cursor :: enum u8 {
 // react meanwhile. Keyboard focus moves only between frames. Make it with ui_init,
 // free it with ui_destroy.
 Ui :: struct {
-	allocator:       runtime.Allocator,
-	input:           Input,
-	renderer:        ^Renderer,
-	theme:           Theme,
+	allocator:        runtime.Allocator,
+	input:            Input,
+	renderer:         ^Renderer,
+	theme:            Theme,
 	// The widget under the mouse, from the previous frame, and the one this frame finds.
-	hot:             Widget_Id,
-	hot_next:        Widget_Id,
+	hot:              Widget_Id,
+	hot_next:         Widget_Id,
 	// The layer of the widget that claimed the hover: one on a lower layer, drawn later,
 	// does not take it.
-	hot_layer:       Layer,
+	hot_layer:        Layer,
 	// The widget the mouse button went down on, until it comes up.
-	active:          Widget_Id,
-	focus:           Widget_Id,
+	active:           Widget_Id,
+	focus:            Widget_Id,
 	// Whether the active and the focused widgets were drawn this frame: one that was not
 	// is gone, and loses the mouse or the keyboard.
-	active_seen:     bool,
-	focus_seen:      bool,
+	active_seen:      bool,
+	focus_seen:       bool,
 	// The widget the last press went down on, so that a double click needs two presses on
 	// the same widget.
-	last_press:      Widget_Id,
+	last_press:       Widget_Id,
 	// The groups being declared, innermost last.
-	parents:         [dynamic]Widget_Id,
+	parents:          [dynamic]Widget_Id,
 	// The focus the frame asked for: nil when it asked nothing, 0 to clear the focus.
-	focus_next:      Maybe(Widget_Id),
+	focus_next:       Maybe(Widget_Id),
+	// The focus asked for comes from a key, as Enter edits a table's cell.
+	focus_next_key:   bool,
 	// Where the mouse went down, for drags.
-	press_mouse:     [2]f32,
-	// The focus moved by Tab or Shift+Tab, rather than by the mouse: a text field then
-	// selects all its text.
-	focus_by_key:    bool,
+	press_mouse:      [2]f32,
+	// The focus moved by a key, Tab or Shift+Tab or a key that asked for it, rather than
+	// by the mouse: a text field then selects all its text.
+	focus_by_key:     bool,
 	// Tab or Shift+Tab pressed in the focused widget, for the end of the frame.
-	tab:             Maybe(Tab),
-	widgets:         [dynamic]Widget_Info,
-	cursor:          Cursor,
+	tab:              Maybe(Tab),
+	widgets:          [dynamic]Widget_Info,
+	cursor:           Cursor,
 	// The text of the focused text field, which owns it, and how far it is scrolled.
-	edit:            Text_Edit,
-	edit_owner:      Widget_Id,
+	edit:             Text_Edit,
+	edit_owner:       Widget_Id,
 	// Where a click that asked for a text field's focus was, in its value.
-	edit_click:      Maybe(Edit_Click),
+	edit_click:       Maybe(Edit_Click),
 	// The value the focused field had when the focus came, for Escape to bring back.
-	edit_start:      [dynamic]u8,
+	edit_start:       [dynamic]u8,
 	// The field the focus left for another widget's request while it was typed in, and
 	// what it held: it commits that when next drawn.
-	edit_ended:      Widget_Id,
-	edit_ended_text: [dynamic]u8,
+	edit_ended:       Widget_Id,
+	edit_ended_text:  [dynamic]u8,
+	// The value that field had when the focus came, for the app to put back.
+	edit_ended_start: [dynamic]u8,
 	// The focused field reported a commit or a cancel this frame.
-	edit_reported:   bool,
-	edit_scroll:     f32,
+	edit_reported:    bool,
+	edit_scroll:      f32,
 	// When the caret last moved, so that it shows at once and then blinks.
-	caret_time:      f64,
-	clipboard:       Clipboard,
+	caret_time:       f64,
+	clipboard:        Clipboard,
 	// The popups drawn in the last frame, and in this one, in the order they were drawn:
 	// the widgets under one do not take the mouse, whatever their order. Only the
 	// popup's own widgets do, and those of the popups drawn above it.
-	popups:          [dynamic]Popup,
-	popups_next:     [dynamic]Popup,
+	popups:           [dynamic]Popup,
+	popups_next:      [dynamic]Popup,
 	// The popups being drawn, innermost last.
-	popups_open:     [dynamic]Open_Popup,
+	popups_open:      [dynamic]Open_Popup,
 	// The scroll area under the mouse along each axis, from the last frame, and the one
 	// this frame finds: the innermost that can scroll along it wins, as it is drawn
 	// after the one around it.
-	scroll_hot:      [2]Widget_Id,
-	scroll_hot_next: [2]Widget_Id,
+	scroll_hot:       [2]Widget_Id,
+	scroll_hot_next:  [2]Widget_Id,
 	// What a drag started from: a scroll bar's offset when its thumb was pressed.
-	drag_from:       f32,
+	drag_from:        f32,
 	// The modal dialog shown last frame, and this frame's, the last one drawn: while one
 	// is shown, only its widgets take the keys.
-	modal:           Widget_Id,
-	modal_next:      Widget_Id,
+	modal:            Widget_Id,
+	modal_next:       Widget_Id,
 	// The dialog being drawn, between begin_dialog and end_dialog.
-	dialog:          Widget_Id,
+	dialog:           Widget_Id,
 	// The focus each dialog shown found, which it gets back when the dialog closes.
-	dialog_focus:    [dynamic]Dialog_Focus,
+	dialog_focus:     [dynamic]Dialog_Focus,
 	// The context menu is being drawn: while one is open, only it takes the keys.
-	in_menu:         bool,
+	in_menu:          bool,
 	// A press on the widget under the mouse hides its tooltip until the mouse leaves.
-	tooltip_hidden:  Widget_Id,
+	tooltip_hidden:   Widget_Id,
 	// When the widget under the mouse became so, for tooltips.
-	hot_since:       f64,
+	hot_since:        f64,
 	// The window's area, in points: overlays stay inside it.
-	viewport:        Rect,
+	viewport:         Rect,
 	// When the Ui needs a frame without input, a tooltip to show or a caret to blink:
 	// the app's loop waits for events until then.
-	wake_at:         f64,
+	wake_at:          f64,
 	// The context menu open, and its state.
-	menu:            Menu_State,
+	menu:             Menu_State,
 	// The combo box whose suggestions are open, and its list's state.
-	combo:           Combo_State,
+	combo:            Combo_State,
 }
 
 // widgets and the input's lists use allocator.
@@ -324,6 +328,7 @@ ui_init :: proc(ui: ^Ui, renderer: ^Renderer, theme: Theme, allocator := context
 	text_edit_init(&ui.edit, allocator)
 	ui.edit_start = make([dynamic]u8, allocator)
 	ui.edit_ended_text = make([dynamic]u8, allocator)
+	ui.edit_ended_start = make([dynamic]u8, allocator)
 	ui.combo.filter = make([dynamic]u8, allocator)
 	ui.popups = make([dynamic]Popup, allocator)
 	ui.popups_next = make([dynamic]Popup, allocator)
@@ -340,6 +345,7 @@ ui_destroy :: proc(ui: ^Ui) {
 	text_edit_destroy(&ui.edit)
 	delete(ui.edit_start)
 	delete(ui.edit_ended_text)
+	delete(ui.edit_ended_start)
 	delete(ui.combo.filter)
 	delete(ui.popups)
 	delete(ui.popups_next)
@@ -406,10 +412,11 @@ ui_end_frame :: proc(ui: ^Ui) -> (redraw: bool) {
 		if next, found := tab_target(ui, direction); found do ui.focus_next = next
 	}
 	if next, asked := ui.focus_next.?; asked {
-		ui.focus_by_key = ui.tab != nil
+		ui.focus_by_key = ui.tab != nil || ui.focus_next_key
 		ui.focus = next
 	}
 	ui.focus_next = nil
+	ui.focus_next_key = false
 	ui.tab = nil
 	if ui.focus != focus do redraw = true
 	// A field typed in lost the focus without saying it was done: it will.
@@ -417,6 +424,8 @@ ui_end_frame :: proc(ui: ^Ui) -> (redraw: bool) {
 		ui.edit_ended = focus
 		clear(&ui.edit_ended_text)
 		append(&ui.edit_ended_text, edit_text(&ui.edit))
+		clear(&ui.edit_ended_start)
+		append(&ui.edit_ended_start, string(ui.edit_start[:]))
 	}
 	ui.edit_reported = false
 	in_.pressed = {}
@@ -523,9 +532,11 @@ seen :: proc(ui: ^Ui, id: Widget_Id) {
 	if id == ui.active do ui.active_seen = true
 }
 
-// Moves the keyboard focus to id at the end of the frame.
-request_focus :: proc(ui: ^Ui, id: Widget_Id) {
+// Moves the keyboard focus to id at the end of the frame. by_key says that a key asked
+// for it rather than the mouse: a text field then selects all its text, as with Tab.
+request_focus :: proc(ui: ^Ui, id: Widget_Id, by_key := false) {
 	ui.focus_next = id
+	ui.focus_next_key = by_key
 }
 
 // Clears the focus at the end of the frame, if id has it and no widget asked for it

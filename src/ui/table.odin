@@ -22,6 +22,14 @@ Table_Column :: struct {
 	primary:    bool,
 	// Not resized, moved or hidden by the user: the track number.
 	fixed:      bool,
+	// Its cells are edited in place, but in the rows whose file could not be read.
+	editable:   bool,
+	// Whether text typed in one of its cells is a value it takes; nil takes any. The
+	// editor shows the error ring while it is not, and stays open on Enter and Tab.
+	accepts:    proc(text: string) -> bool,
+	// Suggested as the user types in one of its cells, the genres: the editor is then a
+	// combo box.
+	choices:    []string,
 }
 
 // What a row is going through.
@@ -61,6 +69,8 @@ Table_State :: struct {
 	resize_from: f32,
 	// The focused row the table last scrolled to, so that it scrolls once when it moves.
 	revealed:    Maybe(int),
+	// The cell edited in place.
+	editing:     Maybe(Cell_Edit),
 }
 
 // A press on a row, which the app turns into a selection command.
@@ -89,9 +99,16 @@ Row_Menu :: struct {
 	at:  [2]f32,
 }
 
-// A double click on a cell, to edit it.
+// A cell of a row, by the id of its column: the one edited in place.
 Cell_Edit :: struct {
 	row, column: int,
+}
+
+// What was typed in the cell edited in place, which the app takes in as it does a
+// field's: each change at once, then the commit, or Escape putting the value back.
+Cell_Input :: struct {
+	cell:  Cell_Edit,
+	field: Text_Field_Result,
 }
 
 // The arrow keys on a focused table.
@@ -117,11 +134,15 @@ Table_Result :: struct {
 	row_menu:    Maybe(Row_Menu),
 	// The column chooser: a right click on the header, or the columns button.
 	column_menu: Maybe([2]f32),
+	// A cell whose editor opened: a double click, Enter or F2 on the focused row, Tab
+	// from the cell before.
 	edit:        Maybe(Cell_Edit),
 	step:        Maybe(Table_Step),
 	select_all:  bool,
 	// Space on a focused table: play or pause.
 	space:       bool,
+	// What was typed in the cell edited in place.
+	input:       Maybe(Cell_Input),
 }
 
 // How a table is sorted, as the engine says.
@@ -149,7 +170,7 @@ WIDEST_FIT :: 600
 // status column; scrolling down and, when the columns are wider than the table,
 // sideways, the header following. sized says whether the columns keep the widths the
 // user gave them. focused_row is the row the arrow keys move from, which the table keeps
-// in view.
+// in view, and which Enter or F2 edits. The editable cells are edited in place.
 table :: proc(
 	ui: ^Ui,
 	id: Widget_Id,
@@ -195,10 +216,22 @@ table :: proc(
 	defer pop_parent(ui)
 
 	if focused do table_keys(ui, &result)
-	// The focused row is kept in view once, when it moves, above the horizontal scroll
-	// bar when there is one.
-	view := body.h - (content.x > body.w ? SCROLL_BAR : 0)
+	// Enter or F2 edits the focused row's title, or its first editable cell.
 	row, has_row := focused_row.?
+	if focused && has_row && row < rows.count && .Error not_in rows.states(rows.data, row) {
+		if column, found := first_editable(columns, widths).?; found {
+			if take_key(ui, .Enter) || take_key(ui, .F2) {
+				start_editing(ui, id, body, columns, widths, state, {row, column}, &result)
+			}
+		}
+	}
+	// The focused row is kept in view once, when it moves, above the horizontal scroll
+	// bar when there is one; the editing of another row then ends.
+	view := body.h - (content.x > body.w ? SCROLL_BAR : 0)
+	left_row := false
+	if cell, editing := state.editing.?; editing {
+		left_row = has_row ? state.revealed != row && cell.row != row : state.revealed != nil
+	}
 	if !has_row do state.revealed = nil
 	if has_row && state.revealed != row {
 		scroll_into_view(&state.scroll, f32(row) * TABLE_ROW_HEIGHT, TABLE_ROW_HEIGHT, view)
@@ -209,10 +242,203 @@ table :: proc(
 	// take the clicks on them.
 	if .Pressed in interact(ui, child_id(id, "body"), body) && !focused do request_focus(ui, id)
 	origin := begin_scroll(ui, id, body, content, &state.scroll)
-	draw_rows(ui, id, body, origin, columns, widths, rows, focused, &result)
+	// The outline goes while a cell is edited, as the keyboard is the editor's.
+	double_clicked := draw_rows(ui, id, body, origin, columns, widths, rows, focused, &result)
+	if cell, editing := state.editing.?; editing {
+		edit_cell(ui, id, body, origin, columns, widths, rows, state, cell, left_row, &result)
+	}
 	end_scroll(ui, id, body, content, &state.scroll)
+	if cell, opened := double_clicked.?; opened && state.editing == nil {
+		start_editing(ui, id, body, columns, widths, state, cell, &result)
+	}
 	draw_header(ui, id, header, origin.x, columns, widths, rows, sort, state, &result)
 	return
+}
+
+// Opens the editor of a cell, which takes the focus with all its text selected, and
+// scrolls the least that shows it.
+@(private = "file")
+start_editing :: proc(
+	ui: ^Ui,
+	id: Widget_Id,
+	body: Rect,
+	columns: []Table_Column,
+	widths: []f32,
+	state: ^Table_State,
+	cell: Cell_Edit,
+	result: ^Table_Result,
+) {
+	state.editing = cell
+	result.edit = cell
+	request_focus(ui, editor_id(id, cell), by_key = true)
+	if x, w, _, found := column_span(columns, widths, cell.column); found {
+		scroll_into_view(&state.scroll, x, w, body.w - TABLE_END_WIDTH, axis = 0)
+	}
+	scroll_into_view(&state.scroll, f32(cell.row) * TABLE_ROW_HEIGHT, TABLE_ROW_HEIGHT, body.h)
+}
+
+// The suggestions under a cell are this wide at least, as 1.0.0's.
+@(private = "file")
+SUGGESTIONS_WIDTH :: 180
+
+// Each cell's editor has an id of its own, so that the next cell edited starts afresh.
+@(private)
+editor_id :: proc(id: Widget_Id, cell: Cell_Edit) -> Widget_Id {
+	return child_id(child_id(id, "editor", cell.row), "column", cell.column)
+}
+
+// The editor over the cell edited in place. Enter ends the editing and Escape gives it
+// up, the table taking the keyboard back; Tab goes to the next editable cell of the row
+// and Shift+Tab to the one before, the editing ending past the last. A click elsewhere
+// ends it, and so does the focus moving to another row, the table then taking the
+// keyboard back. Text the column does not take keeps the editor open on Enter and Tab,
+// and is given up when the editing ends otherwise.
+@(private = "file")
+edit_cell :: proc(
+	ui: ^Ui,
+	id: Widget_Id,
+	body: Rect,
+	origin: [2]f32,
+	columns: []Table_Column,
+	widths: []f32,
+	rows: Table_Rows,
+	state: ^Table_State,
+	cell: Cell_Edit,
+	left_row: bool,
+	result: ^Table_Result,
+) {
+	editor := editor_id(id, cell)
+	was_focused := ui.focus == editor
+	x, w, index, found := column_span(columns, widths, cell.column)
+	if !found || w <= 0 || cell.row >= rows.count {
+		// The cell is gone: what was typed in it is committed, and the table takes the
+		// keyboard back.
+		state.editing = nil
+		if was_focused {
+			if ui.edit_owner == editor {
+				result.input = Cell_Input{cell, {committed = true, text = edit_text(&ui.edit)}}
+			}
+			ui.edit_reported = true
+			request_focus(ui, id)
+		}
+		return
+	}
+	column := columns[index]
+	// Over the cell, but for its separator.
+	rect := Rect {
+		origin.x + x,
+		origin.y + f32(cell.row) * TABLE_ROW_HEIGHT + 1,
+		w - 1,
+		TABLE_ROW_HEIGHT - 2,
+	}
+	value := rows.cell(rows.data, cell.row, cell.column)
+	shown := ui.edit_owner == editor ? edit_text(&ui.edit) : value
+	options: Text_Field_Options
+	if column.mono do options.flags += {.Numeric}
+	if !takes(column, shown) do options.flags += {.Error}
+	// Tab belongs to the table while a cell is edited: it goes to the next cell.
+	tab := ui.tab
+	ui.tab = nil
+	field: Text_Field_Result
+	if len(column.choices) > 0 {
+		field = combo_box(
+			ui,
+			editor,
+			rect,
+			value,
+			column.title,
+			column.choices,
+			options,
+			list_width = SUGGESTIONS_WIDTH,
+		)
+	} else {
+		field = text_field(ui, editor, rect, value, column.title, options)
+	}
+	tabbed := ui.tab
+	ui.tab = tab
+	// The focus moving to another row ends the editing as a click elsewhere does.
+	if left_row && was_focused && !field.committed && !field.cancelled {
+		field.committed = true
+		ui.edit_reported = true
+	}
+	// A click on the editor's own suggestions is not a click elsewhere.
+	clicked := .Left in ui.input.pressed && !mouse_in_popup(ui)
+	if field.committed && !takes(column, field.text) {
+		field.committed = false
+		if was_focused && !clicked && !left_row {
+			// Enter or Tab: the editor stays open, showing what is wrong.
+			tabbed = nil
+			request_focus(ui, editor)
+		} else {
+			// Given up: back to the value the cell had when its editor took the focus,
+			// which the Ui kept when another widget took the focus.
+			field.cancelled = true
+			field.text = was_focused ? string(ui.edit_start[:]) : string(ui.edit_ended_start[:])
+		}
+	}
+	// The error ring follows the text at once, rather than on the caret's next blink.
+	if takes(column, field.text) != takes(column, shown) do wake_at(ui, ui.input.time)
+	if field.changed || field.committed || field.cancelled do result.input = Cell_Input{cell, field}
+	if direction, has := tabbed.?; has {
+		step := direction == .Forward ? 1 : -1
+		if next, found_next := editable_after(columns, widths, index, step).?; found_next {
+			start_editing(ui, id, body, columns, widths, state, {cell.row, next}, result)
+			return
+		}
+	}
+	if tabbed != nil || field.committed || field.cancelled || left_row {
+		state.editing = nil
+		if was_focused && !clicked do take_focus_back(ui, id)
+	}
+}
+
+// Gives the table the keyboard back from its editor, unless another widget asked for
+// it this frame.
+@(private = "file")
+take_focus_back :: proc(ui: ^Ui, id: Widget_Id) {
+	if next, asked := ui.focus_next.?; asked && next != 0 do return
+	request_focus(ui, id)
+}
+
+@(private = "file")
+takes :: proc(column: Table_Column, text: string) -> bool {
+	return column.accepts == nil || column.accepts(text)
+}
+
+// Where a column starts, from the left end of the rows, and how wide it is.
+@(private = "file")
+column_span :: proc(
+	columns: []Table_Column,
+	widths: []f32,
+	column: int,
+) -> (
+	x, w: f32,
+	index: int,
+	found: bool,
+) {
+	x = TABLE_STATUS_WIDTH
+	for c, i in columns {
+		if c.id == column do return x, widths[i], i, true
+		x += widths[i]
+	}
+	return
+}
+
+// The cell Enter edits: the title when it is editable, else the first editable one.
+@(private = "file")
+first_editable :: proc(columns: []Table_Column, widths: []f32) -> Maybe(int) {
+	for c, i in columns do if c.primary && c.editable && widths[i] > 0 do return c.id
+	return editable_after(columns, widths, -1, 1)
+}
+
+// The first editable column shown after the one at index from, or before it when step
+// is -1.
+@(private = "file")
+editable_after :: proc(columns: []Table_Column, widths: []f32, from, step: int) -> Maybe(int) {
+	for i := from + step; i >= 0 && i < len(columns); i += step {
+		if columns[i].editable && widths[i] > 0 do return columns[i].id
+	}
+	return nil
 }
 
 // The widths of the columns: those the user gave them when sized, else min_width each
@@ -253,6 +479,7 @@ table_keys :: proc(ui: ^Ui, result: ^Table_Result) {
 }
 
 // The rows in view, from the first one the scroll shows: each declared with its cells.
+// Gives the editable cell double clicked.
 @(private = "file")
 draw_rows :: proc(
 	ui: ^Ui,
@@ -264,6 +491,8 @@ draw_rows :: proc(
 	rows: Table_Rows,
 	focused: bool,
 	result: ^Table_Result,
+) -> (
+	double_clicked: Maybe(Cell_Edit),
 ) {
 	r := ui.renderer
 	th := ui.theme
@@ -329,9 +558,10 @@ draw_rows :: proc(
 				},
 			)
 			if .Double_Clicked in interaction &&
+			   column.editable &&
 			   rect_contains(cell, in_.mouse) &&
 			   .Error not_in states {
-				result.edit = Cell_Edit{row, column.id}
+				double_clicked = Cell_Edit{row, column.id}
 			}
 		}
 		pop_parent(ui)
@@ -342,6 +572,7 @@ draw_rows :: proc(
 			draw_selection_outline(r, th, rect, above, below)
 		}
 	}
+	return
 }
 
 // The status column: why a row stands out, one sign at most, declared as an image.

@@ -53,7 +53,7 @@ suggest :: proc(choices: []string, text: string, allocator := context.allocator)
 // A text field that suggests choices as the user types, with a button that shows them
 // all: the genre of the inspector. The arrow keys move through the suggestions, Enter
 // or a click picks one, which commits the field with it. The list closes when the field
-// loses the focus, drawn or not.
+// loses the focus, drawn or not. It is as wide as the field, or list_width when wider.
 combo_box :: proc(
 	ui: ^Ui,
 	id: Widget_Id,
@@ -62,6 +62,7 @@ combo_box :: proc(
 	label: string,
 	choices: []string,
 	options := Text_Field_Options{},
+	list_width: f32 = 0,
 ) -> (
 	result: Text_Field_Result,
 ) {
@@ -120,7 +121,7 @@ combo_box :: proc(
 
 	if combo.owner == id && combo.open && has_focus(ui, id) {
 		shown = suggest(choices, string(combo.filter[:]), context.temp_allocator)
-		if item, clicked := draw_suggestions(ui, id, rect, shown); clicked do picked = item
+		if item, clicked := draw_suggestions(ui, id, rect, max(rect.w, list_width), shown); clicked do picked = item
 	}
 	if item, was_picked := picked.?; was_picked {
 		edit_reset(&ui.edit, item, false)
@@ -213,6 +214,7 @@ draw_suggestions :: proc(
 	ui: ^Ui,
 	id: Widget_Id,
 	rect: Rect,
+	width: f32,
 	shown: []string,
 ) -> (
 	picked: string,
@@ -226,7 +228,7 @@ draw_suggestions :: proc(
 	list := Rect {
 		rect.x,
 		rect.y + rect.h + LIST_GAP,
-		rect.w,
+		width,
 		f32(visible) * ITEM_HEIGHT + 2 * LIST_INSET,
 	}
 	// Above the field when there is no room under it.
