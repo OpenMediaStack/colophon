@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-14 18:07+0200\n"
+"POT-Creation-Date: 2026-10-14 18:08+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -30,11 +30,15 @@ msgstr ""
 msgid "Open folder…"
 msgstr ""
 
-#: src/app/screen.odin:80
+#: src/app/screen.odin:85
+msgid "Drop to open these folders and files"
+msgstr ""
+
+#: src/app/screen.odin:101
 msgid "Sidebar"
 msgstr ""
 
-#: src/app/screen.odin:91
+#: src/app/screen.odin:112
 msgid "Inspector"
 msgstr ""
 

@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-14 18:07+0200\n"
+"POT-Creation-Date: 2026-10-14 18:08+0200\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -21,11 +21,15 @@ msgstr "Colophon lit les tags de chaque MP3 d’un dossier et de ses sous-dossie
 msgid "Open folder…"
 msgstr "Ouvrir un dossier…"
 
-#: src/app/screen.odin:80
+#: src/app/screen.odin:85
+msgid "Drop to open these folders and files"
+msgstr "Déposez pour ouvrir ces dossiers et fichiers"
+
+#: src/app/screen.odin:101
 msgid "Sidebar"
 msgstr "Barre latérale"
 
-#: src/app/screen.odin:91
+#: src/app/screen.odin:112
 msgid "Inspector"
 msgstr "Inspecteur"
 
@@ -411,9 +415,6 @@ msgstr "Choisir les colonnes"
 
 #~ msgid "Show in Folder"
 #~ msgstr "Afficher dans le dossier"
-
-#~ msgid "Drop to open these folders and files"
-#~ msgstr "Déposez pour ouvrir ces dossiers et fichiers"
 
 #~ msgid "Cancel"
 #~ msgstr "Annuler"

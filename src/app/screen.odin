@@ -67,7 +67,28 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	}
 	if l.inspector_shown do inspector(ctx, app, l.inspector)
 	status_bar(ctx, app, l.status)
+	if app.drop.hovering do drop_target(ctx, window)
 	shortcuts(ctx, app)
+}
+
+// Over the whole window while files are dragged over it: a scrim, a frame in the
+// accent colour, and what a drop does.
+@(private = "file")
+drop_target :: proc(ctx: ^ui.Ui, window: ui.Rect) {
+	r := ctx.renderer
+	th := ctx.theme
+	previous := ui.set_layer(r, .Top)
+	defer ui.set_layer(r, previous)
+	ui.block_mouse(ctx, window)
+	ui.fill_rect(r, window, th.scrim)
+	ui.stroke_rect(r, ui.rect_inset(window, 12, 12), th.accent, 8, 2)
+	label := ui.tr("Drop to open these folders and files")
+	width := ui.text_width(r, label, .Title) + 32
+	box := ui.centered(window, width, 44)
+	ui.draw_shadow(r, box, 8, 8, 24, th.shadow_menu)
+	ui.fill_rect(r, box, th.surface_2, 8)
+	ui.draw_text(r, label, box.x + 16, box.y + box.h / 2, .Title, th.text_primary)
+	ui.declare(ctx, {id = ui.widget_id("Drop target"), role = .Label, label = label, rect = box})
 }
 
 // The sidebar's panel. Its sources come with slice 31.
