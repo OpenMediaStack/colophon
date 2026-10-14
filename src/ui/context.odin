@@ -245,10 +245,12 @@ Ui :: struct {
 	parents:         [dynamic]Widget_Id,
 	// The focus the frame asked for: nil when it asked nothing, 0 to clear the focus.
 	focus_next:      Maybe(Widget_Id),
+	// The focus asked for comes from a key, as Enter edits a table's cell.
+	focus_next_key:  bool,
 	// Where the mouse went down, for drags.
 	press_mouse:     [2]f32,
-	// The focus moved by Tab or Shift+Tab, rather than by the mouse: a text field then
-	// selects all its text.
+	// The focus moved by a key, Tab or Shift+Tab or a key that asked for it, rather than
+	// by the mouse: a text field then selects all its text.
 	focus_by_key:    bool,
 	// Tab or Shift+Tab pressed in the focused widget, for the end of the frame.
 	tab:             Maybe(Tab),
@@ -406,10 +408,11 @@ ui_end_frame :: proc(ui: ^Ui) -> (redraw: bool) {
 		if next, found := tab_target(ui, direction); found do ui.focus_next = next
 	}
 	if next, asked := ui.focus_next.?; asked {
-		ui.focus_by_key = ui.tab != nil
+		ui.focus_by_key = ui.tab != nil || ui.focus_next_key
 		ui.focus = next
 	}
 	ui.focus_next = nil
+	ui.focus_next_key = false
 	ui.tab = nil
 	if ui.focus != focus do redraw = true
 	// A field typed in lost the focus without saying it was done: it will.
@@ -523,9 +526,11 @@ seen :: proc(ui: ^Ui, id: Widget_Id) {
 	if id == ui.active do ui.active_seen = true
 }
 
-// Moves the keyboard focus to id at the end of the frame.
-request_focus :: proc(ui: ^Ui, id: Widget_Id) {
+// Moves the keyboard focus to id at the end of the frame. by_key says that a key asked
+// for it rather than the mouse: a text field then selects all its text, as with Tab.
+request_focus :: proc(ui: ^Ui, id: Widget_Id, by_key := false) {
 	ui.focus_next = id
+	ui.focus_next_key = by_key
 }
 
 // Clears the focus at the end of the frame, if id has it and no widget asked for it

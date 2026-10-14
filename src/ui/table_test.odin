@@ -134,6 +134,7 @@ reported :: proc(t: ^Tracks) -> (r: Table_Result) {
 		if each.edit != nil do r.edit = each.edit
 		r.release ||= each.release
 		if each.step != nil do r.step = each.step
+		if each.input != nil do r.input = each.input
 		r.select_all ||= each.select_all
 		r.space ||= each.space
 	}
@@ -192,17 +193,219 @@ a_press_on_a_row_reports_it_with_its_modifiers :: proc(t: ^testing.T) {
 	testing.expect(t, opened && menu.row == 3)
 }
 
+// The title and the artist edited in place.
+@(private = "file")
+editable_tracks_harness :: proc(h: ^Harness, t: ^Tracks) {
+	tracks_harness(h, t)
+	t.columns[COLUMN_TITLE].editable = true
+	t.columns[COLUMN_ARTIST].editable = true
+	run_frame(h)
+}
+
+// The editor of the cell edited in place, while one is open.
+@(private = "file")
+editor_of :: proc(h: ^Harness) -> (info: Widget_Info, open: bool) {
+	for w in h.ui.widgets do if w.role == .Text_Field do return w, true
+	return
+}
+
+// The middle of a row's cell in a column, by the row's title and the column's name.
+@(private = "file")
+cell_center :: proc(h: ^Harness, row, column: string) -> [2]f32 {
+	r, _ := widget_center(h, row)
+	c, _ := widget_center(h, column)
+	return {c.x, r.y}
+}
+
+@(private = "file")
+double_click_at :: proc(h: ^Harness, p: [2]f32) {
+	move_mouse(h, p)
+	press(h)
+	release(h)
+	press(h, clicks = 2)
+	release(h)
+}
+
+@(private = "file")
+digits_only :: proc(text: string) -> bool {
+	for c in text do if c < '0' || c > '9' do return false
+	return true
+}
+
 @(test)
-a_double_click_on_a_cell_asks_to_edit_it :: proc(t: ^testing.T) {
+a_double_click_edits_a_cell_and_enter_commits_it :: proc(t: ^testing.T) {
 	h: Harness
 	tr: Tracks
-	tracks_harness(&h, &tr)
+	editable_tracks_harness(&h, &tr)
 	defer destroy_tracks(&h)
 	click(&h, "Track 2", clicks = 2)
 	edit, asked := reported(&tr).edit.?
-	testing.expect(t, asked && edit.row == 1 && edit.column == COLUMN_TITLE)
+	testing.expect(t, asked && edit == Cell_Edit{1, COLUMN_TITLE})
+	editor, open := editor_of(&h)
+	testing.expect(t, open && has_focus(&h.ui, editor.id))
+	testing.expect_value(t, editor.value, "Track 2")
+
+	// The value is all selected: typing replaces it, and each change is reported.
+	type_text(&h, "Neon Overpass")
+	input, typed := reported(&tr).input.?
+	testing.expect(t, typed && input.field.changed && input.field.text == "Neon Overpass")
+	press_key(&h, .Enter)
+	input, typed = reported(&tr).input.?
+	testing.expect(t, typed && input.field.committed && input.cell == Cell_Edit{1, COLUMN_TITLE})
+	run_frame(&h)
+	_, open = editor_of(&h)
+	testing.expect(t, !open)
+	testing.expect(t, has_focus(&h.ui, widget_id("Tracks")))
+}
+
+@(test)
+only_editable_cells_of_readable_files_are_edited :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	double_click_at(&h, cell_center(&h, "Track 2", "Time"))
+	testing.expect_value(t, reported(&tr).edit, nil)
 	click(&h, "Track 6", clicks = 2)
 	testing.expect_value(t, reported(&tr).edit, nil)
+	_, open := editor_of(&h)
+	testing.expect(t, !open)
+}
+
+@(test)
+escape_puts_the_cell_back :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	click(&h, "Track 2", clicks = 2)
+	type_text(&h, "Neon Overpass")
+	press_key(&h, .Escape)
+	input, typed := reported(&tr).input.?
+	testing.expect(t, typed && input.field.cancelled && input.field.text == "Track 2")
+	run_frame(&h)
+	_, open := editor_of(&h)
+	testing.expect(t, !open)
+	testing.expect(t, has_focus(&h.ui, widget_id("Tracks")))
+}
+
+@(test)
+enter_or_f2_edits_the_focused_row :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	click(&h, "Track 1")
+	tr.focused = 0
+	reported(&tr)
+	for key in ([]Key{.Enter, .F2}) {
+		press_key(&h, key)
+		edit, asked := reported(&tr).edit.?
+		testing.expect(t, asked && edit == Cell_Edit{0, COLUMN_TITLE})
+		run_frame(&h)
+		editor, open := editor_of(&h)
+		testing.expect(t, open && has_focus(&h.ui, editor.id) && editor.value == "Track 1")
+		press_key(&h, .Escape)
+	}
+	// Not the row of a file that could not be read.
+	tr.focused = 5
+	run_frame(&h)
+	press_key(&h, .Enter)
+	testing.expect_value(t, reported(&tr).edit, nil)
+}
+
+@(test)
+tab_goes_across_the_editable_cells :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	click(&h, "Track 1")
+	tr.focused = 0
+	press_key(&h, .Enter)
+	run_frame(&h)
+	type_text(&h, "Neon Overpass")
+	reported(&tr)
+	press_key(&h, .Tab)
+	r := reported(&tr)
+	input, typed := r.input.?
+	testing.expect(t, typed && input.field.committed && input.field.text == "Neon Overpass")
+	testing.expect_value(t, r.edit, Cell_Edit{0, COLUMN_ARTIST})
+	run_frame(&h)
+	editor, open := editor_of(&h)
+	testing.expect(t, open && has_focus(&h.ui, editor.id) && editor.value == "Marlowe Kite")
+
+	press_key(&h, .Tab, {.Shift})
+	testing.expect_value(t, reported(&tr).edit, Cell_Edit{0, COLUMN_TITLE})
+	run_frame(&h)
+	press_key(&h, .Tab)
+	run_frame(&h)
+	reported(&tr)
+	// Past the last editable cell, the editing ends.
+	press_key(&h, .Tab)
+	testing.expect_value(t, reported(&tr).edit, nil)
+	run_frame(&h)
+	_, open = editor_of(&h)
+	testing.expect(t, !open)
+	testing.expect(t, has_focus(&h.ui, widget_id("Tracks")))
+}
+
+@(test)
+text_the_column_does_not_take_keeps_the_editor_open :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	tr.columns[COLUMN_TIME].editable = true
+	tr.columns[COLUMN_TIME].accepts = digits_only
+	double_click_at(&h, cell_center(&h, "Track 1", "Time"))
+	testing.expect_value(t, reported(&tr).edit, Cell_Edit{0, COLUMN_TIME})
+	type_text(&h, "20x4")
+	press_key(&h, .Enter)
+	press_key(&h, .Tab)
+	input, _ := reported(&tr).input.?
+	testing.expect(t, !input.field.committed)
+	editor, open := editor_of(&h)
+	testing.expect(t, open && has_focus(&h.ui, editor.id) && editor.value == "20x4")
+
+	// A click elsewhere gives it up.
+	click(&h, "Track 4")
+	r := reported(&tr)
+	input, _ = r.input.?
+	testing.expect(t, input.field.cancelled && input.field.text == "4:08")
+	press, pressed := r.press.?
+	testing.expect(t, pressed && press.row == 3)
+	_, open = editor_of(&h)
+	testing.expect(t, !open)
+}
+
+@(test)
+a_click_elsewhere_or_another_focused_row_ends_the_editing :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	click(&h, "Track 2", clicks = 2)
+	type_text(&h, "Neon Overpass")
+	click(&h, "Track 4")
+	input, typed := reported(&tr).input.?
+	testing.expect(t, typed && input.field.committed && input.field.text == "Neon Overpass")
+	_, open := editor_of(&h)
+	testing.expect(t, !open)
+
+	tr.focused = 3
+	run_frame(&h)
+	press_key(&h, .Enter)
+	run_frame(&h)
+	type_text(&h, "Cassette Bloom")
+	tr.focused = 4
+	run_frame(&h)
+	input, typed = reported(&tr).input.?
+	testing.expect(t, typed && input.field.committed && input.cell == Cell_Edit{3, COLUMN_TITLE})
+	run_frame(&h)
+	_, open = editor_of(&h)
+	testing.expect(t, !open)
+	testing.expect(t, has_focus(&h.ui, widget_id("Tracks")))
 }
 
 @(test)
@@ -427,5 +630,32 @@ the_table_matches_its_reference :: proc(t: ^testing.T) {
 		ui_destroy(&ui)
 	}
 	finish_capture(t, &cap, "table.png")
+	free_all(context.temp_allocator)
+}
+
+// A cell edited in place, its text selected, in both themes.
+@(test)
+the_cell_editor_matches_its_reference :: proc(t: ^testing.T) {
+	size := [2]f32{1000, 140}
+	cap, ok := begin_capture(t, size, 2)
+	if !ok do return
+	defer end_capture(&cap)
+	for kind, i in Theme_Kind {
+		area := Rect{f32(i) * size.x / 2, 0, size.x / 2, size.y}
+		ui: Ui
+		ui_init(&ui, cap.renderer, theme(kind))
+		tr: Tracks
+		tracks_of(&tr, 4)
+		tr.rect = area
+		tr.columns[COLUMN_ARTIST].editable = true
+		tr.state.editing = Cell_Edit{1, COLUMN_ARTIST}
+		id := widget_id("Tracks")
+		ui.focus = editor_id(id, tr.state.editing.?)
+		ui.focus_by_key = true
+		rows := Table_Rows{&tr, tr.count, cell_of, states_of}
+		table(&ui, id, area, tr.columns[:], rows, &tr.state, nil, false, 1)
+		ui_destroy(&ui)
+	}
+	finish_capture(t, &cap, "table-editing.png")
 	free_all(context.temp_allocator)
 }
