@@ -5,6 +5,7 @@ import "core:strings"
 import "core:testing"
 
 import "../engine"
+import lib "../library"
 import ui "../ui"
 
 // The main screen showing these fixtures under these names, every track read.
@@ -324,7 +325,7 @@ the_details_of_an_unreadable_file_go_to_the_clipboard :: proc(t: ^testing.T) {
 		strings.contains(copied, fmt.tprintf("File: %s", s.app.engine.library.tracks[0].path)),
 	)
 	testing.expect(t, strings.contains(copied, "Size: 3 bytes"))
-	testing.expect(t, strings.contains(copied, "Error: "))
+	testing.expect(t, strings.contains(copied, "Error: The file holds no MPEG audio"))
 }
 
 // The tracks and the unreadable file, in both themes.
@@ -368,4 +369,44 @@ the_inspector_matches_its_references :: proc(t: ^testing.T) {
 			kind == .Dark ? "inspector-unreadable-dark.png" : "inspector-unreadable-light.png",
 		)
 	}
+}
+
+// The texts of the File section, as 1.0.0 wrote them.
+@(test)
+sizes_and_audio_read_as_in_1_0_0 :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	testing.expect_value(t, size_text(999), "999\u00A0bytes")
+	testing.expect_value(t, size_text(4_096), "4\u00A0KB")
+	testing.expect_value(t, size_text(25_400_000), "25.4\u00A0MB")
+	testing.expect_value(t, size_text(8_349_999), "8.3\u00A0MB")
+	testing.expect_value(t, size_text(1_250_000_000), "1.3\u00A0GB")
+	line :: proc(rate: int, mode: lib.Bitrate_Mode) -> engine.Summary {
+		return {audio = engine.Audio_Line{bitrate_kbps = 128, sample_rate = rate, mode = mode}}
+	}
+	testing.expect_value(
+		t,
+		audio_text(line(44_100, .Constant)),
+		"MP3 · 128\u00A0kbps\u00A0CBR · 44.1\u00A0kHz",
+	)
+	testing.expect_value(
+		t,
+		audio_text(line(48_000, .Variable)),
+		"MP3 · 128\u00A0kbps\u00A0VBR · 48\u00A0kHz",
+	)
+	testing.expect_value(
+		t,
+		audio_text(line(22_050, .Constant)),
+		"MP3 · 128\u00A0kbps\u00A0CBR · 22.1\u00A0kHz",
+	)
+	testing.expect_value(t, audio_text({audio = engine.Mixed{}}), "Multiple values")
+	testing.expect_value(
+		t,
+		album_and_artist({album = "Small Hours", artist = "Marlowe Kite"}),
+		"Small Hours · Marlowe Kite",
+	)
+	testing.expect_value(
+		t,
+		album_and_artist({album = "Small Hours", artist = engine.Mixed{}}),
+		"Small Hours",
+	)
 }

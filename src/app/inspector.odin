@@ -1,5 +1,6 @@
 package main
 
+import "base:runtime"
 import "core:fmt"
 import "core:strconv"
 
@@ -26,22 +27,24 @@ NBSP :: " "
 
 // What the inspector keeps between frames: its scroll, which sections show their
 // content, what the selected tracks share, and the genres to suggest, made again when
-// the selection or the library changes.
+// the selection or the library changes. Make it with init_inspector, free it with
+// destroy_inspector.
 Inspector :: struct {
-	scroll:         ui.Scroll,
-	comment_scroll: ui.Scroll,
-	tags_open:      bool,
-	file_open:      bool,
-	inspection:     engine.Inspection,
-	genres:         []string,
+	scroll:           ui.Scroll,
+	comment_scroll:   ui.Scroll,
+	tags_open:        bool,
+	file_open:        bool,
+	inspection:       engine.Inspection,
+	genres:           []string,
 	// What the inspection and the genres were made from, once made: the engine's
-	// revision and how many commands had run.
-	made:           bool,
-	revision:       u64,
-	commands:       int,
+	// revisions and how many commands had run.
+	made:             bool,
+	revision:         u64,
+	library_revision: u64,
+	commands:         int,
 	// The field being typed in, whose next changes go on with the same step of the
 	// history, so that Escape takes the whole of the typing back.
-	typing:         Maybe(engine.Field),
+	typing:           Maybe(engine.Field),
 }
 
 init_inspector :: proc(i: ^Inspector) {
@@ -49,7 +52,8 @@ init_inspector :: proc(i: ^Inspector) {
 	i.file_open = true
 }
 
-destroy_inspector :: proc(i: ^Inspector, allocator := context.allocator) {
+// Frees what the inspector made, with the engine's allocator it made it with.
+destroy_inspector :: proc(i: ^Inspector, allocator: runtime.Allocator) {
 	delete(i.genres, allocator)
 }
 
@@ -72,19 +76,20 @@ inspector :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	}
 }
 
-// Makes the inspection and the genres again when a command ran or the library
-// changed, since both walk the selection or the library.
+// Makes the inspection again when a command ran or the library or the edits changed,
+// since it walks the selection, and the genres when the library changed, since they
+// come from the files' tags: a genre only typed so far is not one of them.
 @(private = "file")
 refresh_inspection :: proc(app: ^App) {
 	e := &app.engine
 	i := &app.inspector
-	moved := !i.made || i.revision != e.revision
-	if moved {
+	if !i.made || i.library_revision != e.library_revision {
 		delete(i.genres, e.allocator)
 		i.genres = engine.genres(e, e.allocator)
 	}
-	if moved || app.commands != i.commands do i.inspection = engine.inspect(e)
-	i.made, i.revision, i.commands = true, e.revision, app.commands
+	if !i.made || i.revision != e.revision || app.commands != i.commands do i.inspection = engine.inspect(e)
+	i.made, i.revision, i.library_revision = true, e.revision, e.library_revision
+	i.commands = app.commands
 }
 
 @(private = "file")
@@ -131,9 +136,9 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 
 	// The content's height, for the scroll.
 	height: f32 = 2 * INSPECTOR_PADDING + 64 + SECTION_GAP + 16
-	if i.tags_open do height += 8 + 9 * (ui.BUTTON_HEIGHT + FIELD_GAP) + COMMENT_HEIGHT
+	if i.tags_open do height += 8 + 8 * (ui.BUTTON_HEIGHT + FIELD_GAP) + COMMENT_HEIGHT
 	height += SECTION_GAP + 16
-	if i.file_open do height += 8 + 4 * 20
+	if i.file_open do height += 8 + f32(s.modified != {} ? 4 : 3) * 20
 	origin := ui.begin_scroll(ctx, id, body, {body.w, height}, &i.scroll)
 	x := origin.x + INSPECTOR_PADDING
 	y := origin.y + INSPECTOR_PADDING
@@ -193,14 +198,14 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	}
 	y += 64 + SECTION_GAP
 
-	if section_header(ctx, ui.tr("Tags"), {x, y, width, 16}, &i.tags_open) {
+	if section_header(ctx, 0, ui.tr("Tags"), {x, y, width, 16}, &i.tags_open) {
 		y += 16 + 8
 		y = tag_fields(ctx, app, s, x, y, width)
 	} else {
 		y += 16
 	}
 	y += SECTION_GAP
-	if section_header(ctx, ui.tr("File"), {x, y, width, 16}, &i.file_open) {
+	if section_header(ctx, 1, ui.tr("File"), {x, y, width, 16}, &i.file_open) {
 		y += 16 + 8
 		file_row(ctx, ui.tr("Audio"), audio_text(s), x, y, width, false, 0)
 		y += 20
@@ -234,7 +239,7 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 		save_width,
 		ui.BUTTON_HEIGHT,
 	}
-	if ui.button(ctx, ui.widget_id("Save selected"), save_rect, save_label, save_options) do execute(app, engine.Save{})
+	if ui.button(ctx, ui.widget_id("Save files"), save_rect, save_label, save_options) do execute(app, engine.Save{})
 	revert_label := ui.tr("Revert")
 	revert_options := ui.Button_Options {
 		kind     = .Secondary,
@@ -245,12 +250,19 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	if ui.button(ctx, ui.widget_id("Revert"), revert_rect, revert_label, revert_options) do execute(app, engine.Revert{})
 }
 
-// A section's title, which hides the section or shows it again. True while shown.
+// A section's title, the index-th of the panel, which hides the section or shows it
+// again. True while shown.
 @(private = "file")
-section_header :: proc(ctx: ^ui.Ui, title: string, rect: ui.Rect, open: ^bool) -> bool {
+section_header :: proc(
+	ctx: ^ui.Ui,
+	index: int,
+	title: string,
+	rect: ui.Rect,
+	open: ^bool,
+) -> bool {
 	r := ctx.renderer
 	th := ctx.theme
-	id := ui.widget_id("Section header", int(rect.y))
+	id := ui.widget_id("Section header", index)
 	interaction := ui.interact(ctx, id, rect)
 	if .Hovered in interaction do ctx.cursor = .Pointer
 	if .Clicked in interaction do open^ = !open^
@@ -262,16 +274,26 @@ section_header :: proc(ctx: ^ui.Ui, title: string, rect: ui.Rect, open: ^bool) -
 	return open^
 }
 
+// What a field reported this frame, taken in once every row is drawn.
+@(private = "file")
+Taken :: struct {
+	field:  engine.Field,
+	result: ui.Text_Field_Result,
+}
+
 // The fields of the tags, label and value, in the order of the mockup. Gives the y
-// after them.
+// after them. The commands run once every row is drawn: the summary's strings last
+// until the next command, and the rows read them.
 @(private = "file")
 tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) -> f32 {
 	y := y
 	field_x := x + FIELD_LABEL_WIDTH + 8
 	field_w := width - FIELD_LABEL_WIDTH - 8
+	taken := make([dynamic]Taken, context.temp_allocator)
+	defer for t in taken do take_field(app, t.field, t.result)
 	text_row :: proc(
 		ctx: ^ui.Ui,
-		app: ^App,
+		taken: ^[dynamic]Taken,
 		s: engine.Summary,
 		field: engine.Field,
 		name: string,
@@ -279,7 +301,7 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 		x, y, field_x, field_w: f32,
 	) {
 		field_label(ctx, name, {x, y, FIELD_LABEL_WIDTH, ui.BUTTON_HEIGHT}, field in s.modified)
-		value, options := field_options(shared, field in s.modified, false)
+		value, options := field_options(shared, field in s.modified)
 		result := ui.text_field(
 			ctx,
 			ui.widget_id(name),
@@ -288,15 +310,15 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 			name,
 			options,
 		)
-		take_field(app, field, result)
+		append(taken, Taken{field, result})
 	}
-	text_row(ctx, app, s, .Title, ui.tr("Title"), s.title, x, y, field_x, field_w)
+	text_row(ctx, &taken, s, .Title, ui.tr("Title"), s.title, x, y, field_x, field_w)
 	y += ui.BUTTON_HEIGHT + FIELD_GAP
-	text_row(ctx, app, s, .Artist, ui.tr("Artist"), s.artist, x, y, field_x, field_w)
+	text_row(ctx, &taken, s, .Artist, ui.tr("Artist"), s.artist, x, y, field_x, field_w)
 	y += ui.BUTTON_HEIGHT + FIELD_GAP
 	text_row(
 		ctx,
-		app,
+		&taken,
 		s,
 		.Album_Artist,
 		ui.tr("Album artist"),
@@ -307,7 +329,7 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 		field_w,
 	)
 	y += ui.BUTTON_HEIGHT + FIELD_GAP
-	text_row(ctx, app, s, .Album, ui.tr("Album"), s.album, x, y, field_x, field_w)
+	text_row(ctx, &taken, s, .Album, ui.tr("Album"), s.album, x, y, field_x, field_w)
 	y += ui.BUTTON_HEIGHT + FIELD_GAP
 
 	year_name := ui.tr("Year")
@@ -321,12 +343,12 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 		year_name,
 		year_options,
 	)
-	take_field(app, .Year, year)
+	append(&taken, Taken{.Year, year})
 	y += ui.BUTTON_HEIGHT + FIELD_GAP
 
 	number_row :: proc(
 		ctx: ^ui.Ui,
-		app: ^App,
+		taken: ^[dynamic]Taken,
 		s: engine.Summary,
 		name: string,
 		fields: [2]engine.Field,
@@ -340,8 +362,9 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 		options: [2]ui.Text_Field_Options
 		values[0], options[0] = number_options(shared[0], fields[0] in s.modified)
 		values[1], options[1] = number_options(shared[1], fields[1] in s.modified)
-		options[0].placeholder = ui.tr("Multiple")
-		options[1].placeholder = "…"
+		// The pair says the tracks differ in fewer letters than a field would.
+		if .Multiple_Values in options[0].flags do options[0].placeholder = ui.tr("Multiple")
+		if .Multiple_Values in options[1].flags do options[1].placeholder = "…"
 		number, total := ui.number_pair(
 			ctx,
 			ui.widget_id(name),
@@ -352,12 +375,12 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 			ui.tr("of"),
 			options,
 		)
-		take_field(app, fields[0], number)
-		take_field(app, fields[1], total)
+		append(taken, Taken{fields[0], number})
+		append(taken, Taken{fields[1], total})
 	}
 	number_row(
 		ctx,
-		app,
+		&taken,
 		s,
 		ui.tr("Track"),
 		{.Track, .Track_Total},
@@ -370,7 +393,7 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 	y += ui.BUTTON_HEIGHT + FIELD_GAP
 	number_row(
 		ctx,
-		app,
+		&taken,
 		s,
 		ui.tr("Disc"),
 		{.Disc, .Disc_Total},
@@ -384,7 +407,7 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 
 	genre_name := ui.tr("Genre")
 	field_label(ctx, genre_name, {x, y, FIELD_LABEL_WIDTH, ui.BUTTON_HEIGHT}, .Genre in s.modified)
-	genre_value, genre_options := field_options(s.genre, .Genre in s.modified, false)
+	genre_value, genre_options := field_options(s.genre, .Genre in s.modified)
 	genre := ui.combo_box(
 		ctx,
 		ui.widget_id(genre_name),
@@ -394,7 +417,7 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 		app.inspector.genres,
 		genre_options,
 	)
-	take_field(app, .Genre, genre)
+	append(&taken, Taken{.Genre, genre})
 	y += ui.BUTTON_HEIGHT + FIELD_GAP
 
 	comment_name := ui.tr("Comment")
@@ -404,7 +427,7 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 		{x, y, FIELD_LABEL_WIDTH, ui.BUTTON_HEIGHT},
 		.Comment in s.modified,
 	)
-	comment_value, comment_options := field_options(s.comment, .Comment in s.modified, false)
+	comment_value, comment_options := field_options(s.comment, .Comment in s.modified)
 	comment := ui.text_area(
 		ctx,
 		ui.widget_id(comment_name),
@@ -414,7 +437,7 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 		&app.inspector.comment_scroll,
 		comment_options,
 	)
-	take_field(app, .Comment, comment)
+	append(&taken, Taken{.Comment, comment})
 	return y + COMMENT_HEIGHT
 }
 
@@ -426,10 +449,7 @@ field_label :: proc(ctx: ^ui.Ui, text: string, rect: ui.Rect, modified: bool) {
 	th := ctx.theme
 	middle := rect.y + rect.h / 2
 	x := rect.x + 12
-	if modified {
-		ui.fill_rect(r, {rect.x, middle - 3, 6, 6}, th.accent, 3)
-		x = rect.x + 12
-	}
+	if modified do ui.fill_rect(r, {rect.x, middle - 3, 6, 6}, th.accent, 3)
 	ui.draw_text_fit(
 		r,
 		text,
@@ -468,7 +488,7 @@ file_row :: proc(ctx: ^ui.Ui, name, value: string, x, y, width: f32, mono: bool,
 @(private = "file")
 field_options :: proc(
 	shared: engine.Shared(string),
-	modified, numeric: bool,
+	modified: bool,
 ) -> (
 	value: string,
 	options: ui.Text_Field_Options,
@@ -482,7 +502,6 @@ field_options :: proc(
 	case nil:
 	}
 	if modified do options.flags += {.Modified}
-	if numeric do options.flags += {.Numeric}
 	return
 }
 
@@ -541,6 +560,8 @@ edit_of :: proc(field: engine.Field, text: string) -> (edit: engine.Edit, fits: 
 	#partial switch field {
 	case .Year, .Track, .Track_Total, .Disc, .Disc_Total:
 		if len(text) == 0 do return edit, true
+		// Digits only: parse_int would take a sign and underscores.
+		for c in text do if c < '0' || c > '9' do return edit, false
 		number, ok := strconv.parse_int(text, 10)
 		if !ok || number < 1 do return edit, false
 		if field == .Year && number > 9999 do return edit, false
@@ -553,7 +574,7 @@ edit_of :: proc(field: engine.Field, text: string) -> (edit: engine.Edit, fits: 
 
 // The album and the artist the selected tracks share, with a dot between them when
 // both are there. Allocated with the temporary allocator.
-@(private = "file")
+@(private)
 album_and_artist :: proc(s: engine.Summary) -> string {
 	album, has_album := s.album.(string)
 	artist, has_artist := s.artist.(string)
@@ -570,7 +591,7 @@ album_and_artist :: proc(s: engine.Summary) -> string {
 
 // The audio line: the format, the bitrate with its mode, the sample rate, or that the
 // tracks differ. Allocated with the temporary allocator.
-@(private = "file")
+@(private)
 audio_text :: proc(s: engine.Summary) -> string {
 	audio, same := s.audio.(engine.Audio_Line)
 	if !same do return ui.tr("Multiple values")
@@ -595,7 +616,7 @@ audio_text :: proc(s: engine.Summary) -> string {
 
 // A size as people read it: bytes, then whole kilobytes, then megabytes and gigabytes
 // to a tenth. Allocated with the temporary allocator.
-@(private = "file")
+@(private)
 size_text :: proc(bytes: i64) -> string {
 	switch {
 	case bytes < 1_000:
@@ -730,11 +751,25 @@ inspect_unreadable :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, u: engine.Unre
 copy_details :: proc(ctx: ^ui.Ui, track: ^lib.Track, error: lib.Read_Error) {
 	if ctx.clipboard.set == nil do return
 	details := fmt.tprintf(
-		"File: %s\nSize: %d bytes\nError: %v\nColophon %s",
+		"File: %s\nSize: %d bytes\nError: %s\nColophon %s",
 		track.path,
 		track.size,
-		error,
+		error_sentence(error),
 		VERSION,
 	)
 	ctx.clipboard.set(ctx.clipboard.data, details)
+}
+
+// What went wrong, for a bug report: in English, as the report travels.
+@(private = "file")
+error_sentence :: proc(error: lib.Read_Error) -> string {
+	switch error {
+	case .None:
+		return "None"
+	case .Cannot_Open:
+		return "The file could not be opened"
+	case .Damaged:
+		return "The file holds no MPEG audio Colophon can read"
+	}
+	return ""
 }

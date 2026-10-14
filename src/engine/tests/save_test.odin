@@ -330,16 +330,20 @@ the_revision_moves_with_the_library_and_the_edits :: proc(t: ^testing.T) {
 	folder := two_tracks(t, &e)
 	defer remove_folder(folder)
 	defer engine.destroy(&e)
-	// Reading the folder's tracks moved it already.
+	// Reading the folder's tracks moved both already.
 	testing.expect(t, e.revision > 0)
-	before := e.revision
+	testing.expect(t, e.library_revision > 0)
+	before, library_before := e.revision, e.library_revision
 	engine.execute(&e, engine.Select_All{})
 	engine.execute(&e, engine.Sort_By{.Title})
 	testing.expect_value(t, e.revision, before)
+	// An edit changes nothing of the library until it is saved.
 	engine.execute(&e, engine.Apply_Edit{{.Album, "Analog Hearts"}})
 	testing.expect(t, e.revision > before)
+	testing.expect_value(t, e.library_revision, library_before)
 	before = e.revision
 	engine.execute(&e, engine.Save{})
 	poll_until_saved(t, &e)
 	testing.expect(t, e.revision > before)
+	testing.expect(t, e.library_revision > library_before)
 }

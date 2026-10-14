@@ -35,42 +35,44 @@ Library :: struct {
 
 // Colophon's state. Make it with init, free it with destroy.
 Engine :: struct {
-	allocator:     runtime.Allocator,
-	library:       Library,
+	allocator:        runtime.Allocator,
+	library:          Library,
 	// Called by the scans' threads when they have news, to wake the UI loop.
-	wake:          lib.Wake,
-	scans:         [dynamic]^lib.Scan,
+	wake:             lib.Wake,
+	scans:            [dynamic]^lib.Scan,
 	// Scans asked to stop, whose threads end after the entry they are reading: poll
 	// frees them then, so that the UI thread never waits for a disk.
-	stopping:      [dynamic]^lib.Scan,
+	stopping:         [dynamic]^lib.Scan,
 	// The paths of the tracks found, so that opening a file twice lists it once. The
 	// keys are the paths of library.tracks.
-	found:         map[string]Track_Id,
-	events:        [dynamic]lib.Scan_Event,
+	found:            map[string]Track_Id,
+	events:           [dynamic]lib.Scan_Event,
 	// Counts the changes of the library and of the edits, so that what the UI derives
 	// from them (the sidebar's groups, the inspection of the selection) is made again
-	// only when it must.
-	revision:      u64,
+	// only when it must. library_revision counts those of the library alone, a scan's
+	// or a save's news, for what derives from the files' tags, such as the genres.
+	revision:         u64,
+	library_revision: u64,
 	// The source of the table's tracks, its filter and its order.
-	source:        Source,
-	filter:        string,
-	sort:          Maybe(Sort),
+	source:           Source,
+	filter:           string,
+	sort:             Maybe(Sort),
 	// The tracks the table lists, in its order.
-	listed:        [dynamic]Track_Id,
+	listed:           [dynamic]Track_Id,
 	// The tracks saved since Colophon started.
-	saved:         map[Track_Id]struct{},
-	selection:     Selection,
-	edits:         Edits,
-	view:          View_State,
+	saved:            map[Track_Id]struct{},
+	selection:        Selection,
+	edits:            Edits,
+	view:             View_State,
 	// Set by the app to play tracks; nil without a sound device, and in tests that do
 	// not need sound.
-	output:        Maybe(Output),
-	playback:      Playback,
+	output:           Maybe(Output),
+	playback:         Playback,
 	// The track that last failed to play, until another plays.
-	play_failure:  Maybe(Play_Failure),
-	saving:        Maybe(Saving),
+	play_failure:     Maybe(Play_Failure),
+	saving:           Maybe(Saving),
 	// The files the last save could not write.
-	save_failures: [dynamic]Save_Failure,
+	save_failures:    [dynamic]Save_Failure,
 }
 
 // Adds a folder's audio files to the library.
@@ -498,6 +500,7 @@ poll :: proc(e: ^Engine) -> (changed: bool) {
 	if poll_save(e) do changed = true
 	if changed {
 		e.revision += 1
+		e.library_revision += 1
 		relist(e)
 	}
 	if advance_playback(e) do changed = true

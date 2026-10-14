@@ -13,6 +13,9 @@ AREA_TOP :: 6
 // The room the text leaves for the scroll bar at the right.
 @(private = "file")
 AREA_BAR :: 14
+// Between the scroll bar and the box's edge.
+@(private = "file")
+AREA_BAR_GAP :: 4
 
 // A field of several lines, wrapped, showing value: the comment of the inspector. It
 // edits as a text field does, Enter adding a line, Tab or a click elsewhere committing
@@ -33,7 +36,7 @@ text_area :: proc(
 	inner := Rect {
 		rect.x + AREA_PADDING,
 		rect.y + AREA_TOP,
-		rect.w - AREA_PADDING - AREA_BAR,
+		rect.w - AREA_PADDING - AREA_BAR_GAP,
 		rect.h - 2 * AREA_TOP,
 	}
 	interaction: Interaction
@@ -65,15 +68,21 @@ text_area :: proc(
 	th := ui.theme
 	draw_field_box(r, th, rect, options.flags, .Hovered in interaction, focused)
 	// The lines, and where each lies, for the caret and the clicks.
-	spans := wrap_lines(r, shown, .Body, inner.w, context.temp_allocator)
-	content := [2]f32{inner.w, f32(len(spans)) * AREA_LINE}
-	clip := Rect{rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2}
+	spans := area_lines(r, shown, inner)
 	if .Pressed in interaction && !focused {
 		request_focus(ui, id)
 		at := offset_at(r, shown, spans, inner, scroll^, ui.input.mouse)
 		ui.edit_click = Edit_Click{id, at}
 	}
-	if focused && !keys_blocked(ui) do result = edit_area(ui, id, rect, inner, spans, scroll, interaction)
+	if focused && !keys_blocked(ui) {
+		result = edit_area(ui, id, rect, inner, spans, scroll, interaction)
+		// The keys may have changed the text, and grown the buffer shown looked into:
+		// the lines are made again from it.
+		shown = edit_text(&ui.edit)
+		spans = area_lines(r, shown, inner)
+	}
+	content := [2]f32{inner.w, f32(len(spans)) * AREA_LINE}
+	clip := Rect{rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2}
 	// The caret stays in view.
 	if focused {
 		line := line_of(spans, ui.edit.caret)
@@ -121,7 +130,15 @@ text_area :: proc(
 	return
 }
 
-// The keys, the typed text and the mouse on the focused area.
+// The lines of a text wrapped to the area's width, short of the scroll bar's room.
+@(private = "file")
+area_lines :: proc(r: ^Renderer, text: string, inner: Rect) -> []Line_Span {
+	return wrap_lines(r, text, .Body, inner.w - AREA_BAR, context.temp_allocator)
+}
+
+// The keys, the typed text and the mouse on the focused area. Up, Down, Home and End
+// move between the lines on their own or with Shift; with another modifier they are
+// the one-line field's.
 @(private = "file")
 edit_area :: proc(
 	ui: ^Ui,
@@ -176,20 +193,21 @@ edit_area :: proc(
 		insert_until(e, typed, &inserted, press.text_at, &result)
 		taken := true
 		shift := .Shift in press.modifiers
-		#partial switch press.key {
-		case .Enter:
+		plain := press.modifiers - {.Shift} == {}
+		switch {
+		case press.key == .Enter:
 			edit_insert(e, "\n")
 			result.changed = true
-		case .Tab:
+		case press.key == .Tab:
 			result.committed = true
 			move_focus(ui, shift ? .Back : .Forward)
-		case .Escape:
+		case press.key == .Escape:
 			result.cancelled = true
 			edit_reset(e, string(ui.edit_start[:]), false)
 			release_focus(ui, id)
-		case .Up, .Down:
+		case plain && (press.key == .Up || press.key == .Down):
 			// The same place on the line above or below: the lines as they are now.
-			current := wrap_lines(r, edit_text(e), .Body, inner.w, context.temp_allocator)
+			current := area_lines(r, edit_text(e), inner)
 			line := line_of(current, e.caret)
 			x := caret_x(r, edit_text(e), current, line, e.caret)
 			target := press.key == .Up ? line - 1 : line + 1
@@ -201,8 +219,8 @@ edit_area :: proc(
 			case:
 				edit_move(e, offset_on_line(r, edit_text(e), current[target], x), shift)
 			}
-		case .Home, .End:
-			current := wrap_lines(r, edit_text(e), .Body, inner.w, context.temp_allocator)
+		case plain && (press.key == .Home || press.key == .End):
+			current := area_lines(r, edit_text(e), inner)
 			span := current[line_of(current, e.caret)]
 			edit_move(e, press.key == .Home ? span.start : span.end, shift)
 		case:

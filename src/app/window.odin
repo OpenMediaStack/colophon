@@ -383,8 +383,7 @@ system_theme :: proc() -> ui.Theme_Kind {
 reveal_in_file_manager :: proc(app: ^App, data: rawptr, path: string) {
 	_ = app
 	_ = data
-	folder := filepath.dir(path)
-	url := strings.concatenate({"file://", folder}, context.temp_allocator)
+	url := file_url(filepath.dir(path))
 	if !sdl.OpenURL(strings.clone_to_cstring(url, context.temp_allocator)) do sdl_failed("SDL_OpenURL")
 }
 

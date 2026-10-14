@@ -115,3 +115,16 @@ a_line_break_kept_in_a_field_of_several_lines_only :: proc(t: ^testing.T) {
 	edit_insert(&e, "a\nb\r")
 	testing.expect_value(t, edit_text(&e), "a\nb")
 }
+
+@(test)
+the_area_shows_what_is_typed_in_the_same_frame :: proc(t: ^testing.T) {
+	h: Harness
+	n: Note
+	note_harness(&h, &n, "abc")
+	defer destroy_note(&h, &n)
+	click(&h, "Comment")
+	type_text(&h, "X")
+	info, _ := find_widget(&h.ui, "Comment")
+	testing.expect_value(t, info.value, strings.to_string(n.text))
+	testing.expect(t, strings.contains(info.value, "X"))
+}
