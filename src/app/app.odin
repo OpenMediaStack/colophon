@@ -1,0 +1,40 @@
+package main
+
+import "../engine"
+import lib "../library"
+import ui "../ui"
+
+// Colophon's state above the engine: what the screens need between frames that the
+// engine does not already know. Make it with app_init, free it with app_destroy.
+App :: struct {
+	engine: engine.Engine,
+}
+
+// wake is called from the engine's threads when they have news for the loop.
+app_init :: proc(app: ^App, wake := lib.Wake{}, allocator := context.allocator) {
+	engine.init(&app.engine, wake, allocator)
+}
+
+app_destroy :: proc(app: ^App) {
+	engine.destroy(&app.engine)
+}
+
+// Draws the main screen in the window's area: a frame of the harness and of the loop.
+app_frame :: proc(ctx: ^ui.Ui, data: rawptr) {
+	main_screen(ctx, (^App)(data), ctx.viewport)
+}
+
+// Something was opened: a folder, or files. The panels wait for it.
+folder_open :: proc(app: ^App) -> bool {
+	return len(app.engine.library.roots) > 0
+}
+
+// Asks the user for a folder to open. The folder dialog comes with slice 29.
+open_folder :: proc(app: ^App) {
+	_ = app
+}
+
+// How a shortcut is written for the user: Command on macOS, Control elsewhere.
+shortcut_hint :: proc(key: string) -> string {
+	return ui.PLATFORM == .Mac ? ui.fill("⌘{}", key) : ui.fill("Ctrl+{}", key)
+}

@@ -36,6 +36,9 @@ Button_Options :: struct {
 	disabled: bool,
 	// Left and right of the content, in points; 12 when 0, the brief's inner padding.
 	padding:  f32,
+	// What assistive technologies call it when the label drawn says less, a shortcut
+	// hint such as the command palette's; the label when empty.
+	name:     string,
 }
 
 // Heights of the brief: buttons and inputs 28, a toolbar button 28 square.
@@ -74,7 +77,7 @@ button :: proc(
 		{
 			id = id,
 			role = .Button,
-			label = label,
+			label = options.name != "" ? options.name : label,
 			rect = rect,
 			states = widget_states(states),
 			focusable = !options.disabled,
@@ -204,9 +207,16 @@ button_style :: proc(kind: Button_Kind) -> Text_Style {
 	return kind == .Ghost || kind == .Secondary ? .Body : .Body_Strong
 }
 
-// A small button with an icon alone, a toast's close: the icon 14 points in the
+// A small button with an icon alone, a toast's close: the icon size points in the
 // tertiary text colour, a fill on hover, its label read by screen readers.
-icon_button :: proc(ui: ^Ui, id: Widget_Id, rect: Rect, icon: Icon, label: string) -> bool {
+icon_button :: proc(
+	ui: ^Ui,
+	id: Widget_Id,
+	rect: Rect,
+	icon: Icon,
+	label: string,
+	size: f32 = 14,
+) -> bool {
 	r := ui.renderer
 	th := ui.theme
 	states, activated := button_states(ui, id, rect, false)
@@ -217,7 +227,7 @@ icon_button :: proc(ui: ^Ui, id: Widget_Id, rect: Rect, icon: Icon, label: strin
 		fill_rect(r, rect, th.surface_3, RADIUS)
 	}
 	if .Focused in states do draw_focus_ring(r, th, rect, RADIUS)
-	draw_icon_centered(r, icon, rect, th.text_tertiary, 14)
+	draw_icon_centered(r, icon, rect, th.text_tertiary, size)
 	declare(
 		ui,
 		{
