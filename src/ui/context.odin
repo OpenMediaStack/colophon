@@ -108,6 +108,9 @@ Key_Press :: struct {
 	modifiers: Modifiers,
 	// Held down: the system repeats it.
 	repeat:    bool,
+	// How much of the input's text had come before it, so that keys and text keep
+	// their order.
+	text_at:   int,
 }
 
 // What the user did since the last frame. The app fills it from the system's events,
@@ -215,39 +218,56 @@ Cursor :: enum u8 {
 // react meanwhile. Keyboard focus moves only between frames. Make it with ui_init,
 // free it with ui_destroy.
 Ui :: struct {
-	allocator:    runtime.Allocator,
-	input:        Input,
-	renderer:     ^Renderer,
-	theme:        Theme,
+	allocator:       runtime.Allocator,
+	input:           Input,
+	renderer:        ^Renderer,
+	theme:           Theme,
 	// The widget under the mouse, from the previous frame, and the one this frame finds.
-	hot:          Widget_Id,
-	hot_next:     Widget_Id,
+	hot:             Widget_Id,
+	hot_next:        Widget_Id,
 	// The layer of the widget that claimed the hover: one on a lower layer, drawn later,
 	// does not take it.
-	hot_layer:    Layer,
+	hot_layer:       Layer,
 	// The widget the mouse button went down on, until it comes up.
-	active:       Widget_Id,
-	focus:        Widget_Id,
+	active:          Widget_Id,
+	focus:           Widget_Id,
 	// Whether the active and the focused widgets were drawn this frame: one that was not
 	// is gone, and loses the mouse or the keyboard.
-	active_seen:  bool,
-	focus_seen:   bool,
+	active_seen:     bool,
+	focus_seen:      bool,
 	// The widget the last press went down on, so that a double click needs two presses on
 	// the same widget.
-	last_press:   Widget_Id,
+	last_press:      Widget_Id,
 	// The groups being declared, innermost last.
-	parents:      [dynamic]Widget_Id,
+	parents:         [dynamic]Widget_Id,
 	// The focus the frame asked for: nil when it asked nothing, 0 to clear the focus.
-	focus_next:   Maybe(Widget_Id),
+	focus_next:      Maybe(Widget_Id),
 	// Where the mouse went down, for drags.
-	press_mouse:  [2]f32,
+	press_mouse:     [2]f32,
 	// The focus moved by Tab or Shift+Tab, rather than by the mouse: a text field then
 	// selects all its text.
-	focus_by_key: bool,
+	focus_by_key:    bool,
 	// Tab or Shift+Tab pressed in the focused widget, for the end of the frame.
-	tab:          Maybe(Tab),
-	widgets:      [dynamic]Widget_Info,
-	cursor:       Cursor,
+	tab:             Maybe(Tab),
+	widgets:         [dynamic]Widget_Info,
+	cursor:          Cursor,
+	// The text of the focused text field, which owns it, and how far it is scrolled.
+	edit:            Text_Edit,
+	edit_owner:      Widget_Id,
+	// Where a click that asked for a text field's focus was, in its value.
+	edit_click:      Maybe(Edit_Click),
+	// The value the focused field had when the focus came, for Escape to bring back.
+	edit_start:      [dynamic]u8,
+	// The field the focus left for another widget's request while it was typed in, and
+	// what it held: it commits that when next drawn.
+	edit_ended:      Widget_Id,
+	edit_ended_text: [dynamic]u8,
+	// The focused field reported a commit or a cancel this frame.
+	edit_reported:   bool,
+	edit_scroll:     f32,
+	// When the caret last moved, so that it shows at once and then blinks.
+	caret_time:      f64,
+	clipboard:       Clipboard,
 }
 
 // widgets and the input's lists use allocator.
@@ -259,6 +279,9 @@ ui_init :: proc(ui: ^Ui, renderer: ^Renderer, theme: Theme, allocator := context
 	ui.input.text = strings.builder_make(allocator)
 	ui.widgets = make([dynamic]Widget_Info, allocator)
 	ui.parents = make([dynamic]Widget_Id, allocator)
+	text_edit_init(&ui.edit, allocator)
+	ui.edit_start = make([dynamic]u8, allocator)
+	ui.edit_ended_text = make([dynamic]u8, allocator)
 }
 
 // Frees what ui_init made.
@@ -267,6 +290,9 @@ ui_destroy :: proc(ui: ^Ui) {
 	delete(ui.input.keys)
 	strings.builder_destroy(&ui.input.text)
 	delete(ui.widgets)
+	text_edit_destroy(&ui.edit)
+	delete(ui.edit_start)
+	delete(ui.edit_ended_text)
 	ui^ = {}
 }
 
@@ -305,6 +331,13 @@ ui_end_frame :: proc(ui: ^Ui) -> (redraw: bool) {
 	ui.focus_next = nil
 	ui.tab = nil
 	if ui.focus != focus do redraw = true
+	// A field typed in lost the focus without saying it was done: it will.
+	if focus != 0 && focus == ui.edit_owner && ui.focus != focus && !ui.edit_reported {
+		ui.edit_ended = focus
+		clear(&ui.edit_ended_text)
+		append(&ui.edit_ended_text, edit_text(&ui.edit))
+	}
+	ui.edit_reported = false
 	in_.pressed = {}
 	in_.released = {}
 	in_.clicks = 0
@@ -512,4 +545,10 @@ tab_target :: proc(ui: ^Ui, direction: Tab) -> (target: Widget_Id, found: bool) 
 	step := direction == .Forward ? 1 : -1
 	if at < 0 do at = direction == .Forward ? -1 : n
 	return focusable[(at + step + n) % n], true
+}
+
+// Where a click that asked for a text field's focus was, in that field's value.
+Edit_Click :: struct {
+	owner:  Widget_Id,
+	offset: int,
 }

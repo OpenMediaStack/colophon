@@ -24,6 +24,7 @@ A prototype built in a day (Odin, SDL3, every pixel drawn by the app) matched th
 | 2026-10-14 | ID3v1 genres follow odid3's table, ffmpeg's spellings, which differ from those of lofty, which 1.0.0 used, in 7 names: Jazz+Funk (Jazz & Funk), AlternRock (Alternative Rock), Native American (Native US), Showtunes (Show tunes), Rock & Roll (Rock 'n' Roll), Goa (Goa music), Indie Rock (Indie-Rock). A genre is kept whole in ID3v1 when the table spells it so, ignoring case; the genre suggestions of slice 21 will offer the same names. To raise with Florent. |
 | 2026-10-14 | A track total without its number (TRCK `/12`) is saved as it was read, `/12`, which odid3 reads back the same. 1.0.0 dropped such a total when saving, since lofty read `0/12` back as track 0. To raise with Florent. |
 | 2026-10-14 | Buttons, toolbar buttons included, take the keyboard focus, so that Tab reaches them and Enter or Space presses them. 1.0.0's buttons took none, and macOS Tabs to buttons only when Full Keyboard Access is on: following that setting on macOS is the other choice. To raise with Florent. |
+| 2026-10-14 | Text fields move and delete by word as each system does: to the end of the word on macOS and Linux (as GTK and 1.0.0 did everywhere), to the start of the next word on Windows (as Qt does on Linux too). Keys move the caret by grapheme cluster, so a letter and its accent mark, as macOS file names keep them, are one character. |
 
 The spikes of [Phase 0](#phase-0-foundations-and-spikes) add their results here.
 
@@ -98,7 +99,7 @@ Each slice is one pull request, in this order unless a slice says it can move. A
 
 - [x] **18. `feat(ui): context, input and headless tests`.** The `Ui` context, widget ids, hot, active and focus rules, layout helpers, and the harness that runs frames with scripted input and finds widgets by label. SDL's events become the `Ui`'s input through `input_from_sdl`, which the app's loop calls from slice 28.
 - [x] **19. `feat(ui): buttons`.** Toolbar buttons, icon and label, primary, secondary, ghost and destructive, every state of the brief's component sheet. Reference captures. Tooltips come with the overlays of slice 24; moving the focus with Tab with the text field of slice 20.
-- [ ] **20. `feat(ui): text field`.** Caret, selection by mouse and keys, word moves as each platform does them, clipboard, undo inside the field, double click selects a word and triple click all, placeholder, the states (hover, focus, modified, multiple values, error, disabled), IME composition (after spike 4), typed text as a pending change.
+- [x] **20. `feat(ui): text field`.** Caret, selection by mouse and keys, word moves as each platform does them, clipboard, undo inside the field, double click selects a word and triple click all, placeholder, the states (hover, focus, modified, multiple values, error, disabled), IME composition (after spike 4), typed text as a pending change. (Done but the IME composition, which slice 28 brings once Florent chose the text stack.) The editing itself lives in `Text_Edit`, apart from drawing, and is tested for each platform's word moves on any system; the field reports each change, which the inspector of slice 32 turns into `Continue_Edit`.
 - [ ] **21. `feat(ui): number pair and combo box`.** The track and disc pairs, the genre combo with suggestions.
 - [ ] **22. `feat(ui): checkbox and segmented control`.**
 - [ ] **23. `feat(ui): scrolling`.** Scroll areas, wheel and trackpad, scroll bars hidden when everything fits, hover and drag states.
@@ -111,11 +112,11 @@ Each slice is one pull request, in this order unless a slice says it can move. A
 
 Each screen matches 1.0.0's reference captures (`crates/ui-slint/tests/references/` on `main`), in both themes, and ports the interface tests named.
 
-- [ ] **28. `feat(app): window and panels`.** Toolbar, sidebar, inspector, status bar, the panel toggles and shortcuts, the collapse rules, the 960 by 600 minimum, the themes. Port `layout.rs`, `panels.rs`, `toolbar.rs`.
+- [ ] **28. `feat(app): window and panels`.** Toolbar, sidebar, inspector, status bar, the panel toggles and shortcuts, the collapse rules, the 960 by 600 minimum, the themes. Port `layout.rs`, `panels.rs`, `toolbar.rs`. Text input started for the focused field (`SDL_StartTextInput`), and the IME composition of text fields once Florent chose the text stack (spike 4).
 - [ ] **29. `feat(app): opening`.** The empty state, the folder and file dialogs, drag and drop with its drop target, the scanning state. Port `library.rs`, `drag_and_drop.rs`.
 - [ ] **30. `feat(app): track table`.** Every column, the Tags column, sorting, the filter field. Port `track_table.rs`, `columns.rs`.
 - [ ] **31. `feat(app): sidebar`.** Port `sidebar.rs`.
-- [ ] **32. `feat(app): inspector`.** Cover, fields, multiple values, the File section, unreadable files explained, genre suggestions. Port `inspector.rs`, `unreadable.rs`, `genres.rs`.
+- [ ] **32. `feat(app): inspector`.** Cover, fields, multiple values, the File section, unreadable files explained, genre suggestions. Port `inspector.rs`, `unreadable.rs`, `genres.rs`. The comment is a field of several lines, wrapped, with its own scroll bar, as 1.0.0's.
 - [ ] **33. `feat(app): editing`.** Inspector and table editing through engine commands, undo and redo, numbering an album, selecting an album. Port `editing.rs`, `table_editing.rs`, `selection.rs`.
 - [ ] **34. `feat(app): saving`.** Save buttons, unsaved markers, toasts, write errors, the unsaved changes dialog. Port `saving.rs`, `toasts.rs`, `unsaved_changes.rs`.
 - [ ] **35. `feat(app): warnings`.** In the table and the inspector, computed once after each change to the library or the edits (4 to 6 ms for 10,000 tracks), not every frame.
