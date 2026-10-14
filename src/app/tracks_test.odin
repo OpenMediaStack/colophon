@@ -417,7 +417,9 @@ the_table_matches_its_references :: proc(t: ^testing.T) {
 			// A file that only starts like an MP3, whose tags cannot be read.
 			damaged := fmt.tprintf("%s/Music/06 Damaged file.mp3", folder)
 			testing.expect(t, os.write_entire_file(damaged, transmute([]u8)string("ID3")) == nil)
-			// A folder named the same on every run, since the sidebar shows its name.
+			// A folder shown the same on every run: "~/Music", from a pinned home.
+			delete(s.app.home)
+			s.app.home = strings.clone(folder)
 			open_folder_of(t, &s, fmt.tprintf("%s/Music", folder))
 			wait_until_shown(t, &s, "12 tracks")
 			e := &s.app.engine

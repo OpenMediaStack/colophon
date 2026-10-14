@@ -323,3 +323,23 @@ an_undo_made_while_saving_waits_to_be_saved :: proc(t: ^testing.T) {
 	tags, _ := engine.shown_tags(&e, track_named(&e, "1.mp3"))
 	testing.expect_value(t, tags.album, "Small Hours")
 }
+
+@(test)
+the_revision_moves_with_the_library_and_the_edits :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := two_tracks(t, &e)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	// Reading the folder's tracks moved it already.
+	testing.expect(t, e.revision > 0)
+	before := e.revision
+	engine.execute(&e, engine.Select_All{})
+	engine.execute(&e, engine.Sort_By{.Title})
+	testing.expect_value(t, e.revision, before)
+	engine.execute(&e, engine.Apply_Edit{{.Album, "Analog Hearts"}})
+	testing.expect(t, e.revision > before)
+	before = e.revision
+	engine.execute(&e, engine.Save{})
+	poll_until_saved(t, &e)
+	testing.expect(t, e.revision > before)
+}

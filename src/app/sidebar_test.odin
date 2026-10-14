@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:strings"
 import "core:testing"
 
 import "../engine"
@@ -28,6 +29,9 @@ screen_with_a_library :: proc(t: ^testing.T, s: ^Screen) -> (folder: string) {
 			{"tiny_tag.mp3", "4.mp3"},
 		},
 	)
+	// The folder shows from the home folder, as "~": a home named the same on every run.
+	delete(s.app.home)
+	s.app.home = strings.clone(folder)
 	open_folder_of(t, s, folder)
 	wait_until_shown(t, s, "4 tracks")
 	return
@@ -39,12 +43,15 @@ the_sidebar_lists_the_library_its_folder_and_albums :: proc(t: ^testing.T) {
 	folder := screen_with_a_library(t, &s)
 	defer remove_folder(folder)
 	defer screen_destroy(&s)
-	for label in ([]string{"All tracks", "Recently changed", "Unreadable files", "Small Hours", "Ελληνικά"}) {
+	for label in ([]string{"All tracks", "Recently changed", "Unreadable files", "~", "Small Hours", "Ελληνικά"}) {
 		testing.expectf(t, sidebar_shows(&s, label), "%s is missing", label)
 	}
-	// The folder, by its name, in the Folders section.
 	testing.expect(t, sidebar_shows(&s, "Folders"))
-	testing.expect_value(t, len(s.app.engine.library.roots), 1)
+	// Each line carries its count.
+	all, _ := ui.find_widget(&s.h.ui, "All tracks")
+	testing.expect_value(t, all.value, "4")
+	unreadable, _ := ui.find_widget(&s.h.ui, "Unreadable files")
+	testing.expect_value(t, unreadable.value, "1")
 	// The artists are folded until asked for.
 	testing.expect(t, !sidebar_shows(&s, "坂本龍一"))
 }
@@ -66,6 +73,9 @@ an_album_lists_its_tracks_alone_and_titles_the_window :: proc(t: ^testing.T) {
 	testing.expect(t, ui.click(&s.h, "All tracks"))
 	testing.expect_value(t, len(s.app.engine.listed), 4)
 	testing.expect_value(t, window_title(&s.app), "Colophon · All tracks")
+	testing.expect(t, ui.click(&s.h, "~"))
+	testing.expect_value(t, len(s.app.engine.listed), 4)
+	testing.expect_value(t, window_title(&s.app), "Colophon · ~")
 }
 
 @(test)
@@ -136,6 +146,8 @@ the_sidebar_matches_its_references :: proc(t: ^testing.T) {
 			},
 		)
 		defer remove_folder(folder)
+		delete(s.app.home)
+		s.app.home = strings.clone(folder)
 		open_folder_of(t, &s, fmt.tprintf("%s/Music", folder))
 		wait_until_shown(t, &s, "5 tracks")
 		testing.expect(t, ui.click(&s.h, "Artists"))
