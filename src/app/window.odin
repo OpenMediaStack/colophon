@@ -3,6 +3,7 @@ package main
 import "base:runtime"
 import "core:c"
 import "core:fmt"
+import "core:path/filepath"
 import "core:strings"
 import sdl "vendor:sdl3"
 
@@ -73,6 +74,7 @@ run :: proc(options: Options) -> bool {
 		data        = &w,
 		open_folder = show_folder_dialog,
 		open_files  = show_files_dialog,
+		reveal      = reveal_in_file_manager,
 	}
 	open_window(&w, options) or_return
 	defer close_window(&w)
@@ -111,6 +113,18 @@ open_window :: proc(w: ^Window, options: Options) -> bool {
 	if !sdl.SetRenderVSync(w.renderer, 1) do sdl_failed("SDL_SetRenderVSync")
 	ui.renderer_init(&w.lists)
 	ui.ui_init(&w.ctx, &w.lists, ui.theme(system_theme()))
+	w.ctx.clipboard = {
+		get = proc(data: rawptr, allocator: runtime.Allocator) -> string {
+			text := sdl.GetClipboardText()
+			defer sdl.free(text)
+			return strings.clone(string(cstring(text)), allocator)
+		},
+		set = proc(data: rawptr, text: string) {
+			if !sdl.SetClipboardText(strings.clone_to_cstring(text, context.temp_allocator)) {
+				sdl_failed("SDL_SetClipboardText")
+			}
+		},
+	}
 	ui.sdl_backend_init(&w.backend, w.renderer)
 	return true
 }
@@ -361,6 +375,17 @@ system_cursor :: proc(cursor: ui.Cursor) -> sdl.SystemCursor {
 @(private = "file")
 system_theme :: proc() -> ui.Theme_Kind {
 	return sdl.GetSystemTheme() == .LIGHT ? .Light : .Dark
+}
+
+// Opens the folder holding a file in the system's file manager. Picking the file out
+// among the others needs each system's own call, which comes with the platform slices.
+@(private = "file")
+reveal_in_file_manager :: proc(app: ^App, data: rawptr, path: string) {
+	_ = app
+	_ = data
+	folder := filepath.dir(path)
+	url := strings.concatenate({"file://", folder}, context.temp_allocator)
+	if !sdl.OpenURL(strings.clone_to_cstring(url, context.temp_allocator)) do sdl_failed("SDL_OpenURL")
 }
 
 // What a dialog's user chose, on its way to the loop through an event. Made on the

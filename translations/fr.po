@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-14 18:27+0200\n"
+"POT-Creation-Date: 2026-10-14 18:40+0200\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -21,49 +21,243 @@ msgstr "Colophon lit les tags de chaque MP3 d’un dossier et de ses sous-dossie
 msgid "Open folder…"
 msgstr "Ouvrir un dossier…"
 
+#: src/app/inspector.odin:60
+msgid "Inspector"
+msgstr "Inspecteur"
+
+#: src/app/inspector.odin:97
+msgid "Select tracks to see their tags"
+msgstr "Sélectionnez des morceaux pour voir leurs tags"
+
+#: src/app/inspector.odin:98
+msgid "{} selects every track"
+msgstr "{} sélectionne tous les morceaux"
+
+#: src/app/inspector.odin:149
+msgid "No cover"
+msgstr "Pas de pochette"
+
+#: src/app/inspector.odin:152
+msgid "{n} track selected"
+msgid_plural "{n} tracks selected"
+msgstr[0] "{n} morceau sélectionné"
+msgstr[1] "{n} morceaux sélectionnés"
+
+#: src/app/inspector.odin:182 src/app/status_bar.odin:49
+msgid "{n} file could not be read"
+msgid_plural "{n} files could not be read"
+msgstr[0] "{n} fichier illisible"
+msgstr[1] "{n} fichiers illisibles"
+
+#: src/app/inspector.odin:197 src/app/inspector.odin:212
+#: src/app/tracks.odin:170
+msgid "Tags"
+msgstr "Tags"
+
+#: src/app/inspector.odin:204 src/app/tracks.odin:172
+msgid "File"
+msgstr "Fichier"
+
+#: src/app/inspector.odin:206
+msgid "Audio"
+msgstr "Audio"
+
+#: src/app/inspector.odin:209
+msgid "{} total"
+msgstr "{} au total"
+
+#: src/app/inspector.odin:210
+msgid "Size"
+msgstr "Taille"
+
+#: src/app/inspector.odin:215
+msgid "Saved as"
+msgstr "Enregistré en"
+
+#: src/app/inspector.odin:226 src/app/toolbar.odin:119
+msgid "Save {n} file"
+msgid_plural "Save {n} files"
+msgstr[0] "Enregistrer {n} fichier"
+msgstr[1] "Enregistrer {n} fichiers"
+
+#: src/app/inspector.odin:226 src/app/toolbar.odin:115
+msgid "Saving…"
+msgstr "Enregistrement…"
+
+#: src/app/inspector.odin:239
+msgid "Revert"
+msgstr "Rétablir l’original"
+
+#: src/app/inspector.odin:294 src/app/tracks.odin:156
+msgid "Title"
+msgstr "Titre"
+
+#: src/app/inspector.odin:296 src/app/tracks.odin:158
+msgid "Artist"
+msgstr "Artiste"
+
+#: src/app/inspector.odin:303
+msgid "Album artist"
+msgstr "Artiste de l’album"
+
+#: src/app/inspector.odin:311 src/app/tracks.odin:160
+msgid "Album"
+msgstr "Album"
+
+#: src/app/inspector.odin:314 src/app/tracks.odin:162
+msgid "Year"
+msgstr "Année"
+
+#: src/app/inspector.odin:344
+msgid "Multiple"
+msgstr "Multiples"
+
+#: src/app/inspector.odin:353
+msgid "of"
+msgstr "sur"
+
+#: src/app/inspector.odin:363 src/app/inspector.odin:365
+msgid "Track"
+msgstr "Piste"
+
+#: src/app/inspector.odin:365
+msgid "Track total"
+msgstr "Nombre de pistes"
+
+#: src/app/inspector.odin:376 src/app/inspector.odin:378
+msgid "Disc"
+msgstr "Disque"
+
+#: src/app/inspector.odin:378
+msgid "Disc total"
+msgstr "Nombre de disques"
+
+#: src/app/inspector.odin:386 src/app/tracks.odin:164
+msgid "Genre"
+msgstr "Genre"
+
+#: src/app/inspector.odin:401
+msgid "Comment"
+msgstr "Commentaire"
+
+#: src/app/inspector.odin:482 src/app/inspector.odin:504
+#: src/app/inspector.odin:577 src/app/inspector.odin:622
+msgid "Multiple values"
+msgstr "Valeurs multiples"
+
+#: src/app/inspector.odin:589
+msgid "{} kHz"
+msgstr "{} kHz"
+
+#: src/app/inspector.odin:591
+msgid "{}.{} kHz"
+msgstr "{},{} kHz"
+
+#: src/app/inspector.odin:593
+msgid "{} kbps"
+msgstr "{} kbit/s"
+
+#: src/app/inspector.odin:603
+msgid "{n} byte"
+msgid_plural "{n} bytes"
+msgstr[0] "{n} octet"
+msgstr[1] "{n} octets"
+
+#: src/app/inspector.odin:605
+msgid "{} KB"
+msgstr "{} Ko"
+
+#: src/app/inspector.odin:608
+msgid "{}.{} MB"
+msgstr "{},{} Mo"
+
+#: src/app/inspector.odin:611
+msgid "{}.{} GB"
+msgstr "{},{} Go"
+
+#: src/app/inspector.odin:620 src/app/inspector.odin:625
+msgid "None"
+msgstr "Aucun"
+
+#: src/app/inspector.odin:638
+msgid "Could not read this file"
+msgstr "Impossible de lire ce fichier"
+
+#: src/app/inspector.odin:657
+msgid "Problem"
+msgstr "Problème"
+
+#: src/app/inspector.odin:663
+msgid "Colophon could not open this file. It may have been moved or deleted, or Colophon may not be allowed to read it."
+msgstr "Colophon n’a pas pu ouvrir ce fichier. Il a peut-être été déplacé ou supprimé, ou Colophon n’a pas le droit de le lire."
+
+#: src/app/inspector.odin:667
+msgid "This file is damaged, or it is not an MP3: Colophon could not make sense of it."
+msgstr "Ce fichier est abîmé, ou ce n’est pas un MP3 : Colophon n’a pas pu le comprendre."
+
+#: src/app/inspector.odin:686
+msgid "Details"
+msgstr "Détails"
+
+#: src/app/inspector.odin:689
+msgid "File size"
+msgstr "Taille du fichier"
+
+#: src/app/inspector.odin:705
+msgid "Show in Finder"
+msgstr "Afficher dans le Finder"
+
+#: src/app/inspector.odin:707
+msgid "Show in Explorer"
+msgstr "Afficher dans l’Explorateur"
+
+#: src/app/inspector.odin:709
+msgid "Show in Folder"
+msgstr "Afficher dans le dossier"
+
+#: src/app/inspector.odin:716
+msgid "Copy details"
+msgstr "Copier les détails"
+
 #: src/app/screen.odin:85
 msgid "Drop to open these folders and files"
 msgstr "Déposez pour ouvrir ces dossiers et fichiers"
 
-#: src/app/screen.odin:101
-msgid "Inspector"
-msgstr "Inspecteur"
-
-#: src/app/sidebar.odin:65
+#: src/app/sidebar.odin:59
 msgid "Sidebar"
 msgstr "Barre latérale"
 
-#: src/app/sidebar.odin:72 src/app/sidebar.odin:182
+#: src/app/sidebar.odin:66 src/app/sidebar.odin:176
 msgid "All tracks"
 msgstr "Toutes les pistes"
 
-#: src/app/sidebar.odin:75 src/app/sidebar.odin:184
+#: src/app/sidebar.odin:69 src/app/sidebar.odin:178
 msgid "Recently changed"
 msgstr "Modifiés récemment"
 
-#: src/app/sidebar.odin:78 src/app/sidebar.odin:186
+#: src/app/sidebar.odin:72 src/app/sidebar.odin:180
 msgid "Unreadable files"
 msgstr "Fichiers illisibles"
 
-#: src/app/sidebar.odin:100
+#: src/app/sidebar.odin:94
 msgid "Library"
 msgstr "Bibliothèque"
 
-#: src/app/sidebar.odin:105
+#: src/app/sidebar.odin:99
 msgid "Folders"
 msgstr "Dossiers"
 
-#: src/app/sidebar.odin:118
+#: src/app/sidebar.odin:112
 msgid "Albums"
 msgstr "Albums"
 
-#: src/app/sidebar.odin:132
+#: src/app/sidebar.odin:126
 msgid "{n} more album"
 msgid_plural "{n} more albums"
 msgstr[0] "{n} autre album"
 msgstr[1] "{n} autres albums"
 
-#: src/app/sidebar.odin:150 src/app/sidebar.odin:157
+#: src/app/sidebar.odin:144 src/app/sidebar.odin:151
 msgid "Artists"
 msgstr "Artistes"
 
@@ -90,12 +284,6 @@ msgid "{n} file with unsaved changes"
 msgid_plural "{n} files with unsaved changes"
 msgstr[0] "{n} fichier avec des modifications non enregistrées"
 msgstr[1] "{n} fichiers avec des modifications non enregistrées"
-
-#: src/app/status_bar.odin:49
-msgid "{n} file could not be read"
-msgid_plural "{n} files could not be read"
-msgstr[0] "{n} fichier illisible"
-msgstr[1] "{n} fichiers illisibles"
 
 #: src/app/status_bar.odin:54
 msgid "Developer mode"
@@ -161,19 +349,9 @@ msgstr "Afficher ou masquer la barre latérale"
 msgid "Toggle inspector"
 msgstr "Afficher ou masquer l’inspecteur"
 
-#: src/app/toolbar.odin:115
-msgid "Saving…"
-msgstr "Enregistrement…"
-
 #: src/app/toolbar.odin:117
 msgid "Save"
 msgstr "Enregistrer"
-
-#: src/app/toolbar.odin:119
-msgid "Save {n} file"
-msgid_plural "Save {n} files"
-msgstr[0] "Enregistrer {n} fichier"
-msgstr[1] "Enregistrer {n} fichiers"
 
 #: src/app/toolbar.odin:144
 msgid "Filter by title, artist, album"
@@ -195,26 +373,6 @@ msgstr "Morceaux"
 msgid "Sort by {}"
 msgstr "Trier par {}"
 
-#: src/app/tracks.odin:156
-msgid "Title"
-msgstr "Titre"
-
-#: src/app/tracks.odin:158
-msgid "Artist"
-msgstr "Artiste"
-
-#: src/app/tracks.odin:160
-msgid "Album"
-msgstr "Album"
-
-#: src/app/tracks.odin:162
-msgid "Year"
-msgstr "Année"
-
-#: src/app/tracks.odin:164
-msgid "Genre"
-msgstr "Genre"
-
 #: src/app/tracks.odin:166
 msgid "Time"
 msgstr "Durée"
@@ -222,14 +380,6 @@ msgstr "Durée"
 #: src/app/tracks.odin:168
 msgid "Bitrate"
 msgstr "Débit"
-
-#: src/app/tracks.odin:170
-msgid "Tags"
-msgstr "Tags"
-
-#: src/app/tracks.odin:172
-msgid "File"
-msgstr "Fichier"
 
 #: src/app/tracks.odin:174
 msgid "Folder"
@@ -342,9 +492,6 @@ msgstr "Choisir les colonnes"
 
 #~ msgid "Number Tracks"
 #~ msgstr "Numéroter les pistes"
-
-#~ msgid "Revert"
-#~ msgstr "Rétablir l’original"
 
 #~ msgid "Pause"
 #~ msgstr "Pause"
@@ -479,20 +626,8 @@ msgstr "Choisir les colonnes"
 #~ msgid "Command Palette…"
 #~ msgstr "Palette de commandes…"
 
-#~ msgid "Show in Finder"
-#~ msgstr "Afficher dans le Finder"
-
-#~ msgid "Show in Explorer"
-#~ msgstr "Afficher dans l’Explorateur"
-
-#~ msgid "Show in Folder"
-#~ msgstr "Afficher dans le dossier"
-
 #~ msgid "Cancel"
 #~ msgstr "Annuler"
-
-#~ msgid "Multiple values"
-#~ msgstr "Valeurs multiples"
 
 #~ msgid "{}, {} bytes"
 #~ msgstr "{}, {} octets"
@@ -543,26 +678,6 @@ msgstr "Choisir les colonnes"
 #~ msgid "Footer"
 #~ msgstr "Pied"
 
-#~ msgid "{n} byte"
-#~ msgid_plural "{n} bytes"
-#~ msgstr[0] "{n} octet"
-#~ msgstr[1] "{n} octets"
-
-#~ msgid "{} KB"
-#~ msgstr "{} Ko"
-
-#~ msgid "{0}.{1} MB"
-#~ msgstr "{0},{1} Mo"
-
-#~ msgid "{0}.{1} GB"
-#~ msgstr "{0},{1} Go"
-
-#~ msgid "Comment"
-#~ msgstr "Commentaire"
-
-#~ msgid "Track"
-#~ msgstr "Piste"
-
 #~ msgid "Saving converts {n} file."
 #~ msgid_plural "Saving converts {n} files."
 #~ msgstr[0] "L’enregistrement convertit {n} fichier."
@@ -583,21 +698,6 @@ msgstr "Choisir les colonnes"
 #~ msgstr[0] "L’enregistrement convertit {n} fichier de {0} en {1}."
 #~ msgstr[1] "L’enregistrement convertit {n} fichiers de {0} en {1}."
 
-#~ msgid "{} kbps"
-#~ msgstr "{} kbit/s"
-
-#~ msgid "{} kHz"
-#~ msgstr "{} kHz"
-
-#~ msgid "{0}.{1} kHz"
-#~ msgstr "{0},{1} kHz"
-
-#~ msgid "Select tracks to see their tags"
-#~ msgstr "Sélectionnez des morceaux pour voir leurs tags"
-
-#~ msgid "{} selects every track"
-#~ msgstr "{} sélectionne tous les morceaux"
-
 #~ msgid "Replace Cover…"
 #~ msgstr "Remplacer la pochette…"
 
@@ -612,14 +712,6 @@ msgstr "Choisir les colonnes"
 
 #~ msgid "Several covers"
 #~ msgstr "Plusieurs pochettes"
-
-#~ msgid "No cover"
-#~ msgstr "Pas de pochette"
-
-#~ msgid "{n} track selected"
-#~ msgid_plural "{n} tracks selected"
-#~ msgstr[0] "{n} morceau sélectionné"
-#~ msgstr[1] "{n} morceaux sélectionnés"
 
 #~ msgid "Replace cover…"
 #~ msgstr "Remplacer la pochette…"
@@ -638,39 +730,6 @@ msgstr "Choisir les colonnes"
 
 #~ msgid "Some of these tracks have an album artist that differs from the rest of their albums."
 #~ msgstr "Certaines de ces pistes ont un artiste d’album différent du reste de leur album."
-
-#~ msgid "Album artist"
-#~ msgstr "Artiste de l’album"
-
-#~ msgid "Multiple"
-#~ msgstr "Multiples"
-
-#~ msgid "of"
-#~ msgstr "sur"
-
-#~ msgid "Track total"
-#~ msgstr "Nombre de pistes"
-
-#~ msgid "Disc"
-#~ msgstr "Disque"
-
-#~ msgid "Disc total"
-#~ msgstr "Nombre de disques"
-
-#~ msgid "Audio"
-#~ msgstr "Audio"
-
-#~ msgid "Size"
-#~ msgstr "Taille"
-
-#~ msgid "{} total"
-#~ msgstr "{} au total"
-
-#~ msgid "None"
-#~ msgstr "Aucun"
-
-#~ msgid "Saved as"
-#~ msgstr "Enregistré en"
 
 #~ msgid "Tag format"
 #~ msgstr "Format des tags"
@@ -714,29 +773,8 @@ msgstr "Choisir les colonnes"
 #~ msgid "Inspector scroll bar"
 #~ msgstr "Barre de défilement de l’inspecteur"
 
-#~ msgid "Could not read this file"
-#~ msgstr "Impossible de lire ce fichier"
-
-#~ msgid "Problem"
-#~ msgstr "Problème"
-
-#~ msgid "Colophon could not open this file. It may have been moved or deleted, or Colophon may not be allowed to read it."
-#~ msgstr "Colophon n’a pas pu ouvrir ce fichier. Il a peut-être été déplacé ou supprimé, ou Colophon n’a pas le droit de le lire."
-
-#~ msgid "This file is damaged, or it is not an MP3: Colophon could not make sense of it."
-#~ msgstr "Ce fichier est abîmé, ou ce n’est pas un MP3 : Colophon n’a pas pu le comprendre."
-
 #~ msgid "Reading this file failed in a way it never should. This is a bug in Colophon, and the file itself may be fine."
 #~ msgstr "La lecture de ce fichier a échoué d’une façon qui ne devrait jamais arriver. C’est un bogue de Colophon, et le fichier lui-même est peut-être intact."
-
-#~ msgid "Details"
-#~ msgstr "Détails"
-
-#~ msgid "File size"
-#~ msgstr "Taille du fichier"
-
-#~ msgid "Copy details"
-#~ msgstr "Copier les détails"
 
 #~ msgid "Type a command"
 #~ msgstr "Tapez une commande"

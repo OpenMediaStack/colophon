@@ -21,14 +21,16 @@ PLATFORM ::
 // the reader sees them (grapheme clusters: a letter and its accent mark are one). Make it with
 // text_edit_init, free it with text_edit_destroy.
 Text_Edit :: struct {
-	buffer: [dynamic]u8,
-	caret:  int,
+	buffer:    [dynamic]u8,
+	caret:     int,
 	// The other end of the selection; equal to caret when nothing is selected.
-	anchor: int,
-	undo:   [dynamic]Edit_Step,
-	redo:   [dynamic]Edit_Step,
+	anchor:    int,
+	undo:      [dynamic]Edit_Step,
+	redo:      [dynamic]Edit_Step,
 	// What the last change did, so that typing a word is one step to undo.
-	last:   Edit_Kind,
+	last:      Edit_Kind,
+	// The text may hold line breaks: a field of several lines.
+	multiline: bool,
 }
 
 // What a field's text was before a change, and where its caret and selection were.
@@ -128,15 +130,20 @@ edit_select_word :: proc(e: ^Text_Edit, offset: int) {
 	e.last = .None
 }
 
-// Replaces the selection with text, which loses its line breaks and control
-// characters, a tab becoming a space: a field holds one line, and a NUL would split a
-// tag's value in two.
+// Replaces the selection with text, which loses its control characters, a tab
+// becoming a space, and its line breaks unless the field holds several lines: a NUL
+// would split a tag's value in two.
 edit_insert :: proc(e: ^Text_Edit, text: string) {
 	if len(text) == 0 do return
 	remember(e, .Typing)
 	delete_selection(e)
 	for c in text {
 		r := c == '\t' ? ' ' : c
+		if r == '\n' && e.multiline {
+			inject_at(&e.buffer, e.caret, '\n')
+			e.caret += 1
+			continue
+		}
 		if r < 0x20 || r == 0x7F do continue
 		bytes, n := utf8.encode_rune(r)
 		inject_at(&e.buffer, e.caret, ..bytes[:n])

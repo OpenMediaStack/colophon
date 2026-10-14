@@ -10,22 +10,23 @@ import ui "../ui"
 // Colophon's state above the engine: what the screens need between frames that the
 // engine does not already know. Make it with app_init, free it with app_destroy.
 App :: struct {
-	engine:   engine.Engine,
-	dialogs:  Dialogs,
-	drop:     Drop,
+	engine:    engine.Engine,
+	dialogs:   Dialogs,
+	drop:      Drop,
 	// What the track table keeps between frames: its scroll, a drag of a column.
-	table:    ui.Table_State,
-	sidebar:  Sidebar,
+	table:     ui.Table_State,
+	sidebar:   Sidebar,
+	inspector: Inspector,
 	// How many commands ran: a frame in which one ran is followed by another at once,
 	// so that what it changed shows.
-	commands: int,
+	commands:  int,
 	// Whose conventions the screens follow, the shortcuts they write and the order of
 	// a dialog's buttons: the system's, unless a test pins one so that its captures
 	// are the same everywhere.
-	platform: ui.Platform,
+	platform:  ui.Platform,
 	// The user's home folder, without a trailing separator, which the table shows as
 	// a tilde; empty when the system does not say.
-	home:     string,
+	home:      string,
 }
 
 // Runs a command of the engine, counting it for the loop.
@@ -41,6 +42,8 @@ Dialogs :: struct {
 	data:        rawptr,
 	open_folder: proc(app: ^App, data: rawptr),
 	open_files:  proc(app: ^App, data: rawptr),
+	// Shows a file in the system's file manager.
+	reveal:      proc(app: ^App, data: rawptr, path: string),
 }
 
 // Files dragged over the window, until they are dropped or the drag leaves.
@@ -55,6 +58,7 @@ Drop :: struct {
 app_init :: proc(app: ^App, wake := lib.Wake{}, allocator := context.allocator) {
 	engine.init(&app.engine, wake, allocator)
 	app.platform = ui.PLATFORM
+	init_inspector(&app.inspector)
 	app.drop.paths = make([dynamic]string, allocator)
 	home := os.get_env("HOME", context.temp_allocator)
 	app.home = strings.clone(strings.trim_right(home, "/\\"), allocator)
@@ -63,6 +67,7 @@ app_init :: proc(app: ^App, wake := lib.Wake{}, allocator := context.allocator) 
 app_destroy :: proc(app: ^App) {
 	delete(app.home, app.engine.allocator)
 	destroy_sidebar(&app.sidebar)
+	destroy_inspector(&app.inspector, app.engine.allocator)
 	forget_dropped(app)
 	delete(app.drop.paths)
 	engine.destroy(&app.engine)
@@ -86,6 +91,11 @@ open_folder :: proc(app: ^App) {
 // Asks the user for files to open.
 open_files :: proc(app: ^App) {
 	if app.dialogs.open_files != nil do app.dialogs.open_files(app, app.dialogs.data)
+}
+
+// Shows a file in the system's file manager.
+reveal_file :: proc(app: ^App, path: string) {
+	if app.dialogs.reveal != nil do app.dialogs.reveal(app, app.dialogs.data, path)
 }
 
 // A drag of files came over the window: the drop target shows.

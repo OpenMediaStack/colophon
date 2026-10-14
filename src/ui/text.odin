@@ -228,14 +228,38 @@ wrap_text :: proc(
 	width: f32,
 	allocator := context.allocator,
 ) -> []string {
-	lines := make([dynamic]string, allocator)
-	paragraphs := text
-	for paragraph in strings.split_lines_iterator(&paragraphs) {
-		rest := paragraph
-		if len(rest) == 0 do append(&lines, rest)
-		for len(rest) > 0 {
+	spans := wrap_lines(r, text, style, width, context.temp_allocator)
+	lines := make([]string, len(spans), allocator)
+	for span, i in spans do lines[i] = text[span.start:span.end]
+	return lines
+}
+
+// A line of wrapped text: where it starts and ends in the text, in bytes. The spaces
+// cut at, and the line breaks, lie between the lines.
+Line_Span :: struct {
+	start, end: int,
+}
+
+// Where wrap_text cuts text, as offsets into it. Allocated with allocator.
+wrap_lines :: proc(
+	r: ^Renderer,
+	text: string,
+	style: Text_Style,
+	width: f32,
+	allocator := context.allocator,
+) -> []Line_Span {
+	lines := make([dynamic]Line_Span, allocator)
+	at := 0
+	for at <= len(text) {
+		// The paragraph from at to its line break, or the end.
+		break_at := strings.index_byte(text[at:], '\n')
+		paragraph_end := break_at < 0 ? len(text) : at + break_at
+		start := at
+		// An empty paragraph is a line; a paragraph cut to its end adds none.
+		for first := true; first || start < paragraph_end; first = false {
+			rest := text[start:paragraph_end]
 			if text_width(r, rest, style) <= width {
-				append(&lines, rest)
+				append(&lines, Line_Span{start, paragraph_end})
 				break
 			}
 			// The longest start that fits, back to its last space if it has one.
@@ -248,9 +272,13 @@ wrap_text :: proc(
 			if space := strings.last_index_byte(rest[:length], ' '); space > 0 do end = space
 			// One character at least, whole, when none fits.
 			if end == 0 do _, end = utf8.decode_rune_in_string(rest)
-			append(&lines, strings.trim_right_space(rest[:end]))
-			rest = strings.trim_left_space(rest[end:])
+			trimmed := len(strings.trim_right_space(rest[:end]))
+			append(&lines, Line_Span{start, start + trimmed})
+			start += end
+			for start < paragraph_end && text[start] == ' ' do start += 1
 		}
+		if break_at < 0 do break
+		at = paragraph_end + 1
 	}
 	return lines[:]
 }
