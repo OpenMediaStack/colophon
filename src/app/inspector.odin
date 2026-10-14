@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:strconv"
+import "core:strings"
 
 import "../engine"
 import lib "../library"
@@ -121,7 +122,11 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 
 	// The content's height, for the scroll.
 	height: f32 = 2 * INSPECTOR_PADDING + 64 + SECTION_GAP + 16
-	if i.tags_open do height += 8 + 8 * (ui.BUTTON_HEIGHT + FIELD_GAP) + COMMENT_HEIGHT
+	lost := lost_names(s.id3v1_losses)
+	if i.tags_open {
+		height += 8 + 8 * (ui.BUTTON_HEIGHT + FIELD_GAP) + COMMENT_HEIGHT
+		if lost != "" do height += WARNING_HEIGHT
+	}
 	height += SECTION_GAP + 16
 	if i.file_open do height += 8 + f32(s.modified != {} ? 4 : 3) * 20
 	origin := ui.begin_scroll(ctx, id, body, {body.w, height}, &i.scroll)
@@ -185,6 +190,17 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 
 	if section_header(ctx, 0, ui.tr("Tags"), {x, y, width, 16}, &i.tags_open) {
 		y += 16 + 8
+		if lost != "" {
+			warning_row(
+				ctx,
+				ui.fill(ui.tr("ID3v1 will keep only part of: {}"), lost),
+				x,
+				y,
+				width,
+				0,
+			)
+			y += WARNING_HEIGHT
+		}
 		y = tag_fields(ctx, app, s, x, y, width)
 	} else {
 		y += 16
@@ -233,6 +249,59 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	revert_width := ui.button_width(r, revert_label, revert_options)
 	revert_rect := ui.Rect{save_rect.x - 8 - revert_width, by, revert_width, ui.BUTTON_HEIGHT}
 	if ui.button(ctx, ui.widget_id("Revert"), revert_rect, revert_label, revert_options) do execute(app, engine.Revert{})
+}
+
+@(private = "file")
+WARNING_HEIGHT :: 22
+
+// A warning under the Tags header: what saving would lose, and with slice 35 a track
+// unlike the rest of its album.
+@(private = "file")
+warning_row :: proc(ctx: ^ui.Ui, text: string, x, y, width: f32, index: int) {
+	r := ctx.renderer
+	th := ctx.theme
+	ui.draw_icon(r, .Triangle_Alert, {x, y + 4, 14, 14}, th.warning)
+	ui.draw_text_fit(r, text, x + 20, y + WARNING_HEIGHT / 2, width - 20, .Small, th.warning)
+	ui.declare(
+		ctx,
+		{
+			id = ui.widget_id("Inspector warning", index),
+			role = .Label,
+			label = text,
+			rect = {x, y, width, WARNING_HEIGHT},
+		},
+	)
+}
+
+// The fields an ID3v1 tag would keep only part of, named in 1.0.0's order and joined
+// with commas; empty when none. Allocated with the temporary allocator.
+@(private = "file")
+lost_names :: proc(losses: lib.Id3v1_Losses) -> string {
+	order := [?]lib.Id3v1_Loss{.Title, .Artist, .Album, .Year, .Comment, .Track, .Genre}
+	names := make([dynamic]string, context.temp_allocator)
+	for loss in order do if loss in losses do append(&names, loss_name(loss))
+	return strings.join(names[:], ", ", context.temp_allocator)
+}
+
+@(private = "file")
+loss_name :: proc(loss: lib.Id3v1_Loss) -> string {
+	switch loss {
+	case .Title:
+		return ui.tr("Title")
+	case .Artist:
+		return ui.tr("Artist")
+	case .Album:
+		return ui.tr("Album")
+	case .Year:
+		return ui.tr("Year")
+	case .Comment:
+		return ui.tr("Comment")
+	case .Track:
+		return ui.tr("Track")
+	case .Genre:
+		return ui.tr("Genre")
+	}
+	return ""
 }
 
 // A section's title, the index-th of the panel, which hides the section or shows it

@@ -2,6 +2,7 @@ package engine_tests
 
 import "core:fmt"
 import "core:os"
+import "core:path/filepath"
 import "core:strings"
 import "core:testing"
 import "core:time"
@@ -346,4 +347,29 @@ the_revision_moves_with_the_library_and_the_edits :: proc(t: ^testing.T) {
 	poll_until_saved(t, &e)
 	testing.expect(t, e.revision > before)
 	testing.expect(t, e.library_revision > library_before)
+}
+
+@(test)
+a_save_reports_how_it_ended :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := two_tracks(t, &e)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	engine.execute(&e, engine.Select_All{})
+	engine.execute(&e, engine.Apply_Edit{{.Album, "Analog Hearts"}})
+	engine.execute(&e, engine.Save{})
+	poll_until_saved(t, &e)
+	testing.expect_value(t, e.saves_ended, 1)
+	testing.expect_value(t, e.last_save, engine.Save_Report{2, 0})
+
+	// A file that cannot be written counts as failed, its changes still pending.
+	path, _ := filepath.join({folder, "1.mp3"}, context.temp_allocator)
+	testing.expect(t, set_read_only(path, true))
+	defer set_read_only(path, false)
+	engine.execute(&e, engine.Apply_Edit{{.Album, "Paper Hearts"}})
+	engine.execute(&e, engine.Save{})
+	poll_until_saved(t, &e)
+	testing.expect_value(t, e.saves_ended, 2)
+	testing.expect_value(t, e.last_save, engine.Save_Report{1, 1})
+	testing.expect_value(t, len(e.edits.pending), 1)
 }

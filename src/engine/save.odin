@@ -22,6 +22,11 @@ Save_Failure :: struct {
 	error: lib.Write_Error,
 }
 
+// How a save ended: how many files it wrote, and how many it could not.
+Save_Report :: struct {
+	written, failed: int,
+}
+
 @(private)
 Saving :: struct {
 	save:     ^lib.Save,
@@ -125,6 +130,8 @@ poll_save :: proc(e: ^Engine) -> (changed: bool) {
 	}
 	if finished {
 		lib.destroy_save(s.save)
+		e.last_save = {s.progress.done - len(e.save_failures), len(e.save_failures)}
+		e.saves_ended += 1
 		e.saving = nil
 	}
 	return

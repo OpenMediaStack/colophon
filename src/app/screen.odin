@@ -53,6 +53,7 @@ layout_of :: proc(app: ^App, window: ui.Rect) -> (l: Layout) {
 // status bar, and the shortcuts no widget took.
 main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	th := ctx.theme
+	follow_save(app, ctx.input.time)
 	l := layout_of(app, window)
 	// The lines between the regions: the window shows through the point between them.
 	ui.fill_rect(ctx.renderer, window, th.border_subtle)
@@ -68,6 +69,8 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	if l.inspector_shown do inspector(ctx, app, l.inspector)
 	status_bar(ctx, app, l.status)
 	if app.drop.hovering do drop_target(ctx, window)
+	toasts(ctx, app, window)
+	unsaved_changes(ctx, app, window)
 	shortcuts(ctx, app)
 }
 

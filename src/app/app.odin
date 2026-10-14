@@ -10,27 +10,35 @@ import ui "../ui"
 // Colophon's state above the engine: what the screens need between frames that the
 // engine does not already know. Make it with app_init, free it with app_destroy.
 App :: struct {
-	engine:    engine.Engine,
-	dialogs:   Dialogs,
-	drop:      Drop,
+	engine:      engine.Engine,
+	dialogs:     Dialogs,
+	drop:        Drop,
 	// What the track table keeps between frames: its scroll, a drag of a column.
-	table:     ui.Table_State,
+	table:       ui.Table_State,
 	// What it keeps beside that: the cell edited, a click waiting to shrink the
 	// selection, the track whose menu is open.
-	tracks:    Tracks,
-	genres:    Genres,
-	sidebar:   Sidebar,
-	inspector: Inspector,
+	tracks:      Tracks,
+	genres:      Genres,
+	sidebar:     Sidebar,
+	inspector:   Inspector,
 	// How many commands ran: a frame in which one ran is followed by another at once,
 	// so that what it changed shows.
-	commands:  int,
+	commands:    int,
 	// Whose conventions the screens follow, the shortcuts they write and the order of
 	// a dialog's buttons: the system's, unless a test pins one so that its captures
 	// are the same everywhere.
-	platform:  ui.Platform,
+	platform:    ui.Platform,
 	// The user's home folder, without a trailing separator, which the table shows as
 	// a tilde; empty when the system does not say.
-	home:      string,
+	home:        string,
+	// The toast shown, if one is.
+	notice:      Maybe(Notice),
+	// How many saves had ended when the last one was told of.
+	shown_saves: int,
+	// What the window does about quitting with changes that are not saved.
+	departure:   Maybe(Departure),
+	// The window closes: the loop ends after the frame.
+	quit:        bool,
 }
 
 // Runs a command of the engine, counting it for the loop.
@@ -72,6 +80,7 @@ app_destroy :: proc(app: ^App) {
 	delete(app.home, app.engine.allocator)
 	destroy_sidebar(&app.sidebar)
 	destroy_tracks(&app.tracks)
+	forget_notice(app)
 	delete(app.genres.list, app.engine.allocator)
 	forget_dropped(app)
 	delete(app.drop.paths)
