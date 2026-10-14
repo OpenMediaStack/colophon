@@ -1,0 +1,58 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Open Media Stack
+# This file is distributed under the same license as the Colophon package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Colophon\n"
+"Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
+"POT-Creation-Date: 2026-10-14 17:48+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/ui/combo_box.odin:119
+msgid "Show suggestions"
+msgstr ""
+
+#: src/ui/combo_box.odin:251
+msgid "Suggestions"
+msgstr ""
+
+#: src/ui/overlay.odin:299
+msgid "Close"
+msgstr ""
+
+#: src/ui/scroll.odin:122
+msgid "Horizontal scroll bar"
+msgstr ""
+
+#: src/ui/scroll.odin:122
+msgid "Vertical scroll bar"
+msgstr ""
+
+#: src/ui/table.odin:587
+msgid "Unreadable"
+msgstr ""
+
+#: src/ui/table.odin:590
+msgid "Playing"
+msgstr ""
+
+#: src/ui/table.odin:593
+msgid "Unsaved changes"
+msgstr ""
+
+#: src/ui/table.odin:596
+msgid "Unlike the rest of its album"
+msgstr ""
+
+#: src/ui/table.odin:748
+msgid "Choose columns"
+msgstr ""

@@ -584,16 +584,16 @@ draw_status :: proc(ui: ^Ui, row_id: Widget_Id, cell: Rect, states: Row_States) 
 	switch {
 	case .Error in states:
 		draw_icon_centered(r, .Circle_Alert, cell, th.error, 14)
-		label = "Unreadable"
+		label = tr("Unreadable")
 	case .Playing in states:
 		draw_icon_centered(r, .Volume, cell, th.accent_text, 14)
-		label = "Playing"
+		label = tr("Playing")
 	case .Modified in states:
 		fill_rect(r, centered(cell, 6, 6), th.accent, 3)
-		label = "Unsaved changes"
+		label = tr("Unsaved changes")
 	case .Warning in states:
 		draw_icon_centered(r, .Triangle_Alert, cell, th.warning, 14)
-		label = "Unlike the rest of its album"
+		label = tr("Unlike the rest of its album")
 	}
 	if label != "" do declare(ui, {id = child_id(row_id, "status"), role = .Image, label = label, rect = cell})
 }
@@ -745,7 +745,7 @@ draw_header :: proc(
 	end := Rect{header.x + header.w - TABLE_END_WIDTH, header.y, TABLE_END_WIDTH, header.h - 1}
 	fill_rect(r, end, th.surface_2)
 	button_rect := Rect{end.x + 4, header.y + 2, 24, 24}
-	if toolbar_button(ui, child_id(id, "columns"), button_rect, .Columns, "Choose columns") {
+	if toolbar_button(ui, child_id(id, "columns"), button_rect, .Columns, tr("Choose columns")) {
 		result.column_menu = [2]f32{button_rect.x, button_rect.y + button_rect.h}
 	}
 	if .Right in in_.pressed && mouse_over(ui, header) do result.column_menu = in_.mouse
