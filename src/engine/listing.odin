@@ -74,11 +74,19 @@ Sort_By :: struct {
 	column: Sort_Column,
 }
 
-// The albums and artists of the library, with how many tracks each has, in
-// alphabetical order. Free it with destroy_groups.
+// The folders, albums and artists of the library, with how many tracks each has: the
+// folders in the order of the roots, the others in alphabetical order. Free it with
+// destroy_groups.
 Groups :: struct {
+	folders: [dynamic]Folder_Count,
 	albums:  [dynamic]Album,
 	artists: [dynamic]Artist_Count,
+}
+
+// A folder of the library, with how many of its tracks lie under it.
+Folder_Count :: struct {
+	path:   string,
+	tracks: int,
 }
 
 // An album of the sidebar.
@@ -103,8 +111,9 @@ album_key :: proc(tags: ^lib.Tags) -> (key: Album_Key, ok: bool) {
 	return key, true
 }
 
-// Groups the readable tracks by album and by artist, from their files' tags. The
-// strings belong to the tracks: the groups stay valid until the library changes.
+// Counts the tracks under each root and groups the readable ones by album and by
+// artist, from their files' tags. The strings belong to the roots and the tracks: the
+// groups stay valid until the library changes.
 groups :: proc(e: ^Engine, allocator := context.allocator) -> (g: Groups) {
 	Album_Entry :: struct {
 		folded:    string,
@@ -114,6 +123,12 @@ groups :: proc(e: ^Engine, allocator := context.allocator) -> (g: Groups) {
 	}
 	Artist_Entry :: struct {
 		folded, name: string,
+	}
+	g.folders = make([dynamic]Folder_Count, 0, len(e.library.roots), allocator)
+	for root in e.library.roots {
+		count := 0
+		for &track in e.library.tracks do if within(track.path, root) do count += 1
+		append(&g.folders, Folder_Count{root, count})
 	}
 	albums := make([dynamic]Album_Entry, context.temp_allocator)
 	artists := make([dynamic]Artist_Entry, context.temp_allocator)
@@ -151,8 +166,9 @@ groups :: proc(e: ^Engine, allocator := context.allocator) -> (g: Groups) {
 	return
 }
 
-// Frees the lists of groups, whose strings belong to the tracks.
+// Frees the lists of groups, whose strings belong to the library.
 destroy_groups :: proc(g: ^Groups) {
+	delete(g.folders)
 	delete(g.albums)
 	delete(g.artists)
 	g^ = {}

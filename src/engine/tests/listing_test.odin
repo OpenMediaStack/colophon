@@ -103,13 +103,18 @@ a_folder_source_is_a_whole_path_component :: proc(t: ^testing.T) {
 }
 
 @(test)
-the_library_groups_its_tracks_by_album_and_artist :: proc(t: ^testing.T) {
+the_library_groups_its_tracks_by_folder_album_and_artist :: proc(t: ^testing.T) {
 	e: engine.Engine
 	folder := library(t, &e)
 	defer remove_folder(folder)
 	defer engine.destroy(&e)
 	groups := engine.groups(&e)
 	defer engine.destroy_groups(&groups)
+	testing.expect_value(t, len(groups.folders), 1)
+	for f in groups.folders {
+		testing.expect_value(t, f.path, e.library.roots[0])
+		testing.expect_value(t, f.tracks, 4)
+	}
 	found_album := false
 	for album in groups.albums {
 		if album.key.title == "Small Hours" do found_album = true

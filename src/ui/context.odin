@@ -164,6 +164,8 @@ Widget_State :: enum u8 {
 	Hovered,
 	Pressed,
 	Focused,
+	// A section unfolded: its rows show.
+	Expanded,
 	Disabled,
 	Selected,
 	Checked,

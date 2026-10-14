@@ -15,6 +15,7 @@ App :: struct {
 	drop:     Drop,
 	// What the track table keeps between frames: its scroll, a drag of a column.
 	table:    ui.Table_State,
+	sidebar:  Sidebar,
 	// How many commands ran: a frame in which one ran is followed by another at once,
 	// so that what it changed shows.
 	commands: int,
@@ -61,6 +62,7 @@ app_init :: proc(app: ^App, wake := lib.Wake{}, allocator := context.allocator) 
 
 app_destroy :: proc(app: ^App) {
 	delete(app.home, app.engine.allocator)
+	destroy_sidebar(&app.sidebar)
 	forget_dropped(app)
 	delete(app.drop.paths)
 	engine.destroy(&app.engine)

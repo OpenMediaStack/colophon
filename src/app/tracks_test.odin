@@ -394,17 +394,17 @@ the_headers_and_the_chooser_speak_french_when_selected :: proc(t: ^testing.T) {
 @(test)
 the_table_matches_its_references :: proc(t: ^testing.T) {
 	copies := [?][2]string {
-		{"v23_full.mp3", "01.mp3"},
-		{"v23_full.mp3", "02.mp3"},
-		{"v24_full.mp3", "03.mp3"},
-		{"no_tag.mp3", "04 Track without a title tag.mp3"},
-		{"v23_full.mp3", "05.mp3"},
-		{"v23_full.mp3", "07.mp3"},
-		{"v23_full.mp3", "08.mp3"},
-		{"v23_full.mp3", "09.mp3"},
-		{"v23_full.mp3", "10.mp3"},
-		{"v23_full.mp3", "11.mp3"},
-		{"v23_full.mp3", "12.mp3"},
+		{"v23_full.mp3", "Music/01.mp3"},
+		{"v23_full.mp3", "Music/02.mp3"},
+		{"v24_full.mp3", "Music/03.mp3"},
+		{"no_tag.mp3", "Music/04 Track without a title tag.mp3"},
+		{"v23_full.mp3", "Music/05.mp3"},
+		{"v23_full.mp3", "Music/07.mp3"},
+		{"v23_full.mp3", "Music/08.mp3"},
+		{"v23_full.mp3", "Music/09.mp3"},
+		{"v23_full.mp3", "Music/10.mp3"},
+		{"v23_full.mp3", "Music/11.mp3"},
+		{"v23_full.mp3", "Music/12.mp3"},
 	}
 	sizes := [?][2]f32{{1440, 900}, {960, 600}}
 	for size in sizes {
@@ -415,9 +415,12 @@ the_table_matches_its_references :: proc(t: ^testing.T) {
 			folder := folder_with_fixtures(t, copies[:])
 			defer remove_folder(folder)
 			// A file that only starts like an MP3, whose tags cannot be read.
-			damaged := fmt.tprintf("%s/06 Damaged file.mp3", folder)
+			damaged := fmt.tprintf("%s/Music/06 Damaged file.mp3", folder)
 			testing.expect(t, os.write_entire_file(damaged, transmute([]u8)string("ID3")) == nil)
-			open_folder_of(t, &s, folder)
+			// A folder shown the same on every run: "~/Music", from a pinned home.
+			delete(s.app.home)
+			s.app.home = strings.clone(folder)
+			open_folder_of(t, &s, fmt.tprintf("%s/Music", folder))
 			wait_until_shown(t, &s, "12 tracks")
 			e := &s.app.engine
 			// Unsaved changes on the fifth, a run of three selected and one apart, the

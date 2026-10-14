@@ -30,6 +30,8 @@ Window :: struct {
 	cursors:     [ui.Cursor]^sdl.Cursor,
 	cursor:      ui.Cursor,
 	text_input:  bool,
+	// The window's title, as last set.
+	title:       string,
 	// The event the engine's threads push to wake the loop, and the one a dialog
 	// pushes with what the user chose.
 	wake_type:   u32,
@@ -119,6 +121,7 @@ close_window :: proc(w: ^Window) {
 	ui.ui_destroy(&w.ctx)
 	ui.renderer_destroy(&w.lists)
 	for cursor in w.cursors do if cursor != nil do sdl.DestroyCursor(cursor)
+	delete(w.title)
 	if w.renderer != nil do sdl.DestroyRenderer(w.renderer)
 	if w.window != nil do sdl.DestroyWindow(w.window)
 }
@@ -187,6 +190,19 @@ update :: proc(w: ^Window, app: ^App) {
 	}
 	follow_focus(w)
 	follow_cursor(w)
+	follow_title(w, app)
+}
+
+// The window's title says what the table lists.
+@(private = "file")
+follow_title :: proc(w: ^Window, app: ^App) {
+	title := window_title(app)
+	if title == w.title do return
+	delete(w.title)
+	w.title = strings.clone(title)
+	if !sdl.SetWindowTitle(w.window, strings.clone_to_cstring(title, context.temp_allocator)) {
+		sdl_failed("SDL_SetWindowTitle")
+	}
 }
 
 // Draws the frame's lists over the window's surface.

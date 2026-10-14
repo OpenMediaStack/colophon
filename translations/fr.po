@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-14 18:26+0200\n"
+"POT-Creation-Date: 2026-10-14 18:27+0200\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -26,12 +26,46 @@ msgid "Drop to open these folders and files"
 msgstr "Déposez pour ouvrir ces dossiers et fichiers"
 
 #: src/app/screen.odin:101
+msgid "Inspector"
+msgstr "Inspecteur"
+
+#: src/app/sidebar.odin:65
 msgid "Sidebar"
 msgstr "Barre latérale"
 
-#: src/app/screen.odin:112
-msgid "Inspector"
-msgstr "Inspecteur"
+#: src/app/sidebar.odin:72 src/app/sidebar.odin:182
+msgid "All tracks"
+msgstr "Toutes les pistes"
+
+#: src/app/sidebar.odin:75 src/app/sidebar.odin:184
+msgid "Recently changed"
+msgstr "Modifiés récemment"
+
+#: src/app/sidebar.odin:78 src/app/sidebar.odin:186
+msgid "Unreadable files"
+msgstr "Fichiers illisibles"
+
+#: src/app/sidebar.odin:100
+msgid "Library"
+msgstr "Bibliothèque"
+
+#: src/app/sidebar.odin:105
+msgid "Folders"
+msgstr "Dossiers"
+
+#: src/app/sidebar.odin:118
+msgid "Albums"
+msgstr "Albums"
+
+#: src/app/sidebar.odin:132
+msgid "{n} more album"
+msgid_plural "{n} more albums"
+msgstr[0] "{n} autre album"
+msgstr[1] "{n} autres albums"
+
+#: src/app/sidebar.odin:150 src/app/sidebar.odin:157
+msgid "Artists"
+msgstr "Artistes"
 
 #: src/app/status_bar.odin:18
 msgid "Status bar"
@@ -442,15 +476,6 @@ msgstr "Choisir les colonnes"
 #~ msgid "Turn developer mode on"
 #~ msgstr "Activer le mode développeur"
 
-#~ msgid "All tracks"
-#~ msgstr "Toutes les pistes"
-
-#~ msgid "Recently changed"
-#~ msgstr "Modifiés récemment"
-
-#~ msgid "Unreadable files"
-#~ msgstr "Fichiers illisibles"
-
 #~ msgid "Command Palette…"
 #~ msgstr "Palette de commandes…"
 
@@ -790,23 +815,6 @@ msgstr "Choisir les colonnes"
 
 #~ msgid "Choose the tag versions of each file in the inspector, ID3v2.2 included."
 #~ msgstr "Choisir les versions des tags de chaque fichier dans l’inspecteur, ID3v2.2 compris."
-
-#~ msgid "Library"
-#~ msgstr "Bibliothèque"
-
-#~ msgid "Folders"
-#~ msgstr "Dossiers"
-
-#~ msgid "Albums"
-#~ msgstr "Albums"
-
-#~ msgid "{n} more album"
-#~ msgid_plural "{n} more albums"
-#~ msgstr[0] "{n} autre album"
-#~ msgstr[1] "{n} autres albums"
-
-#~ msgid "Artists"
-#~ msgstr "Artistes"
 
 #~ msgid "Sidebar scroll bar"
 #~ msgstr "Barre de défilement de la barre latérale"

@@ -47,6 +47,10 @@ Engine :: struct {
 	// keys are the paths of library.tracks.
 	found:         map[string]Track_Id,
 	events:        [dynamic]lib.Scan_Event,
+	// Counts the changes of the library and of the edits, so that what the UI derives
+	// from them (the sidebar's groups, the inspection of the selection) is made again
+	// only when it must.
+	revision:      u64,
 	// The source of the table's tracks, its filter and its order.
 	source:        Source,
 	filter:        string,
@@ -361,6 +365,20 @@ execute :: proc(e: ^Engine, command: Command) {
 			clamp(c.size.height, 0, int(max(u32))),
 		}
 	}
+	// The commands that change the library or the edits; a scan's and a save's news
+	// count in poll.
+	#partial switch _ in command {
+	case Open_Folder,
+	     Open_Files,
+	     Apply_Edit,
+	     Continue_Edit,
+	     Undo,
+	     Redo,
+	     Revert,
+	     Number_Tracks,
+	     Choose_Version:
+		e.revision += 1
+	}
 }
 
 @(private)
@@ -478,7 +496,10 @@ poll :: proc(e: ^Engine) -> (changed: bool) {
 		if len(e.scans) == 0 do e.library.status = outcome == .Stopped ? .Stopped : .Completed
 	}
 	if poll_save(e) do changed = true
-	if changed do relist(e)
+	if changed {
+		e.revision += 1
+		relist(e)
+	}
 	if advance_playback(e) do changed = true
 	return
 }
