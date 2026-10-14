@@ -416,6 +416,7 @@ Dialog_Kind :: enum u8 {
 
 // What the image dialog offers: the covers Colophon writes.
 @(private = "file")
+@(rodata)
 IMAGE_FILTERS := [?]sdl.DialogFileFilter{{"JPEG and PNG images", "jpg;jpeg;png"}}
 
 @(private = "file")

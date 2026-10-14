@@ -44,7 +44,10 @@ harness_init :: proc(
 		data = h,
 		create = proc(data: rawptr, rgba: []u8, w, h: int) -> (Texture_Id, bool) {
 			harness := (^Harness)(data)
-			append(&harness.images, Stored_Image{slice.clone(rgba), w, h})
+			append(
+				&harness.images,
+				Stored_Image{slice.clone(rgba, harness.images.allocator), w, h},
+			)
 			return Texture_Id(len(harness.images)), true
 		},
 		destroy = proc(data: rawptr, id: Texture_Id) {

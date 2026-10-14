@@ -5,6 +5,7 @@ import "core:os"
 import "core:strings"
 import "core:testing"
 
+import "../engine"
 import lib "../library"
 import ui "../ui"
 
@@ -58,7 +59,7 @@ a_track_shows_its_cover_and_several_tracks_say_they_differ :: proc(t: ^testing.T
 	ui.run_frame(&s.h)
 	testing.expect_value(t, well_label(&s), "Cover")
 	shown, has := s.app.inspector.cover.?
-	testing.expect(t, has && shown.size.x > 0)
+	testing.expect(t, has && shown.texture != nil)
 	ui.press_key(&s.h, .A, ui.COMMAND)
 	ui.run_frame(&s.h)
 	testing.expect_value(t, well_label(&s), "Several covers")
@@ -134,4 +135,54 @@ the_cover_well_matches_its_references :: proc(t: ^testing.T) {
 		ui.run_frame(&s.h)
 		expect_screen(t, &s, kind == .Dark ? "cover-dark.png" : "cover-light.png")
 	}
+}
+
+// A cover whose bytes cannot be decoded is tried once: the well stays the cover's,
+// empty, and no frame reads the file again.
+@(test)
+a_cover_that_cannot_be_decoded_is_tried_once :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	testing.expect(t, ui.click(&s.h, "Paper Satellites"))
+	ui.wait(&s.h, 0.6)
+	execute(&s.app, engine.Apply_Edit{{.Cover, lib.Cover{"image/png", {1, 2, 3}}}})
+	ui.run_frame(&s.h)
+	testing.expect_value(t, well_label(&s), "Cover")
+	images := len(s.h.images)
+	shown, has := s.app.inspector.cover.?
+	testing.expect(t, has && shown.texture == nil)
+	for _ in 0 ..< 3 do ui.run_frame(&s.h)
+	testing.expect_value(t, len(s.h.images), images)
+	// The modified border: the cover waits to be saved.
+	summary, _ := s.app.inspector.inspection.(engine.Summary)
+	testing.expect(t, .Cover in summary.modified)
+}
+
+@(test)
+a_jpeg_is_told_by_its_first_bytes_and_the_texture_goes_with_the_selection :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	jpeg := fmt.tprintf("%s/photo.jpg", folder)
+	testing.expect(t, os.write_entire_file(jpeg, []u8{0xFF, 0xD8, 0xFF, 0xE0, 0, 16}) == nil)
+	s.answers.image = jpeg
+	testing.expect(t, ui.click(&s.h, "With a cover"))
+	ui.run_frame(&s.h)
+	testing.expect(t, len(s.h.images) == 1 && s.h.images[0].rgba != nil)
+	testing.expect(t, ui.click(&s.h, "Replace cover…"))
+	ui.run_frame(&s.h)
+	pending, found := s.app.engine.edits.pending[s.app.engine.listed[0]]
+	cover, held := pending.cover.(lib.Cover)
+	testing.expect(t, found && held && cover.mime == "image/jpeg")
+	// Nothing selected: the texture goes.
+	clear(&s.app.engine.selection.tracks)
+	execute(&s.app, engine.Select_All{})
+	execute(&s.app, engine.Revert{})
+	clear(&s.app.engine.selection.tracks)
+	ui.run_frame(&s.h)
+	testing.expect_value(t, s.app.inspector.cover, nil)
+	testing.expect(t, s.h.images[0].rgba == nil)
 }

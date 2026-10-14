@@ -12,8 +12,9 @@ import ui "../ui"
 // in a toast, shown from now (the frame's time).
 take_image :: proc(app: ^App, path: string, now: f64) {
 	data, read_err := os.read_entire_file(path, context.temp_allocator)
-	mime, is_image := image_mime(data)
-	if read_err != nil || !is_image {
+	mime, is_image := "", false
+	if read_err == nil do mime, is_image = image_mime(data)
+	if !is_image {
 		message := ui.fill(ui.tr("“{}” is not a JPEG or PNG image"), filepath.base(path))
 		notify(app, .Error, message, nil, now)
 		return

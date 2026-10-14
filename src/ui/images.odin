@@ -46,6 +46,43 @@ decode_image :: proc(
 	return rgba, w, h, true
 }
 
+// The centre square of an image shrunk to side pixels a side, each pixel the mean of
+// the source pixels it covers (a box filter, which smooths a cover shrunk many times
+// over), allocated with allocator: what a cover drawn in a square needs, whatever its
+// size, cropped as 1.0.0 cropped it. An image already smaller is scaled up the same way.
+shrink_image :: proc(
+	rgba: []u8,
+	w, h, side: int,
+	allocator := context.allocator,
+) -> (
+	dst: []u8,
+	ok: bool,
+) {
+	if w <= 0 || h <= 0 || side <= 0 || len(rgba) < w * h * 4 do return
+	square := min(w, h)
+	left, top := (w - square) / 2, (h - square) / 2
+	dst = make([]u8, side * side * 4, allocator)
+	for y in 0 ..< side {
+		y0 := top + y * square / side
+		y1 := max(top + (y + 1) * square / side, y0 + 1)
+		for x in 0 ..< side {
+			x0 := left + x * square / side
+			x1 := max(left + (x + 1) * square / side, x0 + 1)
+			sum: [4]int
+			for sy in y0 ..< y1 {
+				for sx in x0 ..< x1 {
+					p := (sy * w + sx) * 4
+					for c in 0 ..< 4 do sum[c] += int(rgba[p + c])
+				}
+			}
+			count := (y1 - y0) * (x1 - x0)
+			d := (y * side + x) * 4
+			for c in 0 ..< 4 do dst[d + c] = u8(sum[c] / count)
+		}
+	}
+	return dst, true
+}
+
 // A texture of RGBA pixels through the Ui's images; false when none can be made.
 create_image :: proc(ui: ^Ui, rgba: []u8, w, h: int) -> (id: Texture_Id, ok: bool) {
 	if ui.images.create == nil do return
