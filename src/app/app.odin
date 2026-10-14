@@ -1,5 +1,9 @@
 package main
 
+import "core:os"
+import "core:path/filepath"
+import "core:strings"
+
 import "../engine"
 import lib "../library"
 import ui "../ui"
@@ -8,6 +12,8 @@ import ui "../ui"
 // engine does not already know. Make it with app_init, free it with app_destroy.
 App :: struct {
 	engine:   engine.Engine,
+	dialogs:  Dialogs,
+	drop:     Drop,
 	// How many commands ran: a frame in which one ran is followed by another at once,
 	// so that what it changed shows.
 	commands: int,
@@ -23,14 +29,34 @@ execute :: proc(app: ^App, command: engine.Command) {
 	engine.execute(&app.engine, command)
 }
 
+// How the app asks the user for folders and files: the system's dialogs, which the
+// window shows and which answer later from the loop, or a test's answers. Both answer
+// through the engine's Open_Folder and Open_Files commands, on the UI thread.
+Dialogs :: struct {
+	data:        rawptr,
+	open_folder: proc(app: ^App, data: rawptr),
+	open_files:  proc(app: ^App, data: rawptr),
+}
+
+// Files dragged over the window, until they are dropped or the drag leaves.
+Drop :: struct {
+	// Something is dragged over the window: the drop target shows.
+	hovering: bool,
+	// The paths dropped so far, taken in together when the drop completes.
+	paths:    [dynamic]string,
+}
+
 // wake is called from the engine's threads when they have news for the loop.
 app_init :: proc(app: ^App, wake := lib.Wake{}, allocator := context.allocator) {
 	engine.init(&app.engine, wake, allocator)
 	app.platform = ui.PLATFORM
+	app.drop.paths = make([dynamic]string, allocator)
 }
 
 app_destroy :: proc(app: ^App) {
 	engine.destroy(&app.engine)
+	forget_dropped(app)
+	delete(app.drop.paths)
 }
 
 // Draws the main screen in the window's area: a frame of the harness and of the loop.
@@ -43,9 +69,56 @@ folder_open :: proc(app: ^App) -> bool {
 	return len(app.engine.library.roots) > 0
 }
 
-// Asks the user for a folder to open. The folder dialog comes with slice 29.
+// Asks the user for a folder to open.
 open_folder :: proc(app: ^App) {
-	_ = app
+	if app.dialogs.open_folder != nil do app.dialogs.open_folder(app, app.dialogs.data)
+}
+
+// Asks the user for files to open.
+open_files :: proc(app: ^App) {
+	if app.dialogs.open_files != nil do app.dialogs.open_files(app, app.dialogs.data)
+}
+
+// A drag of files came over the window: the drop target shows.
+drop_begin :: proc(app: ^App) {
+	app.drop.hovering = true
+}
+
+// A file of the drag was dropped; the others may follow.
+drop_file :: proc(app: ^App, path: string) {
+	append(&app.drop.paths, strings.clone(path, app.engine.allocator))
+}
+
+// The drag ended, dropped or gone: what was dropped is opened together, folders and
+// audio files alike. Anything else is left alone; an image dropped on the inspector
+// becomes a cover with slice 32.
+drop_end :: proc(app: ^App) {
+	app.drop.hovering = false
+	defer forget_dropped(app)
+	files := make([dynamic]string, context.temp_allocator)
+	for path in app.drop.paths {
+		switch {
+		case os.is_directory(path):
+			execute(app, engine.Open_Folder{path})
+		case is_audio_file(path):
+			append(&files, path)
+		}
+	}
+	if len(files) > 0 do execute(app, engine.Open_Files{files[:]})
+}
+
+@(private = "file")
+forget_dropped :: proc(app: ^App) {
+	for path in app.drop.paths do delete(path, app.engine.allocator)
+	clear(&app.drop.paths)
+}
+
+// Whether a path names a file Colophon reads, by its extension.
+@(private = "file")
+is_audio_file :: proc(path: string) -> bool {
+	extension := strings.trim_prefix(filepath.ext(path), ".")
+	for known in lib.AUDIO_EXTENSIONS do if strings.equal_fold(extension, known) do return true
+	return false
 }
 
 // How a shortcut is written for the user: Command on macOS, Control elsewhere.

@@ -18,10 +18,18 @@ PATIENCE :: 20 * time.Second
 TESTDATA :: #directory + "/../../testdata"
 
 // The main screen in a harness: its frames run without a window, over an app of its
-// own. Make it with screen_init, free it with screen_destroy.
+// own, whose dialogs answer what the test gives them. Make it with screen_init, free
+// it with screen_destroy.
 Screen :: struct {
-	h:   ui.Harness,
-	app: App,
+	h:       ui.Harness,
+	app:     App,
+	answers: Answers,
+}
+
+// What the dialogs answer: each folder in turn, then nothing; the files every time.
+Answers :: struct {
+	folders: [dynamic]string,
+	files:   []string,
 }
 
 // A screen of size points, in the theme of kind, drawn twice so that the hover and the
@@ -30,6 +38,19 @@ screen_init :: proc(s: ^Screen, size: [2]f32, kind := ui.Theme_Kind.Dark) {
 	app_init(&s.app)
 	// The same captures on every system.
 	s.app.platform = .Mac
+	s.answers.folders = make([dynamic]string)
+	s.app.dialogs = {
+		data = &s.answers,
+		open_folder = proc(app: ^App, data: rawptr) {
+			a := (^Answers)(data)
+			if len(a.folders) == 0 do return
+			engine.execute(&app.engine, engine.Open_Folder{pop_front(&a.folders)})
+		},
+		open_files = proc(app: ^App, data: rawptr) {
+			a := (^Answers)(data)
+			if len(a.files) > 0 do engine.execute(&app.engine, engine.Open_Files{a.files})
+		},
+	}
 	ui.harness_init(&s.h, app_frame, &s.app, kind)
 	s.h.scale = 1
 	resize(s, size)
@@ -38,7 +59,37 @@ screen_init :: proc(s: ^Screen, size: [2]f32, kind := ui.Theme_Kind.Dark) {
 screen_destroy :: proc(s: ^Screen) {
 	ui.harness_destroy(&s.h)
 	app_destroy(&s.app)
+	delete(s.answers.folders)
 	free_all(context.temp_allocator)
+}
+
+// Polls the engine as the loop does, running frames, until a widget labelled label
+// shows or PATIENCE passes.
+wait_until_shown :: proc(t: ^testing.T, s: ^Screen, label: string) {
+	start := time.tick_now()
+	for !shows(s, label) {
+		if time.tick_since(start) > PATIENCE {
+			testing.expectf(t, false, "%q did not show in time", label)
+			return
+		}
+		engine.poll(&s.app.engine)
+		ui.run_frame(&s.h)
+		time.sleep(time.Millisecond)
+	}
+}
+
+// A new temporary folder holding files of a few bytes each, which only start like an
+// MP3. Remove it with remove_folder.
+folder_with :: proc(t: ^testing.T, files: []string) -> string {
+	folder, err := os.make_directory_temp("", "colophon-*", context.allocator)
+	testing.expect(t, err == nil)
+	for file in files {
+		path := fmt.tprintf("%s/%s", folder, file)
+		made := os.make_directory_all(filepath.dir(path))
+		testing.expect(t, made == nil || made == .Exist)
+		testing.expect(t, os.write_entire_file(path, transmute([]u8)string("ID3")) == nil)
+	}
+	return folder
 }
 
 // The window takes another size: the next frames lay the screen out again.

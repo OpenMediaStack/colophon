@@ -22,19 +22,23 @@ SETTLING_FRAMES :: 3
 
 // The window, what draws into it, and the Ui the screens draw with.
 Window :: struct {
-	window:     ^sdl.Window,
-	renderer:   ^sdl.Renderer,
-	backend:    ui.Sdl_Backend,
-	lists:      ui.Renderer,
-	ctx:        ui.Ui,
-	cursors:    [ui.Cursor]^sdl.Cursor,
-	cursor:     ui.Cursor,
-	text_input: bool,
-	// The event the engine's threads push to wake the loop.
-	wake_type:  u32,
+	window:      ^sdl.Window,
+	renderer:    ^sdl.Renderer,
+	backend:     ui.Sdl_Backend,
+	lists:       ui.Renderer,
+	ctx:         ui.Ui,
+	cursors:     [ui.Cursor]^sdl.Cursor,
+	cursor:      ui.Cursor,
+	text_input:  bool,
+	// The event the engine's threads push to wake the loop, and the one a dialog
+	// pushes with what the user chose.
+	wake_type:   u32,
+	chosen_type: u32,
+	// The files dialog's filter, which must last until the dialog answers.
+	filters:     [1]sdl.DialogFileFilter,
 	// An event kept for the next frame, so that each frame sees one change of a
 	// button, and the hover has settled where a click is.
-	pending:    Maybe(sdl.Event),
+	pending:     Maybe(sdl.Event),
 }
 
 // Opens the window and runs until it closes, or renders one frame for --screenshot.
@@ -57,10 +61,17 @@ run :: proc(options: Options) -> bool {
 	defer ui.catalog_destroy(&catalog)
 
 	w: Window
-	w.wake_type = sdl.RegisterEvents(1)
+	w.wake_type = sdl.RegisterEvents(2)
+	w.chosen_type = w.wake_type + 1
+	w.filters = {{"MP3 files", "mp3"}}
 	app: App
 	app_init(&app, lib.Wake{wake_loop, &w.wake_type})
 	defer app_destroy(&app)
+	app.dialogs = {
+		data        = &w,
+		open_folder = show_folder_dialog,
+		open_files  = show_files_dialog,
+	}
 	open_window(&w, options) or_return
 	defer close_window(&w)
 
@@ -226,15 +237,29 @@ Event_Outcome :: enum u8 {
 
 @(private = "file")
 handle_event :: proc(w: ^Window, app: ^App, event: ^sdl.Event) -> Event_Outcome {
-	_ = app
 	#partial switch event.type {
 	case .QUIT:
 		return .Quit
 	case .SYSTEM_THEME_CHANGED:
 		w.ctx.theme = ui.theme(system_theme())
 		return .Other
+	case .DROP_BEGIN:
+		drop_begin(app)
+		return .Other
+	case .DROP_FILE:
+		if event.drop.data != nil do drop_file(app, string(event.drop.data))
+		return .Other
+	case .DROP_COMPLETE:
+		drop_end(app)
+		return .Other
+	case .DROP_POSITION, .DROP_TEXT:
+		return .Other
 	}
 	if u32(event.type) == w.wake_type do return .Other
+	if u32(event.type) == w.chosen_type {
+		take_chosen(app, (^Chosen)(event.user.data1))
+		return .Other
+	}
 	// SDL gives mouse positions in points on macOS and Wayland but in pixels on Windows
 	// and X11: the pixel density over the display scale turns them into points.
 	density := sdl.GetWindowPixelDensity(w.window)
@@ -315,6 +340,75 @@ system_cursor :: proc(cursor: ui.Cursor) -> sdl.SystemCursor {
 @(private = "file")
 system_theme :: proc() -> ui.Theme_Kind {
 	return sdl.GetSystemTheme() == .LIGHT ? .Light : .Dark
+}
+
+// What a dialog's user chose, on its way to the loop through an event.
+@(private = "file")
+Chosen :: struct {
+	paths:  [dynamic]string,
+	folder: bool,
+}
+
+@(private = "file")
+show_folder_dialog :: proc(app: ^App, data: rawptr) {
+	_ = app
+	w := (^Window)(data)
+	sdl.ShowOpenFolderDialog(folder_chosen, data, w.window, nil, false)
+}
+
+@(private = "file")
+show_files_dialog :: proc(app: ^App, data: rawptr) {
+	_ = app
+	w := (^Window)(data)
+	sdl.ShowOpenFileDialog(files_chosen, data, w.window, &w.filters[0], len(w.filters), nil, true)
+}
+
+@(private = "file")
+folder_chosen :: proc "c" (userdata: rawptr, filelist: [^]cstring, filter: c.int) {
+	dialog_answered(userdata, filelist, true)
+}
+
+@(private = "file")
+files_chosen :: proc "c" (userdata: rawptr, filelist: [^]cstring, filter: c.int) {
+	dialog_answered(userdata, filelist, false)
+}
+
+// A dialog answered, on whatever thread SDL calls from: what was chosen goes to the
+// loop through an event, copied, since the list is SDL's only for the call. A nil list
+// is an error, an empty one a dialog cancelled: nothing to open either way.
+@(private = "file")
+dialog_answered :: proc "c" (userdata: rawptr, filelist: [^]cstring, folder: bool) {
+	context = runtime.default_context()
+	if filelist == nil || filelist[0] == nil do return
+	w := (^Window)(userdata)
+	chosen := new(Chosen)
+	chosen.folder = folder
+	for i := 0; filelist[i] != nil; i += 1 {
+		append(&chosen.paths, strings.clone(string(filelist[i])))
+	}
+	event: sdl.Event
+	event.type = sdl.EventType(w.chosen_type)
+	event.user.data1 = chosen
+	if !sdl.PushEvent(&event) do free_chosen(chosen)
+}
+
+// Opens what a dialog's user chose, on the UI thread.
+@(private = "file")
+take_chosen :: proc(app: ^App, chosen: ^Chosen) {
+	if chosen == nil do return
+	defer free_chosen(chosen)
+	if chosen.folder {
+		for path in chosen.paths do execute(app, engine.Open_Folder{path})
+	} else {
+		execute(app, engine.Open_Files{chosen.paths[:]})
+	}
+}
+
+@(private = "file")
+free_chosen :: proc(chosen: ^Chosen) {
+	for path in chosen.paths do delete(path)
+	delete(chosen.paths)
+	free(chosen)
 }
 
 // Called from the engine's threads: an event wakes the loop, which polls the engine.

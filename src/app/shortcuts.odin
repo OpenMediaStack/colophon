@@ -5,7 +5,7 @@ import ui "../ui"
 
 // The shortcuts of the window, for the keys no widget took: the panels as the Finder
 // (Option Command S and I on macOS, Control Alt elsewhere), the filter, undo and redo,
-// save, open.
+// save, open a folder or files.
 shortcuts :: proc(ctx: ^ui.Ui, app: ^App) {
 	e := &app.engine
 	open := folder_open(app)
@@ -17,4 +17,5 @@ shortcuts :: proc(ctx: ^ui.Ui, app: ^App) {
 	if ui.take_key(ctx, .Z, ui.COMMAND + {.Shift}) && engine.can_redo(e) do execute(app, engine.Redo{})
 	if ui.take_key(ctx, .S, ui.COMMAND) && len(e.edits.pending) > 0 && engine.saving(e) == nil do execute(app, engine.Save{})
 	if ui.take_key(ctx, .O, ui.COMMAND) do open_folder(app)
+	if ui.take_key(ctx, .O, ui.COMMAND + {.Shift}) do open_files(app)
 }
