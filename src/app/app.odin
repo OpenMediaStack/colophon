@@ -11,6 +11,10 @@ App :: struct {
 	// How many commands ran: a frame in which one ran is followed by another at once,
 	// so that what it changed shows.
 	commands: int,
+	// Whose conventions the screens follow, the shortcuts they write and the order of
+	// a dialog's buttons: the system's, unless a test pins one so that its captures
+	// are the same everywhere.
+	platform: ui.Platform,
 }
 
 // Runs a command of the engine, counting it for the loop.
@@ -22,6 +26,7 @@ execute :: proc(app: ^App, command: engine.Command) {
 // wake is called from the engine's threads when they have news for the loop.
 app_init :: proc(app: ^App, wake := lib.Wake{}, allocator := context.allocator) {
 	engine.init(&app.engine, wake, allocator)
+	app.platform = ui.PLATFORM
 }
 
 app_destroy :: proc(app: ^App) {
@@ -44,6 +49,6 @@ open_folder :: proc(app: ^App) {
 }
 
 // How a shortcut is written for the user: Command on macOS, Control elsewhere.
-shortcut_hint :: proc(key: string) -> string {
-	return ui.PLATFORM == .Mac ? ui.fill("⌘{}", key) : ui.fill("Ctrl+{}", key)
+shortcut_hint :: proc(app: ^App, key: string) -> string {
+	return app.platform == .Mac ? ui.fill("⌘{}", key) : ui.fill("Ctrl+{}", key)
 }

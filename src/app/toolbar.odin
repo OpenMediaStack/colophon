@@ -67,7 +67,7 @@ toolbar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		name  = ui.tr("Command palette"),
 		small = true,
 	}
-	palette_key := shortcut_hint("K")
+	palette_key := shortcut_hint(app, "K")
 	palette_width := ui.button_width(r, palette_key, palette_options)
 	palette_rect := ui.Rect{sidebar_rect.x - GAP - palette_width, y, palette_width, BUTTON}
 	// The command palette itself comes with its own slice.
@@ -138,7 +138,7 @@ filter_field :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	r := ctx.renderer
 	th := ctx.theme
 	e := &app.engine
-	hint := shortcut_hint("F")
+	hint := shortcut_hint(app, "F")
 	empty := len(e.filter) == 0
 	options := ui.Text_Field_Options {
 		placeholder = ui.tr("Filter by title, artist, album"),

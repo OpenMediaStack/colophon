@@ -20,7 +20,7 @@ empty_state :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	open_label := ui.tr("Open folder…")
 	open_options := ui.Button_Options {
 		kind     = .Primary,
-		shortcut = shortcut_hint("O"),
+		shortcut = shortcut_hint(app, "O"),
 	}
 	open_width := ui.button_width(r, open_label, open_options)
 	height: f32 =

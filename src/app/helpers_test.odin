@@ -28,6 +28,8 @@ Screen :: struct {
 // focus have settled.
 screen_init :: proc(s: ^Screen, size: [2]f32, kind := ui.Theme_Kind.Dark) {
 	app_init(&s.app)
+	// The same captures on every system.
+	s.app.platform = .Mac
 	ui.harness_init(&s.h, app_frame, &s.app, kind)
 	s.h.scale = 1
 	resize(s, size)
