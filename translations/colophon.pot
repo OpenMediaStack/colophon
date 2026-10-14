@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-14 18:08+0200\n"
+"POT-Creation-Date: 2026-10-14 18:09+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -162,6 +162,62 @@ msgstr ""
 msgid "Filter"
 msgstr ""
 
+#: src/app/tracks.odin:66
+msgid "Tracks"
+msgstr ""
+
+#: src/app/tracks.odin:123 src/app/tracks.odin:141
+msgid "Sort by {}"
+msgstr ""
+
+#: src/app/tracks.odin:153
+msgid "Title"
+msgstr ""
+
+#: src/app/tracks.odin:155
+msgid "Artist"
+msgstr ""
+
+#: src/app/tracks.odin:157
+msgid "Album"
+msgstr ""
+
+#: src/app/tracks.odin:159
+msgid "Year"
+msgstr ""
+
+#: src/app/tracks.odin:161
+msgid "Genre"
+msgstr ""
+
+#: src/app/tracks.odin:163
+msgid "Time"
+msgstr ""
+
+#: src/app/tracks.odin:165
+msgid "Bitrate"
+msgstr ""
+
+#: src/app/tracks.odin:167
+msgid "Tags"
+msgstr ""
+
+#: src/app/tracks.odin:169
+msgid "File"
+msgstr ""
+
+#: src/app/tracks.odin:171
+msgid "Folder"
+msgstr ""
+
+#: src/app/tracks.odin:307
+msgid "Reset to default columns"
+msgstr ""
+
+#: src/app/tracks.odin:308
+msgid "Columns"
+msgstr ""
+
 #: src/ui/combo_box.odin:119
 msgid "Show suggestions"
 msgstr ""
@@ -198,6 +254,6 @@ msgstr ""
 msgid "Unlike the rest of its album"
 msgstr ""
 
-#: src/ui/table.odin:748
+#: src/ui/table.odin:756
 msgid "Choose columns"
 msgstr ""

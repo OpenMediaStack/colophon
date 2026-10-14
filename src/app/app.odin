@@ -13,6 +13,8 @@ App :: struct {
 	engine:   engine.Engine,
 	dialogs:  Dialogs,
 	drop:     Drop,
+	// What the track table keeps between frames: its scroll, a drag of a column.
+	table:    ui.Table_State,
 	// How many commands ran: a frame in which one ran is followed by another at once,
 	// so that what it changed shows.
 	commands: int,
