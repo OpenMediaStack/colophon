@@ -1,6 +1,7 @@
 package ui
 
 import "base:runtime"
+import "core:slice"
 import "core:strings"
 
 // Runs frames of a Ui without a window, with scripted input, for tests: the renderer
@@ -15,6 +16,14 @@ Harness :: struct {
 	scale:     f32,
 	// What the Ui copies to its clipboard and pastes from it.
 	clipboard: strings.Builder,
+	// The images the Ui made textures of, by id minus one, for the captures.
+	images:    [dynamic]Stored_Image,
+}
+
+// An image a harness keeps in place of a texture: its pixels, freed when forgotten.
+Stored_Image :: struct {
+	rgba: []u8,
+	w, h: int,
 }
 
 // Makes a harness that runs frame with data, in the theme of kind.
@@ -30,6 +39,25 @@ harness_init :: proc(
 	h.frame = frame
 	h.data = data
 	h.scale = 1
+	h.images = make([dynamic]Stored_Image, allocator)
+	h.ui.images = {
+		data = h,
+		create = proc(data: rawptr, rgba: []u8, w, h: int) -> (Texture_Id, bool) {
+			harness := (^Harness)(data)
+			append(
+				&harness.images,
+				Stored_Image{slice.clone(rgba, harness.images.allocator), w, h},
+			)
+			return Texture_Id(len(harness.images)), true
+		},
+		destroy = proc(data: rawptr, id: Texture_Id) {
+			harness := (^Harness)(data)
+			index := int(id) - 1
+			if index < 0 || index >= len(harness.images) do return
+			delete(harness.images[index].rgba)
+			harness.images[index] = {}
+		},
+	}
 	h.ui.viewport = {0, 0, 1280, 800}
 	h.clipboard = strings.builder_make(allocator)
 	h.ui.clipboard = {
@@ -48,6 +76,8 @@ harness_init :: proc(
 // Frees what harness_init made.
 harness_destroy :: proc(h: ^Harness) {
 	strings.builder_destroy(&h.clipboard)
+	for image in h.images do delete(image.rgba)
+	delete(h.images)
 	ui_destroy(&h.ui)
 	renderer_destroy(&h.renderer)
 }

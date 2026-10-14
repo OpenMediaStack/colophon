@@ -2,12 +2,16 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-15 00:16+0200\n"
+"POT-Creation-Date: 2026-10-15 00:34+0200\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: src/app/covers.odin:17
+msgid "“{}” is not a JPEG or PNG image"
+msgstr "« {} » n’est pas une image JPEG ou PNG"
 
 #: src/app/empty_state.odin:15
 msgid "Open your music folder"
@@ -21,227 +25,251 @@ msgstr "Colophon lit les tags de chaque MP3 d’un dossier et de ses sous-dossie
 msgid "Open folder…"
 msgstr "Ouvrir un dossier…"
 
-#: src/app/inspector.odin:58
+#: src/app/inspector.odin:72
 msgid "Inspector"
 msgstr "Inspecteur"
 
-#: src/app/inspector.odin:87
+#: src/app/inspector.odin:103
 msgid "Select tracks to see their tags"
 msgstr "Sélectionnez des morceaux pour voir leurs tags"
 
-#: src/app/inspector.odin:88
+#: src/app/inspector.odin:104
 msgid "{} selects every track"
 msgstr "{} sélectionne tous les morceaux"
 
-#: src/app/inspector.odin:128
+#: src/app/inspector.odin:144
 msgid "ID3v1 will keep only part of: {}"
 msgstr "L’ID3v1 ne gardera qu’une partie de : {}"
 
-#: src/app/inspector.odin:148
-msgid "No cover"
-msgstr "Pas de pochette"
-
-#: src/app/inspector.odin:151
+#: src/app/inspector.odin:159
 msgid "{n} track selected"
 msgid_plural "{n} tracks selected"
 msgstr[0] "{n} morceau sélectionné"
 msgstr[1] "{n} morceaux sélectionnés"
 
-#: src/app/inspector.odin:181 src/app/status_bar.odin:49
+#: src/app/inspector.odin:189 src/app/status_bar.odin:49
 msgid "{n} file could not be read"
 msgid_plural "{n} files could not be read"
 msgstr[0] "{n} fichier illisible"
 msgstr[1] "{n} fichiers illisibles"
 
-#: src/app/inspector.odin:196 src/app/inspector.odin:212
+#: src/app/inspector.odin:202
+msgid "Replace cover…"
+msgstr "Remplacer la pochette…"
+
+#: src/app/inspector.odin:216 src/app/inspector.odin:232
 #: src/app/tracks.odin:347
 msgid "Tags"
 msgstr "Tags"
 
-#: src/app/inspector.odin:204 src/app/tracks.odin:349
+#: src/app/inspector.odin:224 src/app/tracks.odin:349
 msgid "File"
 msgstr "Fichier"
 
-#: src/app/inspector.odin:206
+#: src/app/inspector.odin:226
 msgid "Audio"
 msgstr "Audio"
 
-#: src/app/inspector.odin:209
+#: src/app/inspector.odin:229
 msgid "{} total"
 msgstr "{} au total"
 
-#: src/app/inspector.odin:210
+#: src/app/inspector.odin:230
 msgid "Size"
 msgstr "Taille"
 
-#: src/app/inspector.odin:215
+#: src/app/inspector.odin:235
 msgid "Saved as"
 msgstr "Enregistré en"
 
-#: src/app/inspector.odin:226 src/app/saving.odin:107 src/app/toolbar.odin:119
+#: src/app/inspector.odin:246 src/app/saving.odin:107 src/app/toolbar.odin:119
 msgid "Save {n} file"
 msgid_plural "Save {n} files"
 msgstr[0] "Enregistrer {n} fichier"
 msgstr[1] "Enregistrer {n} fichiers"
 
-#: src/app/inspector.odin:226 src/app/toolbar.odin:115
+#: src/app/inspector.odin:246 src/app/toolbar.odin:115
 msgid "Saving…"
 msgstr "Enregistrement…"
 
-#: src/app/inspector.odin:239 src/app/tracks.odin:260
+#: src/app/inspector.odin:259 src/app/tracks.odin:260
 msgid "Revert"
 msgstr "Rétablir l’original"
 
-#: src/app/inspector.odin:260
+#: src/app/inspector.odin:284
+msgid "No cover"
+msgstr "Pas de pochette"
+
+#: src/app/inspector.odin:286
+msgid "Cover"
+msgstr "Pochette"
+
+#: src/app/inspector.odin:289
+msgid "Several covers"
+msgstr "Plusieurs pochettes"
+
+#: src/app/inspector.odin:354
+msgid "Replace Cover…"
+msgstr "Remplacer la pochette…"
+
+#: src/app/inspector.odin:355
+msgid "Remove Cover"
+msgstr "Supprimer la pochette"
+
+#: src/app/inspector.odin:357
+msgid "Cover menu"
+msgstr "Menu de la pochette"
+
+#: src/app/inspector.odin:377
 msgid "This track has no number, unlike the rest of its album."
 msgstr "Cette piste n’a pas de numéro, contrairement au reste de son album."
 
-#: src/app/inspector.odin:261
+#: src/app/inspector.odin:378
 msgid "Some of these tracks have no number, unlike the rest of their albums."
 msgstr "Certaines de ces pistes n’ont pas de numéro, contrairement au reste de leur album."
 
-#: src/app/inspector.odin:263
+#: src/app/inspector.odin:380
 msgid "Its album artist differs from the rest of its album."
 msgstr "Son artiste d’album diffère de celui du reste de son album."
 
-#: src/app/inspector.odin:265
+#: src/app/inspector.odin:382
 msgid "Some of these tracks have an album artist that differs from the rest of their albums."
 msgstr "Certaines de ces pistes ont un artiste d’album différent du reste de leur album."
 
-#: src/app/inspector.odin:323 src/app/inspector.odin:402
+#: src/app/inspector.odin:441 src/app/inspector.odin:520
 #: src/app/tracks.odin:333
 msgid "Title"
 msgstr "Titre"
 
-#: src/app/inspector.odin:325 src/app/inspector.odin:404
+#: src/app/inspector.odin:443 src/app/inspector.odin:522
 #: src/app/tracks.odin:335
 msgid "Artist"
 msgstr "Artiste"
 
-#: src/app/inspector.odin:327 src/app/inspector.odin:419
+#: src/app/inspector.odin:445 src/app/inspector.odin:537
 #: src/app/tracks.odin:337
 msgid "Album"
 msgstr "Album"
 
-#: src/app/inspector.odin:329 src/app/inspector.odin:422
+#: src/app/inspector.odin:447 src/app/inspector.odin:540
 #: src/app/tracks.odin:339
 msgid "Year"
 msgstr "Année"
 
-#: src/app/inspector.odin:331 src/app/inspector.odin:510
+#: src/app/inspector.odin:449 src/app/inspector.odin:628
 msgid "Comment"
 msgstr "Commentaire"
 
-#: src/app/inspector.odin:333 src/app/inspector.odin:472
-#: src/app/inspector.odin:474
+#: src/app/inspector.odin:451 src/app/inspector.odin:590
+#: src/app/inspector.odin:592
 msgid "Track"
 msgstr "Piste"
 
-#: src/app/inspector.odin:335 src/app/inspector.odin:495
+#: src/app/inspector.odin:453 src/app/inspector.odin:613
 #: src/app/tracks.odin:341
 msgid "Genre"
 msgstr "Genre"
 
-#: src/app/inspector.odin:411
+#: src/app/inspector.odin:529
 msgid "Album artist"
 msgstr "Artiste de l’album"
 
-#: src/app/inspector.odin:453
+#: src/app/inspector.odin:571
 msgid "Multiple"
 msgstr "Multiples"
 
-#: src/app/inspector.odin:462
+#: src/app/inspector.odin:580
 msgid "of"
 msgstr "sur"
 
-#: src/app/inspector.odin:474
+#: src/app/inspector.odin:592
 msgid "Track total"
 msgstr "Nombre de pistes"
 
-#: src/app/inspector.odin:485 src/app/inspector.odin:487
+#: src/app/inspector.odin:603 src/app/inspector.odin:605
 msgid "Disc"
 msgstr "Disque"
 
-#: src/app/inspector.odin:487
+#: src/app/inspector.odin:605
 msgid "Disc total"
 msgstr "Nombre de disques"
 
-#: src/app/inspector.odin:588 src/app/inspector.odin:610
-#: src/app/inspector.odin:705 src/app/inspector.odin:750
+#: src/app/inspector.odin:706 src/app/inspector.odin:728
+#: src/app/inspector.odin:823 src/app/inspector.odin:868
 msgid "Multiple values"
 msgstr "Valeurs multiples"
 
-#: src/app/inspector.odin:717
+#: src/app/inspector.odin:835
 msgid "{} kHz"
 msgstr "{} kHz"
 
-#: src/app/inspector.odin:719
+#: src/app/inspector.odin:837
 msgid "{}.{} kHz"
 msgstr "{},{} kHz"
 
-#: src/app/inspector.odin:721
+#: src/app/inspector.odin:839
 msgid "{} kbps"
 msgstr "{} kbit/s"
 
-#: src/app/inspector.odin:731
+#: src/app/inspector.odin:849
 msgid "{n} byte"
 msgid_plural "{n} bytes"
 msgstr[0] "{n} octet"
 msgstr[1] "{n} octets"
 
-#: src/app/inspector.odin:733
+#: src/app/inspector.odin:851
 msgid "{} KB"
 msgstr "{} Ko"
 
-#: src/app/inspector.odin:736
+#: src/app/inspector.odin:854
 msgid "{}.{} MB"
 msgstr "{},{} Mo"
 
-#: src/app/inspector.odin:739
+#: src/app/inspector.odin:857
 msgid "{}.{} GB"
 msgstr "{},{} Go"
 
-#: src/app/inspector.odin:748 src/app/inspector.odin:753
+#: src/app/inspector.odin:866 src/app/inspector.odin:871
 msgid "None"
 msgstr "Aucun"
 
-#: src/app/inspector.odin:766
+#: src/app/inspector.odin:884
 msgid "Could not read this file"
 msgstr "Impossible de lire ce fichier"
 
-#: src/app/inspector.odin:785
+#: src/app/inspector.odin:903
 msgid "Problem"
 msgstr "Problème"
 
-#: src/app/inspector.odin:791
+#: src/app/inspector.odin:909
 msgid "Colophon could not open this file. It may have been moved or deleted, or Colophon may not be allowed to read it."
 msgstr "Colophon n’a pas pu ouvrir ce fichier. Il a peut-être été déplacé ou supprimé, ou Colophon n’a pas le droit de le lire."
 
-#: src/app/inspector.odin:795
+#: src/app/inspector.odin:913
 msgid "This file is damaged, or it is not an MP3: Colophon could not make sense of it."
 msgstr "Ce fichier est abîmé, ou ce n’est pas un MP3 : Colophon n’a pas pu le comprendre."
 
-#: src/app/inspector.odin:814
+#: src/app/inspector.odin:932
 msgid "Details"
 msgstr "Détails"
 
-#: src/app/inspector.odin:817
+#: src/app/inspector.odin:935
 msgid "File size"
 msgstr "Taille du fichier"
 
-#: src/app/inspector.odin:833
+#: src/app/inspector.odin:951
 msgid "Show in Finder"
 msgstr "Afficher dans le Finder"
 
-#: src/app/inspector.odin:835
+#: src/app/inspector.odin:953
 msgid "Show in Explorer"
 msgstr "Afficher dans l’Explorateur"
 
-#: src/app/inspector.odin:837
+#: src/app/inspector.odin:955
 msgid "Show in Folder"
 msgstr "Afficher dans le dossier"
 
-#: src/app/inspector.odin:844
+#: src/app/inspector.odin:962
 msgid "Copy details"
 msgstr "Copier les détails"
 
@@ -775,23 +803,8 @@ msgstr "Choisir les colonnes"
 #~ msgstr[0] "L’enregistrement convertit {n} fichier de {0} en {1}."
 #~ msgstr[1] "L’enregistrement convertit {n} fichiers de {0} en {1}."
 
-#~ msgid "Replace Cover…"
-#~ msgstr "Remplacer la pochette…"
-
 #~ msgid "Extract Cover…"
 #~ msgstr "Extraire la pochette…"
-
-#~ msgid "Remove Cover"
-#~ msgstr "Supprimer la pochette"
-
-#~ msgid "Cover"
-#~ msgstr "Pochette"
-
-#~ msgid "Several covers"
-#~ msgstr "Plusieurs pochettes"
-
-#~ msgid "Replace cover…"
-#~ msgstr "Remplacer la pochette…"
 
 #~ msgid "Tag format"
 #~ msgstr "Format des tags"
@@ -957,9 +970,6 @@ msgstr "Choisir les colonnes"
 
 #~ msgid "Could not play “{}”"
 #~ msgstr "Impossible de lire « {} »"
-
-#~ msgid "“{}” is not a JPEG or PNG image"
-#~ msgstr "« {} » n’est pas une image JPEG ou PNG"
 
 #~ msgid "Could not write the cover to “{}”"
 #~ msgstr "Impossible d’écrire la pochette dans « {} »"

@@ -74,6 +74,7 @@ run :: proc(options: Options) -> bool {
 		data        = &w,
 		open_folder = show_folder_dialog,
 		open_files  = show_files_dialog,
+		pick_image  = show_image_dialog,
 		reveal      = reveal_in_file_manager,
 	}
 	open_window(&w, options) or_return
@@ -113,6 +114,15 @@ open_window :: proc(w: ^Window, options: Options) -> bool {
 	if !sdl.SetRenderVSync(w.renderer, 1) do sdl_failed("SDL_SetRenderVSync")
 	ui.renderer_init(&w.lists)
 	ui.ui_init(&w.ctx, &w.lists, ui.theme(system_theme()))
+	w.ctx.images = {
+		data = &w.backend,
+		create = proc(data: rawptr, rgba: []u8, width, height: int) -> (ui.Texture_Id, bool) {
+			return ui.sdl_backend_create_texture((^ui.Sdl_Backend)(data), rgba, width, height)
+		},
+		destroy = proc(data: rawptr, id: ui.Texture_Id) {
+			ui.sdl_backend_destroy_texture((^ui.Sdl_Backend)(data), id)
+		},
+	}
 	w.ctx.clipboard = {
 		get = proc(data: rawptr, allocator: runtime.Allocator) -> string {
 			text := sdl.GetClipboardText()
@@ -401,6 +411,32 @@ Chosen :: struct {
 Dialog_Kind :: enum u8 {
 	Folder,
 	Files,
+	Image,
+}
+
+// What the image dialog offers: the covers Colophon writes.
+@(private = "file")
+@(rodata)
+IMAGE_FILTERS := [?]sdl.DialogFileFilter{{"JPEG and PNG images", "jpg;jpeg;png"}}
+
+@(private = "file")
+show_image_dialog :: proc(app: ^App, data: rawptr) {
+	_ = app
+	w := (^Window)(data)
+	sdl.ShowOpenFileDialog(
+		image_chosen,
+		data,
+		w.window,
+		&IMAGE_FILTERS[0],
+		len(IMAGE_FILTERS),
+		nil,
+		false,
+	)
+}
+
+@(private = "file")
+image_chosen :: proc "c" (userdata: rawptr, filelist: [^]cstring, filter: c.int) {
+	dialog_answered(userdata, filelist, .Image)
 }
 
 @(private = "file")
@@ -460,6 +496,8 @@ take_chosen :: proc(app: ^App, chosen: ^Chosen) {
 		for path in chosen.paths do execute(app, engine.Open_Folder{path})
 	case .Files:
 		execute(app, engine.Open_Files{chosen.paths[:]})
+	case .Image:
+		if len(chosen.paths) > 0 do take_image(app, chosen.paths[0], f64(sdl.GetTicksNS()) / 1e9)
 	}
 }
 

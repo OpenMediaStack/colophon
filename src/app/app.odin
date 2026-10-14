@@ -55,6 +55,8 @@ Dialogs :: struct {
 	data:        rawptr,
 	open_folder: proc(app: ^App, data: rawptr),
 	open_files:  proc(app: ^App, data: rawptr),
+	// Asks for an image, which take_image makes the selected tracks' cover.
+	pick_image:  proc(app: ^App, data: rawptr),
 	// Shows a file in the system's file manager.
 	reveal:      proc(app: ^App, data: rawptr, path: string),
 }
@@ -157,6 +159,11 @@ open_folder :: proc(app: ^App) {
 // Asks the user for files to open.
 open_files :: proc(app: ^App) {
 	if app.dialogs.open_files != nil do app.dialogs.open_files(app, app.dialogs.data)
+}
+
+// Asks the user for an image to make the selected tracks' cover.
+pick_image :: proc(app: ^App) {
+	if app.dialogs.pick_image != nil do app.dialogs.pick_image(app, app.dialogs.data)
 }
 
 // Shows a file in the system's file manager.

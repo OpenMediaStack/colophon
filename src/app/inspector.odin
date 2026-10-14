@@ -42,6 +42,33 @@ Inspector :: struct {
 	// The field being typed in, whose next changes go on with the same step of the
 	// history, so that Escape takes the whole of the typing back.
 	typing:         Maybe(engine.Field),
+	// The cover drawn in the well, made again when the selection's cover changes.
+	cover:          Maybe(Shown_Cover),
+}
+
+// A cover decoded into a texture, by the key of the cover it shows.
+Shown_Cover :: struct {
+	key:     lib.Cover_Key,
+	// nil for a cover that could not be read or decoded, tried once.
+	texture: Maybe(ui.Texture_Id),
+}
+
+// The side of the well's cover in pixels, 1.0.0's: the well at twice the scale.
+@(private = "file")
+COVER_PIXELS :: 128
+
+// The height of the inspector's header, at least: the well, the heading, the album
+// line and the cover button; the lines push the button down when there are more.
+@(private = "file")
+HEADER_HEIGHT :: 84
+
+// The height the header takes for a summary: its lines, then the cover button.
+@(private = "file")
+header_height :: proc(s: engine.Summary) -> f32 {
+	lines: f32 = 12 + 24
+	if album_and_artist(s) != "" do lines += 18
+	if s.unreadable > 0 do lines += 16
+	return max(HEADER_HEIGHT, lines + 4 + 24 + 8)
 }
 
 init_inspector :: proc(i: ^Inspector) {
@@ -62,8 +89,10 @@ inspector :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	case engine.Summary:
 		inspect_tracks(ctx, app, rect, inspection)
 	case engine.Unreadable_Track:
+		drop_cover(ctx, app)
 		inspect_unreadable(ctx, app, rect, inspection)
 	case nil:
+		drop_cover(ctx, app)
 		nothing_selected(ctx, app, rect)
 	}
 }
@@ -121,7 +150,7 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	width := rect.w - 2 * INSPECTOR_PADDING
 
 	// The content's height, for the scroll.
-	height: f32 = 2 * INSPECTOR_PADDING + 64 + SECTION_GAP + 16
+	height: f32 = 2 * INSPECTOR_PADDING + header_height(s) + SECTION_GAP + 16
 	// The warnings under the Tags header, wrapped to the panel's width.
 	notes := make([dynamic]string, context.temp_allocator)
 	if lost := lost_names(s.id3v1_losses); lost != "" {
@@ -138,15 +167,7 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	x := origin.x + INSPECTOR_PADDING
 	y := origin.y + INSPECTOR_PADDING
 
-	// The cover's well and the heading. Covers come with slice 36.
-	well := ui.Rect{x, y, 64, 64}
-	ui.fill_rect(r, well, th.surface_2, 6)
-	ui.stroke_rect(r, well, th.border_subtle, 6)
-	ui.draw_icon_centered(r, .Music, well, th.text_tertiary, 24)
-	ui.declare(
-		ctx,
-		{id = ui.widget_id("Cover"), role = .Image, label = ui.tr("No cover"), rect = well},
-	)
+	cover_well(ctx, app, s, {x, y, 64, 64})
 	heading :=
 		s.count == 1 ? s.heading.? or_else "" : ui.tr_n("{n} track selected", "{n} tracks selected", s.count)
 	text_x := x + 64 + 12
@@ -190,8 +211,16 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 				rect = {text_x, ty, nw, 16},
 			},
 		)
+		ty += 16
 	}
-	y += 64 + SECTION_GAP
+	replace_label := ui.tr("Replace cover…")
+	replace_options := ui.Button_Options {
+		kind  = .Secondary,
+		small = true,
+	}
+	replace_rect := ui.Rect{text_x, ty + 4, ui.button_width(r, replace_label, replace_options), 24}
+	if ui.button(ctx, ui.widget_id("Replace cover"), replace_rect, replace_label, replace_options) do pick_image(app)
+	y += header_height(s) + SECTION_GAP
 
 	if section_header(ctx, 0, ui.tr("Tags"), {x, y, width, 16}, &i.tags_open) {
 		y += 16 + 8
@@ -247,6 +276,109 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 }
 
 // A line of a warning, and the room under its last line.
+// The well: the cover the selected tracks share, its centre square, or the sign that
+// they have none or several. A right click opens its menu. The cover is read, decoded
+// and shrunk when the selection's cover changes, on the UI thread: see the plan's
+// decision on covers.
+@(private = "file")
+cover_well :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, well: ui.Rect) {
+	r := ctx.renderer
+	th := ctx.theme
+	i := &app.inspector
+	refresh_cover(ctx, app, s)
+	id := ui.widget_id("Cover")
+	interaction := ui.interact(ctx, id, well)
+	if .Right_Clicked in interaction do ui.open_menu(ctx, ui.widget_id("Cover menu"), ctx.input.mouse)
+	ui.fill_rect(r, well, th.surface_2, 6)
+	label := ui.tr("No cover")
+	drawn := false
+	if shown, has := i.cover.?; has {
+		if texture, made := shown.texture.?; made {
+			ui.draw_image(r, texture, well, 6)
+			drawn = true
+		}
+	}
+	switch v in s.cover {
+	case lib.Cover_Key:
+		// Shared: the well is the cover's, empty while it cannot be drawn, as 1.0.0.
+		label = ui.tr("Cover")
+	case engine.Mixed:
+		label = ui.tr("Several covers")
+	case nil:
+	}
+	if _, shared := s.cover.(lib.Cover_Key); !shared && !drawn do ui.draw_icon_centered(r, .Music, well, th.text_tertiary, 24)
+	ui.stroke_rect(r, well, .Cover in s.modified ? th.modified_border : th.border_subtle, 6)
+	ui.declare(ctx, {id = id, role = .Image, label = label, rect = well})
+	cover_menu(ctx, app, s)
+}
+
+// Makes the well's texture again when the cover the selection shares changed: from
+// the bytes held for a cover waiting to be saved, else read from the first selected
+// track's file, shrunk to the well's pixels. A cover that cannot be read or decoded
+// is tried once.
+@(private = "file")
+refresh_cover :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary) {
+	i := &app.inspector
+	key, shared := s.cover.(lib.Cover_Key)
+	track, has_track := s.cover_track.?
+	if !shared || !has_track {
+		drop_cover(ctx, app)
+		return
+	}
+	if shown, has := i.cover.?; has && shown.key == key do return
+	drop_cover(ctx, app)
+	i.cover = Shown_Cover{key, nil}
+	e := &app.engine
+	tags, readable := engine.shown_tags(e, track)
+	if !readable do return
+	bytes: []u8
+	switch cover in tags.cover {
+	case lib.Cover:
+		bytes = cover.data
+	case lib.Own_Cover:
+		read, found := lib.read_cover(e.library.tracks[track].path, context.temp_allocator)
+		if !found do return
+		bytes = read.data
+	case nil:
+		return
+	}
+	rgba, w, h, decoded := ui.decode_image(bytes, context.temp_allocator)
+	if !decoded do return
+	small, shrunk := ui.shrink_image(rgba, w, h, COVER_PIXELS, context.temp_allocator)
+	if !shrunk do return
+	texture, made := ui.create_image(ctx, small, COVER_PIXELS, COVER_PIXELS)
+	if !made do return
+	i.cover = Shown_Cover{key, texture}
+}
+
+@(private = "file")
+drop_cover :: proc(ctx: ^ui.Ui, app: ^App) {
+	if shown, has := app.inspector.cover.?; has {
+		if texture, made := shown.texture.?; made do ui.destroy_image(ctx, texture)
+	}
+	app.inspector.cover = nil
+}
+
+// The well's menu: replace the cover, or remove it. Extracting it to a file comes
+// with slice 36c.
+@(private = "file")
+cover_menu :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary) {
+	id := ui.widget_id("Cover menu")
+	if !ui.is_menu_open(ctx, id) do return
+	items := [?]ui.Menu_Item {
+		{label = ui.tr("Replace Cover…")},
+		{label = ui.tr("Remove Cover"), disabled = s.cover == nil},
+	}
+	chosen, picked := ui.menu(ctx, id, items[:], ui.tr("Cover menu")).?
+	if !picked do return
+	switch chosen {
+	case 0:
+		pick_image(app)
+	case 1:
+		execute(app, engine.Apply_Edit{{.Cover, nil}})
+	}
+}
+
 @(private = "file")
 WARNING_LINE :: 16
 @(private = "file")

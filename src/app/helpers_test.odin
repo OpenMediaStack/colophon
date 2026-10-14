@@ -26,10 +26,12 @@ Screen :: struct {
 	answers: Answers,
 }
 
-// What the dialogs answer: each folder in turn, then nothing; the files every time.
+// What the dialogs answer: each folder in turn, then nothing; the files every time;
+// the image every time, or nothing while empty.
 Answers :: struct {
 	folders: [dynamic]string,
 	files:   []string,
+	image:   string,
 }
 
 // A screen of size points, in the theme of kind, drawn twice so that the hover and the
@@ -49,6 +51,10 @@ screen_init :: proc(s: ^Screen, size: [2]f32, kind := ui.Theme_Kind.Dark) {
 		open_files = proc(app: ^App, data: rawptr) {
 			a := (^Answers)(data)
 			if len(a.files) > 0 do engine.execute(&app.engine, engine.Open_Files{a.files})
+		},
+		pick_image = proc(app: ^App, data: rawptr) {
+			a := (^Answers)(data)
+			if len(a.image) > 0 do take_image(app, a.image, 0)
 		},
 	}
 	ui.harness_init(&s.h, app_frame, &s.app, kind)
@@ -156,6 +162,7 @@ expect_screen :: proc(t: ^testing.T, s: ^Screen, name: string) {
 	if !testing.expectf(t, ui.capture_init(&cap, size, s.h.scale), "capture: %s", sdl.GetError()) do return
 	defer ui.capture_destroy(&cap)
 	ui.run_frame(&s.h)
+	if !testing.expectf(t, ui.capture_textures(&cap, &s.h), "textures: %s", sdl.GetError()) do return
 	if !testing.expectf(t, ui.capture_draw(&cap, &s.h.renderer), "drawing: %s", sdl.GetError()) do return
 	update := ui.update_references_asked()
 	result, message := ui.check_reference(cap.surface, name, update)
