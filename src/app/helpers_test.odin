@@ -168,6 +168,12 @@ field_value :: proc(s: ^Screen, label: string) -> (value: string, found: bool) {
 	return
 }
 
+// What a field shows while it is empty, by its label.
+field_placeholder :: proc(s: ^Screen, label: string) -> string {
+	for w in s.h.ui.widgets do if w.role == .Text_Field && w.label == label do return w.placeholder
+	return ""
+}
+
 // Types text in a field, in place of what it held.
 retype :: proc(s: ^Screen, label, text: string) {
 	ui.click(&s.h, label)

@@ -178,18 +178,20 @@ Widget_States :: bit_set[Widget_State]
 // What a widget declared this frame: the accessibility tree is built from it, and
 // tests find widgets by their label in it. Its strings last until the next frame.
 Widget_Info :: struct {
-	id:        Widget_Id,
-	role:      Role,
-	label:     string,
-	value:     string,
-	rect:      Rect,
-	states:    Widget_States,
+	id:          Widget_Id,
+	role:        Role,
+	label:       string,
+	value:       string,
+	// What a field shows while its value is empty: a hint, or that the values differ.
+	placeholder: string,
+	rect:        Rect,
+	states:      Widget_States,
 	// What assistive technologies may do to it; declare fills in those of its role.
-	actions:   Actions,
+	actions:     Actions,
 	// The group it belongs to, declared by push_parent; 0 for the window.
-	parent:    Widget_Id,
+	parent:      Widget_Id,
 	// Tab and Shift+Tab move the focus through these, in the order they are declared.
-	focusable: bool,
+	focusable:   bool,
 }
 
 // What assistive technologies may do to a widget.

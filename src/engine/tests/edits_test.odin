@@ -269,3 +269,21 @@ an_edit_of_given_tracks_leaves_the_selection_alone :: proc(t: ^testing.T) {
 	engine.execute(&e, engine.Edit_Tracks{{engine.Track_Id(9)}, {.Title, "Nowhere"}, false})
 	testing.expect(t, !engine.can_undo(&e))
 }
+
+@(test)
+revert_is_possible_while_a_selected_track_has_changes :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := two_tracks(t, &e)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	one, two := track_named(&e, "1.mp3"), track_named(&e, "2.mp3")
+	engine.execute(&e, engine.Select{one})
+	testing.expect(t, !engine.can_revert(&e))
+	engine.execute(&e, engine.Apply_Edit{{.Title, "New"}})
+	testing.expect(t, engine.can_revert(&e))
+	engine.execute(&e, engine.Select{two})
+	testing.expect(t, !engine.can_revert(&e))
+	engine.execute(&e, engine.Select_All{})
+	engine.execute(&e, engine.Revert{})
+	testing.expect(t, !engine.can_revert(&e))
+}

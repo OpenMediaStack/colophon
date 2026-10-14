@@ -96,7 +96,7 @@ text_field :: proc(
 	// was typed is committed, as a click elsewhere would.
 	if ui.edit_ended == id {
 		ended := string(ui.edit_ended_text[:])
-		if accepted(options, ended) {
+		if accepted(options.accepts, ended) {
 			result.committed = true
 			result.text = ended
 		} else {
@@ -133,7 +133,7 @@ text_field :: proc(
 	}
 	shown := focused ? edit_text(&ui.edit) : value
 	options := options
-	if !accepted(options, shown) do options.flags += {.Error}
+	if !accepted(options.accepts, shown) do options.flags += {.Error}
 	draw_text_field(ui, rect, text_rect, value, style, options, interaction, focused)
 	if options.clearable && len(shown) > 0 && !disabled {
 		// Inside the field's trailing room: a click on it is not a click elsewhere, and
@@ -159,6 +159,7 @@ text_field :: proc(
 			role = .Text_Field,
 			label = label,
 			value = shown,
+			placeholder = options.placeholder,
 			rect = rect,
 			states = field_states(interaction, focused, disabled),
 			focusable = !disabled,
@@ -177,9 +178,10 @@ focus_field :: proc(ui: ^Ui, id: Widget_Id) {
 	request_focus(ui, id, by_key = true)
 }
 
+// Whether accepts takes the text; nil takes any.
 @(private = "file")
-accepted :: proc(options: Text_Field_Options, text: string) -> bool {
-	return options.accepts == nil || options.accepts(text)
+accepted :: proc(accepts: proc(text: string) -> bool, text: string) -> bool {
+	return accepts == nil || accepts(text)
 }
 
 // The keys, the typed text and the mouse on the focused field. Text that accepts
@@ -198,9 +200,6 @@ edit_field :: proc(
 	e := &ui.edit
 	in_ := &ui.input
 	moved_caret := e.caret
-	takes :: proc(accepts: proc(text: string) -> bool, e: ^Text_Edit) -> bool {
-		return accepts == nil || accepts(edit_text(e))
-	}
 	if .Pressed in interaction {
 		at := offset_in(ui.renderer, edit_text(e), text_rect, style, in_.mouse.x, ui.edit_scroll)
 		switch {
@@ -217,7 +216,7 @@ edit_field :: proc(
 	}
 	// A click in a popup, such as the field's suggestions, is not a click elsewhere.
 	if .Left in in_.pressed && !mouse_over(ui, rect) && !mouse_in_popup(ui) {
-		if takes(accepts, e) {
+		if accepted(accepts, edit_text(e)) {
 			result.committed = true
 		} else {
 			result.cancelled = true
@@ -249,12 +248,12 @@ edit_field :: proc(
 		taken := true
 		#partial switch press.key {
 		case .Enter:
-			if takes(accepts, e) {
+			if accepted(accepts, edit_text(e)) {
 				result.committed = true
 				release_focus(ui, id)
 			}
 		case .Tab:
-			if takes(accepts, e) {
+			if accepted(accepts, edit_text(e)) {
 				result.committed = true
 				move_focus(ui, .Shift in press.modifiers ? .Back : .Forward)
 			}

@@ -228,7 +228,7 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	revert_label := ui.tr("Revert")
 	revert_options := ui.Button_Options {
 		kind     = .Secondary,
-		disabled = s.modified == {} || saving,
+		disabled = !engine.can_revert(e) || saving,
 	}
 	revert_width := ui.button_width(r, revert_label, revert_options)
 	revert_rect := ui.Rect{save_rect.x - 8 - revert_width, by, revert_width, ui.BUTTON_HEIGHT}
@@ -347,8 +347,9 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 		options: [2]ui.Text_Field_Options
 		values[0], options[0] = number_options(shared[0], fields[0] in s.modified, fields[0])
 		values[1], options[1] = number_options(shared[1], fields[1] in s.modified, fields[1])
-		options[0].placeholder = ui.tr("Multiple")
-		options[1].placeholder = "…"
+		// The pair says the tracks differ in fewer letters than a field would.
+		if .Multiple_Values in options[0].flags do options[0].placeholder = ui.tr("Multiple")
+		if .Multiple_Values in options[1].flags do options[1].placeholder = "…"
 		number, total := ui.number_pair(
 			ctx,
 			ui.widget_id(name),

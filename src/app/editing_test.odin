@@ -204,6 +204,47 @@ a_year_cell_refuses_letters :: proc(t: ^testing.T) {
 	testing.expect_value(t, modified_count(&s), 0)
 }
 
+// Typed key by key, as real input comes: "20" is applied, then "20x" refused and the
+// typing given up on leaving, the year back to what it was.
+@(test)
+a_refused_year_is_given_up_on_leaving_the_cell :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_copies(t, &s, 2)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	testing.expect(t, double_click_cell(&s, "2019"))
+	for key in ([]string{"2", "0", "x"}) do ui.type_text(&s.h, key)
+	testing.expect_value(t, modified_count(&s), 1)
+	testing.expect(t, ui.click(&s.h, "Paper Satellites"))
+	ui.run_frame(&s.h)
+	_, editing := editor(&s)
+	testing.expect(t, !editing)
+	testing.expect_value(t, modified_count(&s), 0)
+	testing.expect(t, shows(&s, "2019"))
+}
+
+// A single track without a disc number shows an empty pair, not the words that say
+// the tracks differ.
+@(test)
+a_number_pair_says_multiple_only_when_the_tracks_differ :: proc(t: ^testing.T) {
+	s: Screen
+	screen_init(&s, {1440, 900})
+	defer screen_destroy(&s)
+	folder := folder_with_fixtures(t, {{"v1_1_ascii.mp3", "1.mp3"}, {"v23_full.mp3", "2.mp3"}})
+	defer remove_folder(folder)
+	open_folder_of(t, &s, folder)
+	wait_until_shown(t, &s, "2 tracks")
+	e := &s.app.engine
+	execute(&s.app, engine.Select{e.listed[0]})
+	ui.run_frame(&s.h)
+	testing.expect_value(t, field_placeholder(&s, "Disc"), "")
+	testing.expect_value(t, field_placeholder(&s, "Disc total"), "")
+	execute(&s.app, engine.Select_All{})
+	ui.run_frame(&s.h)
+	testing.expect_value(t, field_placeholder(&s, "Disc"), "Multiple")
+	testing.expect_value(t, field_placeholder(&s, "Disc total"), "…")
+}
+
 @(test)
 the_time_cell_is_not_a_tag :: proc(t: ^testing.T) {
 	s: Screen

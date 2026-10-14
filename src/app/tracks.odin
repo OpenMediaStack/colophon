@@ -47,7 +47,8 @@ WEIGHTS := [engine.Table_Column]f32 {
 	.Folder  = 1,
 }
 
-// SDL counts a second click within this many seconds as a double click.
+// SDL counts a second click within this many seconds as a double click
+// (SDL_HINT_MOUSE_DOUBLE_CLICK_TIME, 500 ms unless set).
 @(private = "file")
 DOUBLE_CLICK :: 0.5
 
@@ -56,12 +57,13 @@ Tracks :: struct {
 	editing: Maybe(Cell_Editing),
 	shrink:  Maybe(Shrink),
 	// The track right-clicked, whose menu is open.
-	menu:    engine.Track_Id,
+	menu:    Maybe(engine.Track_Id),
 }
 
 // The cell edited in place: the tracks its editor opened on, which it edits even once
 // a scan has moved their rows, and whether its typing made a step of the history to go
-// on with, so that Escape takes the whole of it back.
+// on with, so that Escape takes the whole of it back. The list is made with the
+// engine's allocator and freed by end_cell or destroy_tracks.
 Cell_Editing :: struct {
 	tracks: [dynamic]engine.Track_Id,
 	field:  engine.Field,
@@ -85,7 +87,6 @@ destroy_tracks :: proc(s: ^Tracks) {
 // becomes engine commands.
 track_table :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	e := &app.engine
-	s := &app.tracks
 	columns := table_columns(app)
 	rows := ui.Table_Rows{app, len(e.listed), track_cell, track_states}
 	sized := e.view.column_widths != nil
@@ -102,6 +103,37 @@ track_table :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		focused_row(e),
 		ui.tr("Tracks"),
 	)
+	take_rows(ctx, app, result)
+	if column, sorted := result.sort_by.?; sorted do execute(app, engine.Sort_By{sort_column(column)})
+	if resize, resized := result.resized.?; resized {
+		execute(app, engine.Resize_Columns{widths_after(app, columns, rect.w, sized, resize)})
+	}
+	if move, moved := result.moved.?; moved && move.column != NUMBER_COLUMN {
+		before: Maybe(engine.Table_Column)
+		if b, has := move.before.?; has do before = engine.Table_Column(b)
+		execute(app, engine.Move_Column{engine.Table_Column(move.column), before})
+	}
+	if at, opened := result.column_menu.?; opened do ui.open_menu(ctx, ui.widget_id("Column chooser"), at)
+	if step, stepped := result.step.?; stepped {
+		s: engine.Step = step.direction == .Up ? .Up : .Down
+		if step.extend {
+			execute(app, engine.Extend_Selection{s})
+		} else {
+			execute(app, engine.Move_Selection{s})
+		}
+	}
+	if result.select_all do execute(app, engine.Select_All{})
+	if result.space do execute(app, engine.Play_Pause{})
+	column_chooser(ctx, app)
+	track_menu(ctx, app)
+}
+
+// What the user did to the rows: a cell edited, a press, the release the shrinking
+// click waits for, a right click.
+@(private = "file")
+take_rows :: proc(ctx: ^ui.Ui, app: ^App, result: ui.Table_Result) {
+	e := &app.engine
+	s := &app.tracks
 	// What was typed in a cell comes first: Tab commits one cell as it opens the next,
 	// and a click on another row commits the cell as it selects the row.
 	if input, typed := result.input.?; typed do take_cell(app, input.field)
@@ -146,28 +178,6 @@ track_table :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		s.menu = track
 		ui.open_menu(ctx, ui.widget_id("Track menu"), menu.at)
 	}
-	if column, sorted := result.sort_by.?; sorted do execute(app, engine.Sort_By{sort_column(column)})
-	if resize, resized := result.resized.?; resized {
-		execute(app, engine.Resize_Columns{widths_after(app, columns, rect.w, sized, resize)})
-	}
-	if move, moved := result.moved.?; moved && move.column != NUMBER_COLUMN {
-		before: Maybe(engine.Table_Column)
-		if b, has := move.before.?; has do before = engine.Table_Column(b)
-		execute(app, engine.Move_Column{engine.Table_Column(move.column), before})
-	}
-	if at, opened := result.column_menu.?; opened do ui.open_menu(ctx, ui.widget_id("Column chooser"), at)
-	if step, stepped := result.step.?; stepped {
-		s: engine.Step = step.direction == .Up ? .Up : .Down
-		if step.extend {
-			execute(app, engine.Extend_Selection{s})
-		} else {
-			execute(app, engine.Move_Selection{s})
-		}
-	}
-	if result.select_all do execute(app, engine.Select_All{})
-	if result.space do execute(app, engine.Play_Pause{})
-	column_chooser(ctx, app)
-	track_menu(ctx, app)
 }
 
 // Captures the tracks a cell's editor opened on: the selected ones, the row's track
@@ -196,7 +206,14 @@ take_cell :: proc(app: ^App, result: ui.Text_Field_Result) {
 	if !is do return
 	if result.changed {
 		if edit, fits := edit_of(editing.field, result.text); fits {
-			execute(app, engine.Edit_Tracks{editing.tracks[:], edit, editing.typing})
+			execute(
+				app,
+				engine.Edit_Tracks {
+					tracks = editing.tracks[:],
+					edit = edit,
+					continues = editing.typing,
+				},
+			)
 			editing.typing = true
 		}
 	}
@@ -240,13 +257,13 @@ track_menu :: proc(ctx: ^ui.Ui, app: ^App) {
 		{label = ui.tr("Play"), disabled = !engine.can_play(e)},
 		{label = ui.tr("Select Album"), separator = true},
 		{label = ui.tr("Number Tracks")},
-		{label = ui.tr("Revert"), separator = true, disabled = !selection_modified(e)},
+		{label = ui.tr("Revert"), separator = true, disabled = !engine.can_revert(e)},
 	}
 	chosen, picked := ui.menu(ctx, id, items[:], ui.tr("Track menu")).?
 	if !picked do return
 	switch chosen {
 	case 0:
-		execute(app, engine.Play{app.tracks.menu})
+		if track, has := app.tracks.menu.?; has do execute(app, engine.Play{track})
 	case 1:
 		execute(app, engine.Select_Album{})
 	case 2:
@@ -254,13 +271,6 @@ track_menu :: proc(ctx: ^ui.Ui, app: ^App) {
 	case 3:
 		execute(app, engine.Revert{})
 	}
-}
-
-// Whether a selected track has changes waiting to be saved.
-@(private = "file")
-selection_modified :: proc(e: ^engine.Engine) -> bool {
-	for track in e.selection.tracks do if track in e.edits.pending do return true
-	return false
 }
 
 // The columns the table shows, in the user's order: the number, then those not hidden,

@@ -167,6 +167,12 @@ versions_of :: proc(e: ^Engine, track: Track_Id) -> (versions: lib.Tag_Versions,
 	return lib.versions_following(e.edits.policy, saved.formats), true
 }
 
+// Whether a selected track has changes waiting to be saved, which Revert drops.
+can_revert :: proc(e: ^Engine) -> bool {
+	for track in e.selection.tracks do if track in e.edits.pending do return true
+	return false
+}
+
 // Whether there is a step to undo.
 can_undo :: proc(e: ^Engine) -> bool {
 	return len(e.edits.undo) > 0

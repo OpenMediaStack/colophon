@@ -332,10 +332,10 @@ edit_cell :: proc(
 		TABLE_ROW_HEIGHT - 2,
 	}
 	value := rows.cell(rows.data, cell.row, cell.column)
-	shown := ui.edit_owner == editor ? edit_text(&ui.edit) : value
-	options: Text_Field_Options
+	options := Text_Field_Options {
+		accepts = column.accepts,
+	}
 	if column.mono do options.flags += {.Numeric}
-	if !takes(column, shown) do options.flags += {.Error}
 	// Tab belongs to the table while a cell is edited: it goes to the next cell.
 	tab := ui.tab
 	ui.tab = nil
@@ -356,28 +356,19 @@ edit_cell :: proc(
 	}
 	tabbed := ui.tab
 	ui.tab = tab
-	// The focus moving to another row ends the editing as a click elsewhere does.
+	// The focus moving to another row ends the editing as a click elsewhere does: text
+	// the column refuses is given up, back to the value the cell had.
 	if left_row && was_focused && !field.committed && !field.cancelled {
-		field.committed = true
+		if takes(column, field.text) {
+			field.committed = true
+		} else {
+			field.cancelled = true
+			field.text = string(ui.edit_start[:])
+		}
 		ui.edit_reported = true
 	}
 	// A click on the editor's own suggestions is not a click elsewhere.
 	clicked := .Left in ui.input.pressed && !mouse_in_popup(ui)
-	if field.committed && !takes(column, field.text) {
-		field.committed = false
-		if was_focused && !clicked && !left_row {
-			// Enter or Tab: the editor stays open, showing what is wrong.
-			tabbed = nil
-			request_focus(ui, editor)
-		} else {
-			// Given up: back to the value the cell had when its editor took the focus,
-			// which the Ui kept when another widget took the focus.
-			field.cancelled = true
-			field.text = was_focused ? string(ui.edit_start[:]) : string(ui.edit_ended_start[:])
-		}
-	}
-	// The error ring follows the text at once, rather than on the caret's next blink.
-	if takes(column, field.text) != takes(column, shown) do wake_at(ui, ui.input.time)
 	if field.changed || field.committed || field.cancelled do result.input = Cell_Input{cell, field}
 	if direction, has := tabbed.?; has {
 		step := direction == .Forward ? 1 : -1

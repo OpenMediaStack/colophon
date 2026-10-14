@@ -383,7 +383,7 @@ msgstr "Numéroter les pistes"
 
 #: src/app/tracks.odin:245
 msgid "Track menu"
-msgstr "Menu du morceau"
+msgstr "Menu de la piste"
 
 #: src/app/tracks.odin:287 src/app/tracks.odin:308
 msgid "Sort by {}"
