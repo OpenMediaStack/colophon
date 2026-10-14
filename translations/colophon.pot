@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-14 18:26+0200\n"
+"POT-Creation-Date: 2026-10-14 18:27+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,11 +35,45 @@ msgid "Drop to open these folders and files"
 msgstr ""
 
 #: src/app/screen.odin:101
+msgid "Inspector"
+msgstr ""
+
+#: src/app/sidebar.odin:65
 msgid "Sidebar"
 msgstr ""
 
-#: src/app/screen.odin:112
-msgid "Inspector"
+#: src/app/sidebar.odin:72 src/app/sidebar.odin:182
+msgid "All tracks"
+msgstr ""
+
+#: src/app/sidebar.odin:75 src/app/sidebar.odin:184
+msgid "Recently changed"
+msgstr ""
+
+#: src/app/sidebar.odin:78 src/app/sidebar.odin:186
+msgid "Unreadable files"
+msgstr ""
+
+#: src/app/sidebar.odin:100
+msgid "Library"
+msgstr ""
+
+#: src/app/sidebar.odin:105
+msgid "Folders"
+msgstr ""
+
+#: src/app/sidebar.odin:118
+msgid "Albums"
+msgstr ""
+
+#: src/app/sidebar.odin:132
+msgid "{n} more album"
+msgid_plural "{n} more albums"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/app/sidebar.odin:150 src/app/sidebar.odin:157
+msgid "Artists"
 msgstr ""
 
 #: src/app/status_bar.odin:18
