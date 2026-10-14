@@ -161,6 +161,8 @@ Widget_State :: enum u8 {
 	Disabled,
 	Selected,
 	Checked,
+	// A toggle, on or off, rather than a plain button.
+	Checkable,
 }
 
 Widget_States :: bit_set[Widget_State]
@@ -168,16 +170,18 @@ Widget_States :: bit_set[Widget_State]
 // What a widget declared this frame: the accessibility tree is built from it, and
 // tests find widgets by their label in it. Its strings last until the next frame.
 Widget_Info :: struct {
-	id:      Widget_Id,
-	role:    Role,
-	label:   string,
-	value:   string,
-	rect:    Rect,
-	states:  Widget_States,
+	id:        Widget_Id,
+	role:      Role,
+	label:     string,
+	value:     string,
+	rect:      Rect,
+	states:    Widget_States,
 	// What assistive technologies may do to it; declare fills in those of its role.
-	actions: Actions,
+	actions:   Actions,
 	// The group it belongs to, declared by push_parent; 0 for the window.
-	parent:  Widget_Id,
+	parent:    Widget_Id,
+	// Tab and Shift+Tab move the focus through these, in the order they are declared.
+	focusable: bool,
 }
 
 // What assistive technologies may do to a widget.
@@ -211,34 +215,39 @@ Cursor :: enum u8 {
 // react meanwhile. Keyboard focus moves only between frames. Make it with ui_init,
 // free it with ui_destroy.
 Ui :: struct {
-	allocator:   runtime.Allocator,
-	input:       Input,
-	renderer:    ^Renderer,
-	theme:       Theme,
+	allocator:    runtime.Allocator,
+	input:        Input,
+	renderer:     ^Renderer,
+	theme:        Theme,
 	// The widget under the mouse, from the previous frame, and the one this frame finds.
-	hot:         Widget_Id,
-	hot_next:    Widget_Id,
+	hot:          Widget_Id,
+	hot_next:     Widget_Id,
 	// The layer of the widget that claimed the hover: one on a lower layer, drawn later,
 	// does not take it.
-	hot_layer:   Layer,
+	hot_layer:    Layer,
 	// The widget the mouse button went down on, until it comes up.
-	active:      Widget_Id,
-	focus:       Widget_Id,
+	active:       Widget_Id,
+	focus:        Widget_Id,
 	// Whether the active and the focused widgets were drawn this frame: one that was not
 	// is gone, and loses the mouse or the keyboard.
-	active_seen: bool,
-	focus_seen:  bool,
+	active_seen:  bool,
+	focus_seen:   bool,
 	// The widget the last press went down on, so that a double click needs two presses on
 	// the same widget.
-	last_press:  Widget_Id,
+	last_press:   Widget_Id,
 	// The groups being declared, innermost last.
-	parents:     [dynamic]Widget_Id,
+	parents:      [dynamic]Widget_Id,
 	// The focus the frame asked for: nil when it asked nothing, 0 to clear the focus.
-	focus_next:  Maybe(Widget_Id),
+	focus_next:   Maybe(Widget_Id),
 	// Where the mouse went down, for drags.
-	press_mouse: [2]f32,
-	widgets:     [dynamic]Widget_Info,
-	cursor:      Cursor,
+	press_mouse:  [2]f32,
+	// The focus moved by Tab or Shift+Tab, rather than by the mouse: a text field then
+	// selects all its text.
+	focus_by_key: bool,
+	// Tab or Shift+Tab pressed in the focused widget, for the end of the frame.
+	tab:          Maybe(Tab),
+	widgets:      [dynamic]Widget_Info,
+	cursor:       Cursor,
 }
 
 // widgets and the input's lists use allocator.
@@ -285,8 +294,16 @@ ui_end_frame :: proc(ui: ^Ui) -> (redraw: bool) {
 	if !ui.focus_seen do ui.focus = 0
 	focus := ui.focus
 	redraw = ui.hot_next != ui.hot
-	if next, asked := ui.focus_next.?; asked do ui.focus = next
+	// Tab moves the focus, unless a widget asked for it this frame.
+	if direction, tabbed := ui.tab.?; tabbed && ui.focus_next == nil {
+		if next, found := tab_target(ui, direction); found do ui.focus_next = next
+	}
+	if next, asked := ui.focus_next.?; asked {
+		ui.focus_by_key = ui.tab != nil
+		ui.focus = next
+	}
 	ui.focus_next = nil
+	ui.tab = nil
 	if ui.focus != focus do redraw = true
 	in_.pressed = {}
 	in_.released = {}
@@ -465,4 +482,34 @@ pop_parent :: proc(ui: ^Ui) {
 find_widget :: proc(ui: ^Ui, label: string) -> (info: Widget_Info, found: bool) {
 	for w in ui.widgets do if w.label == label do return w, true
 	return
+}
+
+// Tab moves the focus forward, Shift+Tab back.
+Tab :: enum u8 {
+	Forward,
+	Back,
+}
+
+// Moves the focus to the next focusable widget, or the one before, at the end of the
+// frame: Tab or Shift+Tab pressed in the focused widget.
+move_focus :: proc(ui: ^Ui, direction: Tab) {
+	ui.tab = direction
+}
+
+// The focusable widget after the focused one, or before it, wrapping around; the first
+// or the last when none has the focus.
+@(private = "file")
+tab_target :: proc(ui: ^Ui, direction: Tab) -> (target: Widget_Id, found: bool) {
+	focusable := make([dynamic]Widget_Id, context.temp_allocator)
+	at := -1
+	for w in ui.widgets {
+		if !w.focusable do continue
+		if w.id == ui.focus do at = len(focusable)
+		append(&focusable, w.id)
+	}
+	n := len(focusable)
+	if n == 0 do return
+	step := direction == .Forward ? 1 : -1
+	if at < 0 do at = direction == .Forward ? -1 : n
+	return focusable[(at + step + n) % n], true
 }
