@@ -18,6 +18,8 @@ Tracks :: struct {
 	// What every frame reported, since the harness's helpers run several.
 	all:     [dynamic]Table_Result,
 	rect:    Rect,
+	// A field drawn after the table, which can take the focus from it.
+	filter:  bool,
 }
 
 @(private = "file")
@@ -106,6 +108,7 @@ tracks_frame :: proc(ui: ^Ui, data: rawptr) {
 		t.focused,
 	)
 	append(&t.all, t.last)
+	if t.filter do text_field(ui, widget_id("Filter"), {0, 420, 200, 28}, "other", "Filter")
 }
 
 @(private = "file")
@@ -658,4 +661,178 @@ the_cell_editor_matches_its_reference :: proc(t: ^testing.T) {
 	}
 	finish_capture(t, &cap, "table-editing.png")
 	free_all(context.temp_allocator)
+}
+
+@(private = "file")
+GENRES_OFFERED := []string{"Cassette Bloom", "Cassette Pop", "Synthwave"}
+
+@(test)
+a_suggestion_picked_in_a_cell_commits_once_and_gives_the_table_the_keyboard :: proc(
+	t: ^testing.T,
+) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	tr.columns[COLUMN_ARTIST].choices = GENRES_OFFERED
+	click(&h, "Track 1")
+	tr.focused = 0
+	press_key(&h, .Enter)
+	press_key(&h, .Tab)
+	run_frame(&h)
+	type_text(&h, "cass")
+	reported(&tr)
+	press_key(&h, .Down)
+	press_key(&h, .Enter)
+	input, typed := reported(&tr).input.?
+	testing.expect(t, typed && input.field.committed && input.field.text == "Cassette Bloom")
+	run_frame(&h)
+	run_frame(&h)
+	testing.expect_value(t, reported(&tr).input, nil)
+	testing.expect(t, has_focus(&h.ui, widget_id("Tracks")))
+
+	// By a click, in a list as wide as 1.0.0's.
+	press_key(&h, .Enter)
+	press_key(&h, .Tab)
+	run_frame(&h)
+	type_text(&h, "cass")
+	run_frame(&h)
+	pop, _ := find_widget(&h.ui, "Cassette Pop")
+	testing.expect(t, pop.rect.w >= 180 - 2)
+	testing.expect(t, click(&h, "Cassette Pop"))
+	input, typed = reported(&tr).input.?
+	testing.expect(t, typed && input.field.committed && input.field.text == "Cassette Pop")
+	run_frame(&h)
+	testing.expect(t, has_focus(&h.ui, widget_id("Tracks")))
+}
+
+@(test)
+a_right_click_during_an_edit_ends_it :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	click(&h, "Track 2", clicks = 2)
+	type_text(&h, "Neon Overpass")
+	click(&h, "Track 4", .Right)
+	run_frame(&h)
+	r := reported(&tr)
+	input, typed := r.input.?
+	testing.expect(t, typed && input.field.committed && input.field.text == "Neon Overpass")
+	testing.expect(t, r.row_menu != nil)
+	_, open := editor_of(&h)
+	testing.expect(t, !open)
+	testing.expect(t, has_focus(&h.ui, widget_id("Tracks")))
+}
+
+@(test)
+shift_tab_before_the_first_editable_cell_ends_the_editing :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	click(&h, "Track 1")
+	tr.focused = 0
+	press_key(&h, .Enter)
+	run_frame(&h)
+	press_key(&h, .Tab, {.Shift})
+	run_frame(&h)
+	_, open := editor_of(&h)
+	testing.expect(t, !open)
+	testing.expect(t, has_focus(&h.ui, widget_id("Tracks")))
+}
+
+@(test)
+text_the_column_does_not_take_is_given_up_when_the_focus_goes :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	tr.filter = true
+	tr.columns[COLUMN_TIME].editable = true
+	tr.columns[COLUMN_TIME].accepts = digits_only
+	click(&h, "Track 1")
+	tr.focused = 0
+	// To another row.
+	double_click_at(&h, cell_center(&h, "Track 1", "Time"))
+	type_text(&h, "20x4")
+	reported(&tr)
+	tr.focused = 1
+	run_frame(&h)
+	input, _ := reported(&tr).input.?
+	testing.expect(t, input.field.cancelled && input.field.text == "4:08")
+
+	// To another widget that asked for it, which keeps it.
+	double_click_at(&h, cell_center(&h, "Track 2", "Time"))
+	type_text(&h, "20x4")
+	reported(&tr)
+	request_focus(&h.ui, widget_id("Filter"))
+	run_frame(&h)
+	run_frame(&h)
+	input, _ = reported(&tr).input.?
+	testing.expect(t, input.field.cancelled && input.field.text == "4:08")
+	run_frame(&h)
+	testing.expect(t, has_focus(&h.ui, widget_id("Filter")))
+	_, open := editor_of_cell(&h)
+	testing.expect(t, !open)
+}
+
+// The editor of a cell, apart from other text fields.
+@(private = "file")
+editor_of_cell :: proc(h: ^Harness) -> (info: Widget_Info, open: bool) {
+	for w in h.ui.widgets do if w.role == .Text_Field && w.label != "Filter" do return w, true
+	return
+}
+
+@(test)
+a_cell_that_goes_away_commits_what_was_typed :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	click(&h, "Track 4", clicks = 2)
+	type_text(&h, "Gone")
+	reported(&tr)
+	tr.count = 2
+	run_frame(&h)
+	input, typed := reported(&tr).input.?
+	testing.expect(t, typed && input.field.committed && input.field.text == "Gone")
+	run_frame(&h)
+	testing.expect(t, has_focus(&h.ui, widget_id("Tracks")))
+}
+
+@(test)
+no_focused_row_ends_the_editing :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	click(&h, "Track 1")
+	tr.focused = 0
+	press_key(&h, .Enter)
+	run_frame(&h)
+	tr.focused = nil
+	run_frame(&h)
+	run_frame(&h)
+	_, open := editor_of(&h)
+	testing.expect(t, !open)
+}
+
+@(test)
+the_table_scrolls_sideways_to_the_cell_edited :: proc(t: ^testing.T) {
+	h: Harness
+	tr: Tracks
+	editable_tracks_harness(&h, &tr)
+	defer destroy_tracks(&h)
+	tr.sized = true
+	tr.columns[COLUMN_TITLE].width = 900
+	run_frame(&h)
+	click(&h, "Track 1")
+	tr.focused = 0
+	press_key(&h, .Enter)
+	run_frame(&h)
+	press_key(&h, .Tab)
+	run_frame(&h)
+	editor, _ := editor_of(&h)
+	testing.expect(t, editor.rect.x >= 0 && editor.rect.x + editor.rect.w <= tr.rect.w)
 }

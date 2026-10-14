@@ -141,6 +141,7 @@ Table_Result :: struct {
 	select_all:  bool,
 	// Space on a focused table: play or pause.
 	space:       bool,
+	// What was typed in the cell edited in place.
 	input:       Maybe(Cell_Input),
 }
 
@@ -199,8 +200,6 @@ table :: proc(
 	}
 	content := [2]f32{content_width, f32(rows.count) * TABLE_ROW_HEIGHT}
 	focused := has_focus(ui, id)
-	editor_focused := false
-	if cell, editing := state.editing.?; editing do editor_focused = ui.focus == editor_id(id, cell)
 	fill_rect(r, rect, th.surface_1)
 	declare(
 		ui,
@@ -229,25 +228,27 @@ table :: proc(
 	// The focused row is kept in view once, when it moves, above the horizontal scroll
 	// bar when there is one; the editing of another row then ends.
 	view := body.h - (content.x > body.w ? SCROLL_BAR : 0)
-	if !has_row do state.revealed = nil
 	left_row := false
+	if cell, editing := state.editing.?; editing {
+		left_row = has_row ? state.revealed != row && cell.row != row : state.revealed != nil
+	}
+	if !has_row do state.revealed = nil
 	if has_row && state.revealed != row {
 		scroll_into_view(&state.scroll, f32(row) * TABLE_ROW_HEIGHT, TABLE_ROW_HEIGHT, view)
 		state.revealed = row
-		if cell, editing := state.editing.?; editing do left_row = cell.row != row
 	}
 
 	// A click below the rows still gives the table the focus; the rows, drawn after,
 	// take the clicks on them.
 	if .Pressed in interact(ui, child_id(id, "body"), body) && !focused do request_focus(ui, id)
 	origin := begin_scroll(ui, id, body, content, &state.scroll)
-	outlined := focused || editor_focused
-	opened := draw_rows(ui, id, body, origin, columns, widths, rows, outlined, &result)
+	// The outline goes while a cell is edited, as the keyboard is the editor's.
+	double_clicked := draw_rows(ui, id, body, origin, columns, widths, rows, focused, &result)
 	if cell, editing := state.editing.?; editing {
 		edit_cell(ui, id, body, origin, columns, widths, rows, state, cell, left_row, &result)
 	}
 	end_scroll(ui, id, body, content, &state.scroll)
-	if cell, double_clicked := opened.?; double_clicked && state.editing == nil {
+	if cell, opened := double_clicked.?; opened && state.editing == nil {
 		start_editing(ui, id, body, columns, widths, state, cell, &result)
 	}
 	draw_header(ui, id, header, origin.x, columns, widths, rows, sort, state, &result)
@@ -275,6 +276,10 @@ start_editing :: proc(
 	}
 	scroll_into_view(&state.scroll, f32(cell.row) * TABLE_ROW_HEIGHT, TABLE_ROW_HEIGHT, body.h)
 }
+
+// The suggestions under a cell are this wide at least, as 1.0.0's.
+@(private = "file")
+SUGGESTIONS_WIDTH :: 180
 
 // Each cell's editor has an id of its own, so that the next cell edited starts afresh.
 @(private)
@@ -306,19 +311,24 @@ edit_cell :: proc(
 	was_focused := ui.focus == editor
 	x, w, index, found := column_span(columns, widths, cell.column)
 	if !found || w <= 0 || cell.row >= rows.count {
-		// The cell is gone: the table takes the keyboard back.
+		// The cell is gone: what was typed in it is committed, and the table takes the
+		// keyboard back.
 		state.editing = nil
 		if was_focused {
+			if ui.edit_owner == editor {
+				result.input = Cell_Input{cell, {committed = true, text = edit_text(&ui.edit)}}
+			}
 			ui.edit_reported = true
 			request_focus(ui, id)
 		}
 		return
 	}
 	column := columns[index]
+	// Over the cell, but for its separator.
 	rect := Rect {
 		origin.x + x,
 		origin.y + f32(cell.row) * TABLE_ROW_HEIGHT + 1,
-		w,
+		w - 1,
 		TABLE_ROW_HEIGHT - 2,
 	}
 	value := rows.cell(rows.data, cell.row, cell.column)
@@ -331,7 +341,16 @@ edit_cell :: proc(
 	ui.tab = nil
 	field: Text_Field_Result
 	if len(column.choices) > 0 {
-		field = combo_box(ui, editor, rect, value, column.title, column.choices, options)
+		field = combo_box(
+			ui,
+			editor,
+			rect,
+			value,
+			column.title,
+			column.choices,
+			options,
+			list_width = SUGGESTIONS_WIDTH,
+		)
 	} else {
 		field = text_field(ui, editor, rect, value, column.title, options)
 	}
@@ -342,16 +361,19 @@ edit_cell :: proc(
 		field.committed = true
 		ui.edit_reported = true
 	}
-	clicked := .Left in ui.input.pressed
+	// A click on the editor's own suggestions is not a click elsewhere.
+	clicked := .Left in ui.input.pressed && !mouse_in_popup(ui)
 	if field.committed && !takes(column, field.text) {
 		field.committed = false
-		if !clicked && !left_row {
+		if was_focused && !clicked && !left_row {
 			// Enter or Tab: the editor stays open, showing what is wrong.
 			tabbed = nil
 			request_focus(ui, editor)
 		} else {
+			// Given up: back to the value the cell had when its editor took the focus,
+			// which the Ui kept when another widget took the focus.
 			field.cancelled = true
-			field.text = string(ui.edit_start[:])
+			field.text = was_focused ? string(ui.edit_start[:]) : string(ui.edit_ended_start[:])
 		}
 	}
 	// The error ring follows the text at once, rather than on the caret's next blink.
