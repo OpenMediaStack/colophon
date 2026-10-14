@@ -32,6 +32,8 @@ Answers :: struct {
 	folders: [dynamic]string,
 	files:   []string,
 	image:   string,
+	// Where the cover is written when asked, or nowhere while empty.
+	saved:   string,
 }
 
 // A screen of size points, in the theme of kind, drawn twice so that the hover and the
@@ -55,6 +57,10 @@ screen_init :: proc(s: ^Screen, size: [2]f32, kind := ui.Theme_Kind.Dark) {
 		pick_image = proc(app: ^App, data: rawptr) {
 			a := (^Answers)(data)
 			if len(a.image) > 0 do take_image(app, a.image, 0)
+		},
+		save_cover = proc(app: ^App, data: rawptr, name: string) {
+			a := (^Answers)(data)
+			if len(a.saved) > 0 do extract_cover(app, a.saved, 0)
 		},
 	}
 	ui.harness_init(&s.h, app_frame, &s.app, kind)

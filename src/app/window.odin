@@ -75,6 +75,7 @@ run :: proc(options: Options) -> bool {
 		open_folder = show_folder_dialog,
 		open_files  = show_files_dialog,
 		pick_image  = show_image_dialog,
+		save_cover  = show_save_dialog,
 		reveal      = reveal_in_file_manager,
 	}
 	open_window(&w, options) or_return
@@ -292,7 +293,7 @@ handle_event :: proc(w: ^Window, app: ^App, event: ^sdl.Event) -> Event_Outcome 
 		if event.drop.data != nil do drop_file(app, string(event.drop.data))
 		return .Other
 	case .DROP_COMPLETE:
-		drop_end(app)
+		drop_end(app, w.ctx.input.time)
 		return .Other
 	case .DROP_POSITION, .DROP_TEXT:
 		return .Other
@@ -301,7 +302,7 @@ handle_event :: proc(w: ^Window, app: ^App, event: ^sdl.Event) -> Event_Outcome 
 	// A drag that SDL loses on macOS, of what is neither a file nor text, ends without
 	// a word: the mouse moving again means the drag is over.
 	if app.drop.hovering && (event.type == .MOUSE_MOTION || event.type == .MOUSE_BUTTON_DOWN) {
-		drop_end(app)
+		drop_end(app, w.ctx.input.time)
 	}
 	if u32(event.type) == w.chosen_type {
 		take_chosen(app, (^Chosen)(event.user.data1))
@@ -412,6 +413,7 @@ Dialog_Kind :: enum u8 {
 	Folder,
 	Files,
 	Image,
+	Extract,
 }
 
 // What the image dialog offers: the covers Colophon writes.
@@ -437,6 +439,26 @@ show_image_dialog :: proc(app: ^App, data: rawptr) {
 @(private = "file")
 image_chosen :: proc "c" (userdata: rawptr, filelist: [^]cstring, filter: c.int) {
 	dialog_answered(userdata, filelist, .Image)
+}
+
+@(private = "file")
+show_save_dialog :: proc(app: ^App, data: rawptr, name: string) {
+	_ = app
+	w := (^Window)(data)
+	suggested := strings.clone_to_cstring(name, context.temp_allocator)
+	sdl.ShowSaveFileDialog(
+		cover_saved,
+		data,
+		w.window,
+		&IMAGE_FILTERS[0],
+		len(IMAGE_FILTERS),
+		suggested,
+	)
+}
+
+@(private = "file")
+cover_saved :: proc "c" (userdata: rawptr, filelist: [^]cstring, filter: c.int) {
+	dialog_answered(userdata, filelist, .Extract)
 }
 
 @(private = "file")
@@ -498,6 +520,8 @@ take_chosen :: proc(app: ^App, chosen: ^Chosen) {
 		execute(app, engine.Open_Files{chosen.paths[:]})
 	case .Image:
 		if len(chosen.paths) > 0 do take_image(app, chosen.paths[0], f64(sdl.GetTicksNS()) / 1e9)
+	case .Extract:
+		if len(chosen.paths) > 0 do extract_cover(app, chosen.paths[0], f64(sdl.GetTicksNS()) / 1e9)
 	}
 }
 

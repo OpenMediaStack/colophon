@@ -359,14 +359,15 @@ drop_cover :: proc(ctx: ^ui.Ui, app: ^App) {
 	app.inspector.cover = nil
 }
 
-// The well's menu: replace the cover, or remove it. Extracting it to a file comes
-// with slice 36c.
+// The well's menu: replace the cover, write it to a file, or remove it.
 @(private = "file")
 cover_menu :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary) {
 	id := ui.widget_id("Cover menu")
 	if !ui.is_menu_open(ctx, id) do return
+	_, shared := s.cover.(lib.Cover_Key)
 	items := [?]ui.Menu_Item {
 		{label = ui.tr("Replace Cover…")},
+		{label = ui.tr("Extract Cover…"), disabled = !shared},
 		{label = ui.tr("Remove Cover"), disabled = s.cover == nil},
 	}
 	chosen, picked := ui.menu(ctx, id, items[:], ui.tr("Cover menu")).?
@@ -375,6 +376,8 @@ cover_menu :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary) {
 	case 0:
 		pick_image(app)
 	case 1:
+		extract_cover_to(app)
+	case 2:
 		execute(app, engine.Apply_Edit{{.Cover, nil}})
 	}
 }

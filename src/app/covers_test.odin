@@ -186,3 +186,44 @@ a_jpeg_is_told_by_its_first_bytes_and_the_texture_goes_with_the_selection :: pro
 	testing.expect_value(t, s.app.inspector.cover, nil)
 	testing.expect(t, s.h.images[0].rgba == nil)
 }
+
+@(test)
+a_cover_is_extracted_to_a_file :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	s.answers.saved = fmt.tprintf("%s/extracted.png", folder)
+	testing.expect(t, ui.click(&s.h, "With a cover"))
+	ui.run_frame(&s.h)
+	testing.expect(t, ui.click(&s.h, "Cover", .Right))
+	testing.expect(t, ui.click(&s.h, "Extract Cover…"))
+	ui.run_frame(&s.h)
+	extracted, read := os.read_entire_file(s.answers.saved, context.temp_allocator)
+	original, _ := os.read_entire_file(fmt.tprintf("%s/cover.png", folder), context.temp_allocator)
+	testing.expect(t, read == nil && len(extracted) > 0 && string(extracted) == string(original))
+	testing.expect_value(t, len(s.app.engine.edits.pending), 0)
+}
+
+@(test)
+an_image_dropped_becomes_the_cover_of_the_selection :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	testing.expect(t, ui.click(&s.h, "Paper Satellites"))
+	ui.run_frame(&s.h)
+	drop_begin(&s.app)
+	drop_file(&s.app, fmt.tprintf("%s/cover.png", folder))
+	drop_end(&s.app, 0)
+	ui.run_frame(&s.h)
+	testing.expect_value(t, well_label(&s), "Cover")
+	testing.expect_value(t, len(s.app.engine.edits.pending), 1)
+	// Without a selection, an image dropped is left alone.
+	execute(&s.app, engine.Revert{})
+	clear(&s.app.engine.selection.tracks)
+	drop_begin(&s.app)
+	drop_file(&s.app, fmt.tprintf("%s/cover.png", folder))
+	drop_end(&s.app, 0)
+	testing.expect_value(t, len(s.app.engine.edits.pending), 0)
+}

@@ -57,6 +57,8 @@ Dialogs :: struct {
 	open_files:  proc(app: ^App, data: rawptr),
 	// Asks for an image, which take_image makes the selected tracks' cover.
 	pick_image:  proc(app: ^App, data: rawptr),
+	// Asks where to write the cover, suggesting name, which extract_cover writes.
+	save_cover:  proc(app: ^App, data: rawptr, name: string),
 	// Shows a file in the system's file manager.
 	reveal:      proc(app: ^App, data: rawptr, path: string),
 }
@@ -166,6 +168,11 @@ pick_image :: proc(app: ^App) {
 	if app.dialogs.pick_image != nil do app.dialogs.pick_image(app, app.dialogs.data)
 }
 
+// Asks the user where to write the selected tracks' cover, suggesting name.
+pick_save :: proc(app: ^App, name: string) {
+	if app.dialogs.save_cover != nil do app.dialogs.save_cover(app, app.dialogs.data, name)
+}
+
 // Shows a file in the system's file manager.
 reveal_file :: proc(app: ^App, path: string) {
 	if app.dialogs.reveal != nil do app.dialogs.reveal(app, app.dialogs.data, path)
@@ -182,21 +189,30 @@ drop_file :: proc(app: ^App, path: string) {
 }
 
 // The drag ended, dropped or gone: what was dropped is opened together, folders and
-// audio files alike. Anything else is left alone; an image dropped on the inspector
-// becomes a cover with slice 32.
-drop_end :: proc(app: ^App) {
+// audio files alike. Without any, an image becomes the cover of the selected tracks,
+// as 1.0.0 took it; anything else is left alone. now is the frame's time, for a
+// toast.
+drop_end :: proc(app: ^App, now: f64) {
 	app.drop.hovering = false
 	defer forget_dropped(app)
 	files := make([dynamic]string, context.temp_allocator)
+	opened := false
 	for path in app.drop.paths {
 		switch {
 		case os.is_directory(path):
 			execute(app, engine.Open_Folder{path})
+			opened = true
 		case lib.is_audio_file(path):
 			append(&files, path)
 		}
 	}
 	if len(files) > 0 do execute(app, engine.Open_Files{files[:]})
+	if opened || len(files) > 0 do return
+	if _, tracks := engine.inspect(&app.engine).(engine.Summary); !tracks do return
+	for path in app.drop.paths do if is_image_file(path) {
+		take_image(app, path, now)
+		return
+	}
 }
 
 @(private = "file")

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-15 00:34+0200\n"
+"POT-Creation-Date: 2026-10-15 00:42+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,8 +18,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: src/app/covers.odin:17
+#: src/app/covers.odin:19
 msgid "“{}” is not a JPEG or PNG image"
+msgstr ""
+
+#: src/app/covers.odin:32
+msgid "Could not write the cover to “{}”"
 msgstr ""
 
 #: src/app/empty_state.odin:15
@@ -122,163 +126,167 @@ msgid "Replace Cover…"
 msgstr ""
 
 #: src/app/inspector.odin:355
+msgid "Extract Cover…"
+msgstr ""
+
+#: src/app/inspector.odin:356
 msgid "Remove Cover"
 msgstr ""
 
-#: src/app/inspector.odin:357
+#: src/app/inspector.odin:358
 msgid "Cover menu"
 msgstr ""
 
-#: src/app/inspector.odin:377
+#: src/app/inspector.odin:380
 msgid "This track has no number, unlike the rest of its album."
 msgstr ""
 
-#: src/app/inspector.odin:378
+#: src/app/inspector.odin:381
 msgid "Some of these tracks have no number, unlike the rest of their albums."
 msgstr ""
 
-#: src/app/inspector.odin:380
+#: src/app/inspector.odin:383
 msgid "Its album artist differs from the rest of its album."
 msgstr ""
 
-#: src/app/inspector.odin:382
+#: src/app/inspector.odin:385
 msgid "Some of these tracks have an album artist that differs from the rest of their albums."
 msgstr ""
 
-#: src/app/inspector.odin:441 src/app/inspector.odin:520
+#: src/app/inspector.odin:444 src/app/inspector.odin:523
 #: src/app/tracks.odin:333
 msgid "Title"
 msgstr ""
 
-#: src/app/inspector.odin:443 src/app/inspector.odin:522
+#: src/app/inspector.odin:446 src/app/inspector.odin:525
 #: src/app/tracks.odin:335
 msgid "Artist"
 msgstr ""
 
-#: src/app/inspector.odin:445 src/app/inspector.odin:537
+#: src/app/inspector.odin:448 src/app/inspector.odin:540
 #: src/app/tracks.odin:337
 msgid "Album"
 msgstr ""
 
-#: src/app/inspector.odin:447 src/app/inspector.odin:540
+#: src/app/inspector.odin:450 src/app/inspector.odin:543
 #: src/app/tracks.odin:339
 msgid "Year"
 msgstr ""
 
-#: src/app/inspector.odin:449 src/app/inspector.odin:628
+#: src/app/inspector.odin:452 src/app/inspector.odin:631
 msgid "Comment"
 msgstr ""
 
-#: src/app/inspector.odin:451 src/app/inspector.odin:590
-#: src/app/inspector.odin:592
+#: src/app/inspector.odin:454 src/app/inspector.odin:593
+#: src/app/inspector.odin:595
 msgid "Track"
 msgstr ""
 
-#: src/app/inspector.odin:453 src/app/inspector.odin:613
+#: src/app/inspector.odin:456 src/app/inspector.odin:616
 #: src/app/tracks.odin:341
 msgid "Genre"
 msgstr ""
 
-#: src/app/inspector.odin:529
+#: src/app/inspector.odin:532
 msgid "Album artist"
 msgstr ""
 
-#: src/app/inspector.odin:571
+#: src/app/inspector.odin:574
 msgid "Multiple"
 msgstr ""
 
-#: src/app/inspector.odin:580
+#: src/app/inspector.odin:583
 msgid "of"
 msgstr ""
 
-#: src/app/inspector.odin:592
+#: src/app/inspector.odin:595
 msgid "Track total"
 msgstr ""
 
-#: src/app/inspector.odin:603 src/app/inspector.odin:605
+#: src/app/inspector.odin:606 src/app/inspector.odin:608
 msgid "Disc"
 msgstr ""
 
-#: src/app/inspector.odin:605
+#: src/app/inspector.odin:608
 msgid "Disc total"
 msgstr ""
 
-#: src/app/inspector.odin:706 src/app/inspector.odin:728
-#: src/app/inspector.odin:823 src/app/inspector.odin:868
+#: src/app/inspector.odin:709 src/app/inspector.odin:731
+#: src/app/inspector.odin:826 src/app/inspector.odin:871
 msgid "Multiple values"
 msgstr ""
 
-#: src/app/inspector.odin:835
+#: src/app/inspector.odin:838
 msgid "{} kHz"
 msgstr ""
 
-#: src/app/inspector.odin:837
+#: src/app/inspector.odin:840
 msgid "{}.{} kHz"
 msgstr ""
 
-#: src/app/inspector.odin:839
+#: src/app/inspector.odin:842
 msgid "{} kbps"
 msgstr ""
 
-#: src/app/inspector.odin:849
+#: src/app/inspector.odin:852
 msgid "{n} byte"
 msgid_plural "{n} bytes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/inspector.odin:851
+#: src/app/inspector.odin:854
 msgid "{} KB"
 msgstr ""
 
-#: src/app/inspector.odin:854
+#: src/app/inspector.odin:857
 msgid "{}.{} MB"
 msgstr ""
 
-#: src/app/inspector.odin:857
+#: src/app/inspector.odin:860
 msgid "{}.{} GB"
 msgstr ""
 
-#: src/app/inspector.odin:866 src/app/inspector.odin:871
+#: src/app/inspector.odin:869 src/app/inspector.odin:874
 msgid "None"
 msgstr ""
 
-#: src/app/inspector.odin:884
+#: src/app/inspector.odin:887
 msgid "Could not read this file"
 msgstr ""
 
-#: src/app/inspector.odin:903
+#: src/app/inspector.odin:906
 msgid "Problem"
 msgstr ""
 
-#: src/app/inspector.odin:909
+#: src/app/inspector.odin:912
 msgid "Colophon could not open this file. It may have been moved or deleted, or Colophon may not be allowed to read it."
 msgstr ""
 
-#: src/app/inspector.odin:913
+#: src/app/inspector.odin:916
 msgid "This file is damaged, or it is not an MP3: Colophon could not make sense of it."
 msgstr ""
 
-#: src/app/inspector.odin:932
+#: src/app/inspector.odin:935
 msgid "Details"
 msgstr ""
 
-#: src/app/inspector.odin:935
+#: src/app/inspector.odin:938
 msgid "File size"
 msgstr ""
 
-#: src/app/inspector.odin:951
+#: src/app/inspector.odin:954
 msgid "Show in Finder"
 msgstr ""
 
-#: src/app/inspector.odin:953
+#: src/app/inspector.odin:956
 msgid "Show in Explorer"
 msgstr ""
 
-#: src/app/inspector.odin:955
+#: src/app/inspector.odin:958
 msgid "Show in Folder"
 msgstr ""
 
-#: src/app/inspector.odin:962
+#: src/app/inspector.odin:965
 msgid "Copy details"
 msgstr ""
 
