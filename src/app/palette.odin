@@ -49,6 +49,7 @@ Special :: enum u8 {
 	Find,
 	Save,
 	Settings,
+	About,
 	Version,
 }
 
@@ -232,6 +233,8 @@ run_entry :: proc(ctx: ^ui.Ui, app: ^App, entry: Entry) {
 		request_save(app)
 	case .Settings:
 		open_settings(app)
+	case .About:
+		show_about(app)
 	case .Version:
 		if choose, is := entry.command.(engine.Choose_Version); is do request_version(app, choose.choice)
 	case .Find:
@@ -240,8 +243,7 @@ run_entry :: proc(ctx: ^ui.Ui, app: ^App, entry: Entry) {
 }
 
 // Every command, by name, with whether it can run now, in the palette's order. The
-// strings are allocated with the temporary allocator: valid for the frame. Settings,
-// About and the removals of a tag, which ask first, come with their slices.
+// strings are allocated with the temporary allocator: valid for the frame.
 @(private = "file")
 palette_entries :: proc(app: ^App) -> []Entry {
 	e := &app.engine
@@ -275,6 +277,7 @@ palette_entries :: proc(app: ^App) -> []Entry {
 		.Save,
 	)
 	add(&entries, settings_label(app), file, true, nil, .Settings)
+	add(&entries, ui.tr("About Colophon"), ui.tr("Help"), true, nil, .About)
 	add(&entries, ui.tr("Undo"), edit, engine.can_undo(e), engine.Undo{})
 	add(&entries, ui.tr("Redo"), edit, engine.can_redo(e), engine.Redo{})
 	add(&entries, ui.tr("Find"), edit, open, nil, .Find)

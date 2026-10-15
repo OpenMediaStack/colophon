@@ -391,8 +391,9 @@ begin_dialog :: proc(
 	th := ui.theme
 	begin_modal(ui, id, window)
 	width := dialog_width(window, options) - 2 * DIALOG_PADDING
-	title_lines := wrap_text(r, options.title, .Title, width, context.temp_allocator)
-	// A dialog without a message holds its content under its title.
+	title_lines: []string
+	if options.title != "" do title_lines = wrap_text(r, options.title, .Title, width, context.temp_allocator)
+	// A dialog without a title or a message holds its content right under what it has.
 	message_lines: []string
 	if options.message != "" do message_lines = wrap_text(r, options.message, .Body, width, context.temp_allocator)
 	box := dialog_box(window, options, len(title_lines), len(message_lines))

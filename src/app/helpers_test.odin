@@ -35,6 +35,8 @@ Answers :: struct {
 	image:     string,
 	// Where the cover is written when asked, or nowhere while empty.
 	saved:     string,
+	// The address last asked to open.
+	opened:    string,
 	// The path the save dialog suggested last.
 	suggested: string,
 }
@@ -45,6 +47,7 @@ screen_init :: proc(s: ^Screen, size: [2]f32, kind := ui.Theme_Kind.Dark) {
 	app_init(&s.app)
 	// The same captures on every system.
 	s.app.platform = .Mac
+	s.app.version = "1.0.0"
 	s.answers.folders = make([dynamic]string)
 	s.app.dialogs = {
 		data = &s.answers,
@@ -56,6 +59,11 @@ screen_init :: proc(s: ^Screen, size: [2]f32, kind := ui.Theme_Kind.Dark) {
 		open_files = proc(app: ^App, data: rawptr) {
 			a := (^Answers)(data)
 			if len(a.files) > 0 do engine.execute(&app.engine, engine.Open_Files{a.files})
+		},
+		open_url = proc(app: ^App, data: rawptr, url: string) {
+			a := (^Answers)(data)
+			delete(a.opened)
+			a.opened = strings.clone(url)
 		},
 		pick_image = proc(app: ^App, data: rawptr) {
 			a := (^Answers)(data)
@@ -78,6 +86,7 @@ screen_destroy :: proc(s: ^Screen) {
 	app_destroy(&s.app)
 	delete(s.answers.folders)
 	delete(s.answers.suggested)
+	delete(s.answers.opened)
 	free_all(context.temp_allocator)
 }
 

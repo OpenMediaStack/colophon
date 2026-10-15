@@ -77,6 +77,7 @@ run :: proc(options: Options) -> bool {
 		pick_image  = show_image_dialog,
 		save_cover  = show_save_dialog,
 		reveal      = reveal_in_file_manager,
+		open_url    = open_url_in_browser,
 	}
 	open_window(&w, options) or_return
 	defer close_window(&w)
@@ -390,14 +391,21 @@ system_theme :: proc() -> ui.Theme_Kind {
 	return sdl.GetSystemTheme() == .LIGHT ? .Light : .Dark
 }
 
+// Opens an address in the system's browser, or whatever it opens that scheme with.
+@(private = "file")
+open_url_in_browser :: proc(app: ^App, data: rawptr, url: string) {
+	_ = app
+	_ = data
+	if !sdl.OpenURL(strings.clone_to_cstring(url, context.temp_allocator)) do sdl_failed("SDL_OpenURL")
+}
+
 // Opens the folder holding a file in the system's file manager. Picking the file out
 // among the others needs each system's own call, which comes with the platform slices.
 @(private = "file")
 reveal_in_file_manager :: proc(app: ^App, data: rawptr, path: string) {
 	_ = app
 	_ = data
-	url := file_url(filepath.dir(path))
-	if !sdl.OpenURL(strings.clone_to_cstring(url, context.temp_allocator)) do sdl_failed("SDL_OpenURL")
+	open_url_in_browser(app, data, file_url(filepath.dir(path)))
 }
 
 // What a dialog's user chose, on its way to the loop through an event. Made on the
