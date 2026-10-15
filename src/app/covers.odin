@@ -2,7 +2,6 @@ package main
 
 import "core:os"
 import "core:path/filepath"
-import "core:slice"
 import "core:strings"
 
 import "../engine"
@@ -24,41 +23,66 @@ take_image :: proc(app: ^App, path: string, now: f64) {
 	execute(app, engine.Apply_Edit{{.Cover, lib.Cover{mime, data}}})
 }
 
-// Writes the cover the selected tracks share to path, for the user to keep; a file
-// that cannot be written is told in a toast, shown from now.
-extract_cover :: proc(app: ^App, path: string, now: f64) {
-	bytes, found := shared_cover(app, context.temp_allocator)
+// Asks where to write the cover the selected tracks share, read once and kept until
+// the dialog answers, so that what the engine does meanwhile changes nothing of what
+// is written. The dialog suggests cover.png or cover.jpg by the cover's format, beside
+// the track's file: SDL's save dialog takes a path, not a name alone.
+extract_cover :: proc(app: ^App) {
+	cover, track, found := shared_cover(app, app.engine.allocator)
 	if !found do return
-	if os.write_entire_file(path, bytes) != nil {
+	forget_cover_to_write(app)
+	app.cover_to_write = cover
+	mime, _ := image_mime(cover.data)
+	folder := filepath.dir(app.engine.library.tracks[track].path)
+	suggested, _ := filepath.join(
+		{folder, mime == "image/png" ? "cover.png" : "cover.jpg"},
+		context.temp_allocator,
+	)
+	pick_save(app, suggested)
+}
+
+// Writes the cover kept by extract_cover to path, for the user to keep; a file that
+// cannot be written is told in a toast, shown from now.
+extract_cover_to :: proc(app: ^App, path: string, now: f64) {
+	cover, kept := app.cover_to_write.?
+	if !kept do return
+	defer forget_cover_to_write(app)
+	if os.write_entire_file(path, cover.data) != nil {
 		message := ui.fill(ui.tr("Could not write the cover to “{}”"), filepath.base(path))
 		notify(app, .Error, message, nil, now)
 	}
 }
 
-// Asks where to write the cover the selected tracks share, named by its format.
-extract_cover_to :: proc(app: ^App) {
-	bytes, found := shared_cover(app, context.temp_allocator)
-	if !found do return
-	mime, _ := image_mime(bytes)
-	pick_save(app, mime == "image/png" ? "cover.png" : "cover.jpg")
+// Frees the cover kept for the save dialog, if one is; app_destroy calls it too.
+forget_cover_to_write :: proc(app: ^App) {
+	if cover, kept := &app.cover_to_write.?; kept do lib.destroy_cover(cover, app.engine.allocator)
+	app.cover_to_write = nil
 }
 
-// The bytes of the cover the selected tracks share: those held for a cover waiting to
-// be saved, else read from the first selected track's file. Allocated with allocator.
+// The cover the selected tracks share, and the first track with it: the bytes held
+// for a cover waiting to be saved, else read from the track's file. Allocated with
+// allocator; free it with lib.destroy_cover.
 @(private = "file")
-shared_cover :: proc(app: ^App, allocator := context.allocator) -> (bytes: []u8, found: bool) {
+shared_cover :: proc(
+	app: ^App,
+	allocator := context.allocator,
+) -> (
+	cover: lib.Cover,
+	track: engine.Track_Id,
+	found: bool,
+) {
 	e := &app.engine
 	s, tracks := engine.inspect(e).(engine.Summary)
 	if !tracks do return
 	if _, shared := s.cover.(lib.Cover_Key); !shared do return
-	track := s.cover_track.? or_return
+	track = s.cover_track.? or_return
 	tags := engine.shown_tags(e, track) or_return
-	switch cover in tags.cover {
+	switch held in tags.cover {
 	case lib.Cover:
-		return slice.clone(cover.data, allocator), true
+		return lib.clone_cover(held, allocator), track, true
 	case lib.Own_Cover:
-		read := lib.read_cover(e.library.tracks[track].path, allocator) or_return
-		return read.data, true
+		cover = lib.read_cover(e.library.tracks[track].path, allocator) or_return
+		return cover, track, true
 	case nil:
 	}
 	return

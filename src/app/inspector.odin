@@ -376,7 +376,7 @@ cover_menu :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary) {
 	case 0:
 		pick_image(app)
 	case 1:
-		extract_cover_to(app)
+		extract_cover(app)
 	case 2:
 		execute(app, engine.Apply_Edit{{.Cover, nil}})
 	}

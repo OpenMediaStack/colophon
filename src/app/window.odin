@@ -305,7 +305,7 @@ handle_event :: proc(w: ^Window, app: ^App, event: ^sdl.Event) -> Event_Outcome 
 		drop_end(app, w.ctx.input.time)
 	}
 	if u32(event.type) == w.chosen_type {
-		take_chosen(app, (^Chosen)(event.user.data1))
+		take_chosen(app, (^Chosen)(event.user.data1), w.ctx.input.time)
 		return .Other
 	}
 	// SDL gives mouse positions in points on macOS and Wayland but in pixels on Windows
@@ -416,7 +416,8 @@ Dialog_Kind :: enum u8 {
 	Extract,
 }
 
-// What the image dialog offers: the covers Colophon writes.
+// What the image dialogs offer, the one that asks for a cover and the one that writes
+// it: the formats Colophon writes.
 @(private = "file")
 @(rodata)
 IMAGE_FILTERS := [?]sdl.DialogFileFilter{{"JPEG and PNG images", "jpg;jpeg;png"}}
@@ -442,17 +443,17 @@ image_chosen :: proc "c" (userdata: rawptr, filelist: [^]cstring, filter: c.int)
 }
 
 @(private = "file")
-show_save_dialog :: proc(app: ^App, data: rawptr, name: string) {
+show_save_dialog :: proc(app: ^App, data: rawptr, suggested: string) {
 	_ = app
 	w := (^Window)(data)
-	suggested := strings.clone_to_cstring(name, context.temp_allocator)
+	location := strings.clone_to_cstring(suggested, context.temp_allocator)
 	sdl.ShowSaveFileDialog(
 		cover_saved,
 		data,
 		w.window,
 		&IMAGE_FILTERS[0],
 		len(IMAGE_FILTERS),
-		suggested,
+		location,
 	)
 }
 
@@ -510,7 +511,7 @@ dialog_answered :: proc "c" (userdata: rawptr, filelist: [^]cstring, kind: Dialo
 
 // Opens what a dialog's user chose, on the UI thread.
 @(private = "file")
-take_chosen :: proc(app: ^App, chosen: ^Chosen) {
+take_chosen :: proc(app: ^App, chosen: ^Chosen, now: f64) {
 	if chosen == nil do return
 	defer free_chosen(chosen)
 	switch chosen.kind {
@@ -519,9 +520,9 @@ take_chosen :: proc(app: ^App, chosen: ^Chosen) {
 	case .Files:
 		execute(app, engine.Open_Files{chosen.paths[:]})
 	case .Image:
-		if len(chosen.paths) > 0 do take_image(app, chosen.paths[0], f64(sdl.GetTicksNS()) / 1e9)
+		if len(chosen.paths) > 0 do take_image(app, chosen.paths[0], now)
 	case .Extract:
-		if len(chosen.paths) > 0 do extract_cover(app, chosen.paths[0], f64(sdl.GetTicksNS()) / 1e9)
+		if len(chosen.paths) > 0 do extract_cover_to(app, chosen.paths[0], now)
 	}
 }
 
