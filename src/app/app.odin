@@ -117,6 +117,7 @@ app_destroy :: proc(app: ^App) {
 	delete(app.genres.list, app.engine.allocator)
 	delete(app.warnings.found)
 	forget_cover_to_write(app)
+	forget_layout(app)
 	forget_removal(app)
 	delete(app.preferences_path, app.engine.allocator)
 	destroy_thumbnails(&app.thumbnails)
