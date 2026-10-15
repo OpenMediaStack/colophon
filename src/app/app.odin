@@ -23,6 +23,7 @@ App :: struct {
 	thumbnails:     Thumbnails,
 	palette:        Palette,
 	settings_open:  bool,
+	about:          About,
 	// A removal waiting for the user's answer.
 	removal:        Maybe(Removal),
 	// The cover read for the save dialog, until it answers.
@@ -36,6 +37,8 @@ App :: struct {
 	// a dialog's buttons: the system's, unless a test pins one so that its captures
 	// are the same everywhere.
 	platform:       ui.Platform,
+	// Shown by About; a capture pins it so that a release does not change them.
+	version:        string,
 	// The user's home folder, without a trailing separator, which the table shows as
 	// a tilde; empty when the system does not say.
 	home:           string,
@@ -68,6 +71,8 @@ Dialogs :: struct {
 	save_cover:  proc(app: ^App, data: rawptr, suggested: string),
 	// Shows a file in the system's file manager.
 	reveal:      proc(app: ^App, data: rawptr, path: string),
+	// Opens an address in the browser.
+	open_url:    proc(app: ^App, data: rawptr, url: string),
 }
 
 // Files dragged over the window, until they are dropped or the drag leaves.
@@ -83,6 +88,7 @@ app_init :: proc(app: ^App, wake := lib.Wake{}, allocator := context.allocator) 
 	engine.init(&app.engine, wake, allocator)
 	init_thumbnails(&app.thumbnails, wake, allocator)
 	app.platform = ui.PLATFORM
+	app.version = VERSION
 	init_inspector(&app.inspector)
 	app.drop.paths = make([dynamic]string, allocator)
 	home := os.get_env("HOME", context.temp_allocator)

@@ -36,6 +36,8 @@ Button_Options :: struct {
 	disabled: bool,
 	// Left and right of the content, in points; 12 when 0, the brief's inner padding.
 	padding:  f32,
+	// No padding at all: a link that lines up with the text around it.
+	flush:    bool,
 	// What assistive technologies call it when the label drawn says less, a shortcut
 	// hint such as the command palette's; the label when empty.
 	name:     string,
@@ -89,11 +91,16 @@ button :: proc(
 	return activated
 }
 
+@(private = "file")
+padding_of :: proc(options: Button_Options) -> f32 {
+	if options.flush do return 0
+	return options.padding > 0 ? options.padding : BUTTON_PADDING
+}
+
 // The width a button needs for its label, icon and shortcut.
 button_width :: proc(r: ^Renderer, label: string, options := Button_Options{}) -> f32 {
 	style := button_style(options)
-	width :=
-		2 * (options.padding > 0 ? options.padding : BUTTON_PADDING) + text_width(r, label, style)
+	width := 2 * padding_of(options) + text_width(r, label, style)
 	if _, has_icon := options.icon.?; has_icon do width += 16 + ICON_GAP
 	if options.shortcut != "" do width += SHORTCUT_GAP + text_width(r, options.shortcut, .Small)
 	return width
@@ -186,7 +193,7 @@ draw_button :: proc(
 	if border.a > 0 do stroke_rect(r, rect, border, RADIUS)
 	if .Focused in states && !disabled do draw_focus_ring(r, th, rect, RADIUS)
 
-	padding := options.padding > 0 ? options.padding : BUTTON_PADDING
+	padding := padding_of(options)
 	content := button_width(r, label, options) - 2 * padding
 	x := rect.x + max((rect.w - content) / 2, padding)
 	middle := rect.y + rect.h / 2

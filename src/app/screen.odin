@@ -73,6 +73,7 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	toasts(ctx, app, window)
 	palette(ctx, app, window)
 	settings_dialog(ctx, app, window)
+	about_dialog(ctx, app, window)
 	removal_dialog(ctx, app, window)
 	unsaved_changes(ctx, app, window)
 	shortcuts(ctx, app)

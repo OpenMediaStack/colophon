@@ -477,6 +477,33 @@ plain_frame :: proc(ui: ^Ui, data: rawptr) {
 	end_dialog(ui, d)
 }
 
+@(private = "file")
+untitled_frame :: proc(ui: ^Ui, data: rawptr) {
+	p := (^Plain)(data)
+	d := begin_dialog(ui, widget_id("Untitled"), WINDOW, {label = "About", primary = "Close"})
+	p.below_by = d.content.y - d.box.y
+	end_dialog(ui, d)
+}
+
+// A dialog without a title or a message starts its content at its top, and is still
+// named for assistive technologies by its label.
+@(test)
+a_dialog_without_a_title_starts_its_content_at_its_top :: proc(t: ^testing.T) {
+	titled_harness: Harness
+	titled: Plain
+	harness_init(&titled_harness, plain_frame, &titled)
+	defer harness_destroy(&titled_harness)
+	run_frame(&titled_harness)
+	h: Harness
+	p: Plain
+	harness_init(&h, untitled_frame, &p)
+	defer harness_destroy(&h)
+	run_frame(&h)
+	testing.expect(t, p.below_by < titled.below_by)
+	_, named := find_widget(&h.ui, "About")
+	testing.expect(t, named)
+}
+
 // A dialog without a message holds its content right under its title.
 @(test)
 a_dialog_without_a_message_holds_its_content_under_its_title :: proc(t: ^testing.T) {
