@@ -5,6 +5,7 @@ import "core:os"
 import "core:path/filepath"
 import "core:strings"
 import "core:testing"
+import "core:time"
 
 import "../engine"
 import lib "../library"
@@ -261,4 +262,86 @@ an_image_dropped_becomes_the_cover_of_the_selection :: proc(t: ^testing.T) {
 	drop_file(&s.app, fmt.tprintf("%s/cover.png", folder))
 	drop_end(&s.app, 0)
 	testing.expect_value(t, len(s.app.engine.edits.pending), 0)
+}
+
+// Polls the engine and the thumbnails, running frames, until the album's cover is
+// drawn in the sidebar or the patience passes.
+@(test)
+an_album_shows_its_cover_in_the_sidebar_once_drawn :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	e := &s.app.engine
+	testing.expect(t, ui.click(&s.h, "With a cover"))
+	execute(&s.app, engine.Apply_Edit{{.Album, "Covered"}})
+	execute(&s.app, engine.Save{})
+	wait_for_save(t, &s)
+	covered := e.listed[0]
+	start := time.tick_now()
+	for {
+		if known, asked := s.app.thumbnails.by_track[covered]; asked && known.state != .Asked {
+			testing.expect_value(t, known.state, Thumbnail_State.Made)
+			break
+		}
+		if time.tick_since(start) > 20 * time.Second {
+			testing.fail_now(t, "the album's cover was not drawn in time")
+		}
+		engine.poll(e)
+		ui.run_frame(&s.h)
+		time.sleep(time.Millisecond)
+	}
+	ui.run_frame(&s.h)
+	album, found := ui.find_widget(&s.h.ui, "Covered")
+	testing.expect(t, found && album.role == .Row)
+	forget_notice(&s.app)
+	ui.move_mouse(&s.h, {0, 0})
+	ui.run_frame(&s.h)
+	expect_screen(t, &s, "sidebar-cover-dark.png")
+}
+
+// Not an image: the thumbnail is missing, tried once.
+@(test)
+a_cover_that_is_not_an_image_is_missing_once :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	rgba, made := make_thumbnail(fmt.tprintf("%s/Music/2.mp3", folder), context.allocator)
+	testing.expect(t, !made && rgba == nil)
+	rgba, made = make_thumbnail(fmt.tprintf("%s/Music/1.mp3", folder), context.allocator)
+	defer delete(rgba)
+	testing.expect(t, made && len(rgba) == THUMBNAIL_PIXELS * THUMBNAIL_PIXELS * 4)
+	rgba2, made2 := make_thumbnail(fmt.tprintf("%s/notes.txt", folder), context.allocator)
+	testing.expect(t, !made2 && rgba2 == nil)
+}
+
+// What is drawn stays when a scan reports: another folder opened leaves the albums'
+// covers alone.
+@(test)
+a_thumbnail_survives_opening_another_folder :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	e := &s.app.engine
+	testing.expect(t, ui.click(&s.h, "With a cover"))
+	execute(&s.app, engine.Apply_Edit{{.Album, "Covered"}})
+	execute(&s.app, engine.Save{})
+	wait_for_save(t, &s)
+	covered := e.listed[0]
+	start := time.tick_now()
+	for {
+		if known, asked := s.app.thumbnails.by_track[covered]; asked && known.state == .Made do break
+		if time.tick_since(start) > 20 * time.Second do testing.fail_now(t, "no thumbnail in time")
+		engine.poll(e)
+		ui.run_frame(&s.h)
+		time.sleep(time.Millisecond)
+	}
+	texture := s.app.thumbnails.by_track[covered].texture
+	other := folder_with_fixtures(t, {{"v24_full.mp3", "a.mp3"}})
+	defer remove_folder(other)
+	open_folder_of(t, &s, other)
+	known := s.app.thumbnails.by_track[covered]
+	testing.expect(t, known.state == .Made && known.texture == texture)
 }
