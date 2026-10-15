@@ -47,6 +47,9 @@ Special :: enum u8 {
 	Open_Folder,
 	Open_Files,
 	Find,
+	Save,
+	Settings,
+	Version,
 }
 
 // An entry that holds what is typed, cut around where it first does.
@@ -59,6 +62,8 @@ Match :: struct {
 // Opens the palette over the window, with an empty query.
 open_palette :: proc(app: ^App) {
 	p := &app.palette
+	// The palette shows at once, whatever asked for it: a key was taken, not a command.
+	app.commands += 1
 	p.open = true
 	p.current = 0
 	p.revealed = 0
@@ -223,6 +228,12 @@ run_entry :: proc(ctx: ^ui.Ui, app: ^App, entry: Entry) {
 		open_folder(app)
 	case .Open_Files:
 		open_files(app)
+	case .Save:
+		request_save(app)
+	case .Settings:
+		open_settings(app)
+	case .Version:
+		if choose, is := entry.command.(engine.Choose_Version); is do request_version(app, choose.choice)
 	case .Find:
 		ui.focus_field(ctx, ui.widget_id("Filter"))
 	}
@@ -260,8 +271,10 @@ palette_entries :: proc(app: ^App) -> []Entry {
 		ui.tr("Save"),
 		file,
 		len(e.edits.pending) > 0 && engine.saving(e) == nil,
-		engine.Save{},
+		nil,
+		.Save,
 	)
+	add(&entries, settings_label(app), file, true, nil, .Settings)
 	add(&entries, ui.tr("Undo"), edit, engine.can_undo(e), engine.Undo{})
 	add(&entries, ui.tr("Redo"), edit, engine.can_redo(e), engine.Redo{})
 	add(&entries, ui.tr("Find"), edit, open, nil, .Find)
@@ -292,6 +305,7 @@ palette_entries :: proc(app: ^App) -> []Entry {
 		tags,
 		developer,
 		engine.Choose_Version{engine.Id3v2_Choice{lib.Id3v2_Version.V2_4}},
+		.Version,
 	)
 	add(
 		&entries,
@@ -299,6 +313,7 @@ palette_entries :: proc(app: ^App) -> []Entry {
 		tags,
 		developer,
 		engine.Choose_Version{engine.Id3v2_Choice{lib.Id3v2_Version.V2_3}},
+		.Version,
 	)
 	add(
 		&entries,
@@ -306,6 +321,15 @@ palette_entries :: proc(app: ^App) -> []Entry {
 		tags,
 		developer,
 		engine.Choose_Version{engine.Id3v2_Choice{lib.Id3v2_Version.V2_2}},
+		.Version,
+	)
+	add(
+		&entries,
+		ui.tr("Remove ID3v2 from the selected files…"),
+		tags,
+		developer,
+		engine.Choose_Version{engine.Id3v2_Choice{nil}},
+		.Version,
 	)
 	add(
 		&entries,
@@ -313,6 +337,7 @@ palette_entries :: proc(app: ^App) -> []Entry {
 		tags,
 		developer,
 		engine.Choose_Version{engine.Id3v1_Choice{lib.Id3v1_Version.V1_1}},
+		.Version,
 	)
 	add(
 		&entries,
@@ -320,6 +345,15 @@ palette_entries :: proc(app: ^App) -> []Entry {
 		tags,
 		developer,
 		engine.Choose_Version{engine.Id3v1_Choice{lib.Id3v1_Version.V1_0}},
+		.Version,
+	)
+	add(
+		&entries,
+		ui.tr("Remove ID3v1 from the selected files…"),
+		tags,
+		developer,
+		engine.Choose_Version{engine.Id3v1_Choice{nil}},
+		.Version,
 	)
 	add(
 		&entries,
