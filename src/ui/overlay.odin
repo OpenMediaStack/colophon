@@ -389,11 +389,7 @@ begin_dialog :: proc(
 ) {
 	r := ui.renderer
 	th := ui.theme
-	ui.modal_next = id
-	ui.dialog = id
-	remember_focus(ui, id)
-	begin_popup(ui, window, .Top)
-	fill_rect(r, window, th.scrim)
+	begin_modal(ui, id, window)
 	width := dialog_width(window, options) - 2 * DIALOG_PADDING
 	title_lines := wrap_text(r, options.title, .Title, width, context.temp_allocator)
 	message_lines := wrap_text(r, options.message, .Body, width, context.temp_allocator)
@@ -470,9 +466,25 @@ end_dialog :: proc(ui: ^Ui, d: Dialog) -> (choice: Dialog_Choice) {
 	if take_key(ui, .Tab) do move_focus(ui, .Forward)
 	if take_key(ui, .Tab, {.Shift}) do move_focus(ui, .Back)
 	pop_parent(ui)
+	end_modal(ui)
+	return
+}
+
+// Starts a modal overlay over window, for a dialog or the command palette: a scrim that
+// takes the clicks and the keys meant for what lies under it, drawn on the top layer,
+// and the focus remembered for when the overlay closes, when it goes back where it
+// was. The caller declares the widget id for what it draws, and ends with end_modal.
+begin_modal :: proc(ui: ^Ui, id: Widget_Id, window: Rect) {
+	ui.modal_next = id
+	ui.dialog = id
+	remember_focus(ui, id)
+	begin_popup(ui, window, .Top)
+	fill_rect(ui.renderer, window, ui.theme.scrim)
+}
+
+end_modal :: proc(ui: ^Ui) {
 	end_popup(ui)
 	ui.dialog = 0
-	return
 }
 
 // Notes the focus a dialog found when it showed, for when it closes.

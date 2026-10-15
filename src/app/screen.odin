@@ -71,6 +71,7 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	status_bar(ctx, app, l.status)
 	if app.drop.hovering do drop_target(ctx, window)
 	toasts(ctx, app, window)
+	palette(ctx, app, window)
 	unsaved_changes(ctx, app, window)
 	shortcuts(ctx, app)
 }
