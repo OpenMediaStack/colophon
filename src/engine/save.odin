@@ -109,6 +109,8 @@ versions_keeping_id3v1 :: proc(
 save :: proc(e: ^Engine, keeping_id3v1: bool) {
 	if e.saving != nil do return
 	jobs := make([dynamic]lib.Save_Job, context.temp_allocator)
+	// Developer mode's details apply to every file saved in it.
+	details := e.view.developer_mode ? e.details : lib.Write_Details{}
 	for track in pending_tracks(e, context.temp_allocator) {
 		versions: lib.Tag_Versions
 		ok: bool
@@ -119,7 +121,7 @@ save :: proc(e: ^Engine, keeping_id3v1: bool) {
 		}
 		if !ok do continue
 		path := e.library.tracks[track].path
-		append(&jobs, lib.Save_Job{int(track), path, e.edits.pending[track], versions})
+		append(&jobs, lib.Save_Job{int(track), path, e.edits.pending[track], versions, details})
 	}
 	if len(jobs) == 0 do return
 	clear(&e.save_failures)

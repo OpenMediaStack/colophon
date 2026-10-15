@@ -408,3 +408,141 @@ a_cover_written_as_id3v2_2_keeps_its_format :: proc(t: ^testing.T) {
 	testing.expect(t, err_again != .None)
 	testing.expect(t, slice.equal(read_bytes(path), again_before))
 }
+
+@(private = "file")
+title_encoding :: proc(t: ^testing.T, path: string) -> lib.Text_Encoding {
+	layout, found := lib.read_layout(path)
+	defer lib.destroy_layout(&layout)
+	testing.expect(t, found)
+	for frame in layout.frames do if frame.id == "TIT2" || frame.id == "TT2" do return frame.encoding.? or_else .Latin1
+	testing.expect(t, false, "no title frame")
+	return .Latin1
+}
+
+@(test)
+details_set_the_padding_and_the_unsynchronisation :: proc(t: ^testing.T) {
+	folder, path := copy_of(t, "v23_full.mp3")
+	defer remove_folder(folder)
+	written, err := lib.write_track_with(
+		path,
+		new_tags(),
+		{.V2_4, nil},
+		{padding = 1024, unsynchronisation = true},
+	)
+	defer lib.destroy_track(&written)
+	testing.expect_value(t, err, lib.Write_Error.None)
+	layout, found := lib.read_layout(path)
+	defer lib.destroy_layout(&layout)
+	testing.expect(t, found)
+	testing.expect_value(t, layout.padding, 1024)
+	testing.expect(t, layout.unsynchronisation)
+
+	none, err_none := lib.write_track_with(path, new_tags(), {.V2_4, nil}, {padding = 0})
+	defer lib.destroy_track(&none)
+	testing.expect_value(t, err_none, lib.Write_Error.None)
+	plain, plain_found := lib.read_layout(path)
+	defer lib.destroy_layout(&plain)
+	testing.expect(t, plain_found)
+	testing.expect_value(t, plain.padding, 0)
+}
+
+@(test)
+an_encoding_the_version_lacks_becomes_utf16 :: proc(t: ^testing.T) {
+	folder, path := copy_of(t, "v23_full.mp3")
+	defer remove_folder(folder)
+	for encoding in ([?]struct {
+			encoding: lib.Text_Encoding,
+			version:  lib.Id3v2_Version,
+			expected: lib.Text_Encoding,
+		}{{.UTF16BE, .V2_4, .UTF16BE}, {.UTF8, .V2_4, .UTF8}, {.UTF16BE, .V2_3, .UTF16}, {.UTF8, .V2_2, .UTF16}, {.Latin1, .V2_3, .Latin1}, {.UTF16, .V2_3, .UTF16}}) {
+		written, err := lib.write_track_with(
+			path,
+			{title = "Neon Overpass"},
+			{encoding.version, nil},
+			{encoding = encoding.encoding},
+		)
+		lib.destroy_track(&written)
+		testing.expectf(t, err == .None, "%v in %v: %v", encoding.encoding, encoding.version, err)
+		testing.expectf(
+			t,
+			title_encoding(t, path) == encoding.expected,
+			"%v in %v: %v",
+			encoding.encoding,
+			encoding.version,
+			title_encoding(t, path),
+		)
+	}
+}
+
+// Every text frame takes the encoding asked for, as 1.0.0's test of it checked, and the
+// tags read back the same.
+@(test)
+every_frame_takes_the_encoding_asked_for :: proc(t: ^testing.T) {
+	folder, path := copy_of(t, "v23_full.mp3")
+	defer remove_folder(folder)
+	for version in lib.Id3v2_Version {
+		for encoding in lib.Text_Encoding {
+			written, err := lib.write_track_with(
+				path,
+				new_tags_ascii(),
+				{version, nil},
+				{encoding = encoding},
+			)
+			testing.expectf(t, err == .None, "%v in %v: %v", encoding, version, err)
+			expected := encoding
+			if version != .V2_4 && (encoding == .UTF16BE || encoding == .UTF8) do expected = .UTF16
+			layout, found := lib.read_layout(path)
+			testing.expect(t, found)
+			for frame in layout.frames {
+				if has, ok := frame.encoding.?; ok && frame.kind == .Text {
+					testing.expectf(
+						t,
+						has == expected,
+						"%s in %v with %v: %v",
+						frame.id,
+						version,
+						encoding,
+						has,
+					)
+				}
+			}
+			testing.expectf(
+				t,
+				written.metadata.tags.title == "Neon Overpass",
+				"%v in %v read back %v",
+				encoding,
+				version,
+				written.metadata.tags.title,
+			)
+			lib.destroy_layout(&layout)
+			lib.destroy_track(&written)
+		}
+	}
+}
+
+@(private = "file")
+new_tags_ascii :: proc() -> lib.Tags {
+	return {
+		title = "Neon Overpass",
+		artist = "Cassette Bloom",
+		album = "Analog Hearts",
+		year = 2024,
+		track = 4,
+	}
+}
+
+// Text that Latin-1 cannot hold is not written, and the file stays as it was.
+@(test)
+text_an_encoding_cannot_hold_leaves_the_file_untouched :: proc(t: ^testing.T) {
+	folder, path := copy_of(t, "v23_full.mp3")
+	defer remove_folder(folder)
+	before, read_before := os.read_entire_file(path, context.allocator)
+	testing.expect(t, read_before == nil)
+	defer delete(before)
+	_, err := lib.write_track_with(path, new_tags(), {.V2_4, nil}, {encoding = .Latin1})
+	testing.expect_value(t, err, lib.Write_Error.Cannot_Encode)
+	after, read_after := os.read_entire_file(path, context.allocator)
+	testing.expect(t, read_after == nil)
+	defer delete(after)
+	testing.expect(t, slice.equal(before, after))
+}
