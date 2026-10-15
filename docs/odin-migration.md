@@ -36,6 +36,7 @@ A prototype built in a day (Odin, SDL3, every pixel drawn by the app) matched th
 | 2026-10-15 | Choosing in the Tag format section the version saving already writes changes nothing, since that version is the choice: 1.0.0's test chose 2.4 on an ID3v2.3 file (which showed 2.4, the default) and expected it rewritten as 2.4. Rewrite Selected Files (39d) is the way to rewrite a file as it is. To raise with Florent. |
 | 2026-10-15 | The layout of the selected track, in developer mode, is read from the file on the UI thread, when the selection or the file changes, as the well's cover is: the read is of one tag, which odid3 bounds by the file's size, but a tag with a very large cover or tens of thousands of frames takes a few milliseconds to a few hundred, and the Frames section shows the first 200 frames only. The read is safe from any thread, so a worker with a wake is the other choice. 1.0.0 read it on the UI thread too, when the track changed. To raise with Florent. |
 | 2026-10-15 | With Latin-1 chosen, saving a file whose text it cannot hold (a Unicode title) fails and leaves the file untouched, the status bar saying only that the file could not be saved: 1.0.0's `id3` crate wrote the text lossily, odid3 refuses. Naming the cause in the failure is left for the save errors' slice. To raise with Florent. |
+| 2026-10-15 | The waveform's coarser levels sum the squares of their peaks once each, where 1.0.0's `fold(pair[0], merge)` counted the first peak of each pair twice: the highest and lowest samples are the same, the loudness of a coarse level differs by a fraction of a percent, and the loudness of the whole track is now exact. Samples that are not numbers count as silence and the others are kept within -1 and 1. To raise with Florent. |
 
 The spikes of [Phase 0](#phase-0-foundations-and-spikes) add their results here.
 
@@ -147,7 +148,8 @@ Each screen matches 1.0.0's reference captures (`crates/ui-slint/tests/reference
 ### Phase 4: audio
 
 - [ ] **42. `feat(audio): playback`.** Play, pause, seek, next and previous, volume, a playhead in sync over a 6 minute track, the player hidden while idle: miniaudio behind the engine's `Output`, which slice 14 made. Port `player.rs` and its tests (an MP3 decodes and moves to a position, a file that is no audio is refused) and `ui-slint/tests/player.rs`; `engine/tests/playback.rs` came with slice 14. `play` runs on the UI thread, as 1.0.0's did: either keep it so, or load asynchronously and report a failure through the output.
-- [ ] **43. `feat(audio): waveform`.** The min/max pyramid computed off the UI thread, drawn at any width at once, scrubbing. Port `player/src/waveform.rs` and its tests.
+- [x] **43a. `feat(audio): waveform pyramid`.** The `audio` package starts with the min/max pyramid: `Waveform_Builder` takes interleaved samples in chunks of any size (a frame may be split between two), mixes the channels, and makes the peaks of 256 frames, each level half as many as the one before; `peaks` gives any number of them across the track at once, read from the level that keeps neighbours out of a share; `loudness` is the root mean square. Ported from `player/src/waveform.rs` and its tests, plus chunked input and short or odd tracks. Pure computation: no decoder yet, and no dependency.
+- [ ] **43b. `feat(audio): waveform drawing`.** Decoding a file's samples into the builder off the UI thread (slice 42's decoder), the waveform drawn at any width, scrubbing.
 
 ### Phase 5: the platform
 
