@@ -352,6 +352,15 @@ the_inspector_matches_its_references :: proc(t: ^testing.T) {
 			&s,
 			kind == .Dark ? "inspector-developer-dark.png" : "inspector-developer-light.png",
 		)
+		// Scrolled to the Frames section under it.
+		s.app.inspector.scroll.offset.y = 100000
+		ui.run_frame(&s.h)
+		ui.run_frame(&s.h)
+		expect_screen(
+			t,
+			&s,
+			kind == .Dark ? "inspector-frames-dark.png" : "inspector-frames-light.png",
+		)
 	}
 }
 

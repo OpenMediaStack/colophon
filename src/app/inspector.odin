@@ -34,6 +34,7 @@ Inspector :: struct {
 	tags_open:       bool,
 	file_open:       bool,
 	tag_format_open: bool,
+	frames_open:     bool,
 	inspection:      engine.Inspection,
 	// What the inspection was made from, once made: the engine's revision and how many
 	// commands had run.
@@ -45,6 +46,8 @@ Inspector :: struct {
 	typing:          Maybe(engine.Field),
 	// The cover drawn in the well, made again when the selection's cover changes.
 	cover:           Maybe(Shown_Cover),
+	// The layout of the tags of the single track selected, in developer mode.
+	layout:          Maybe(Shown_Layout),
 }
 
 // A cover decoded into a texture, by the key of the cover it shows.
@@ -76,6 +79,7 @@ init_inspector :: proc(i: ^Inspector) {
 	i.tags_open = true
 	i.file_open = true
 	i.tag_format_open = true
+	i.frames_open = true
 }
 
 // The inspector: the tags of the selected tracks, their file, and the actions on
@@ -92,9 +96,11 @@ inspector :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		inspect_tracks(ctx, app, rect, inspection)
 	case engine.Unreadable_Track:
 		drop_cover(ctx, app)
+		forget_layout(app)
 		inspect_unreadable(ctx, app, rect, inspection)
 	case nil:
 		drop_cover(ctx, app)
+		forget_layout(app)
 		nothing_selected(ctx, app, rect)
 	}
 }
@@ -170,6 +176,11 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 		conversion = conversion_lines(r, s, width)
 		height += SECTION_GAP + 16
 		if i.tag_format_open do height += 8 + 2 * (ui.BUTTON_HEIGHT + FIELD_GAP) + f32(len(conversion)) * WARNING_LINE
+	}
+	layout := shown_layout(app, s)
+	if layout != nil {
+		height += SECTION_GAP + 16
+		if i.frames_open do height += 8 + frames_section(ctx, layout, 0, 0, width, true)
 	}
 	origin := ui.begin_scroll(ctx, id, body, {body.w, height}, &i.scroll)
 	x := origin.x + INSPECTOR_PADDING
@@ -259,7 +270,16 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 		y += SECTION_GAP
 		if section_header(ctx, 2, ui.tr("Tag format"), {x, y, width, 16}, &i.tag_format_open) {
 			y += 16 + 8
-			tag_format(ctx, app, s, conversion, x, y, width)
+			y = tag_format(ctx, app, s, conversion, x, y, width)
+		} else {
+			y += 16
+		}
+	}
+	if layout != nil {
+		y += SECTION_GAP
+		if section_header(ctx, 3, ui.tr("Frames"), {x, y, width, 16}, &i.frames_open) {
+			y += 16 + 8
+			frames_section(ctx, layout, x, y, width)
 		}
 	}
 	ui.end_scroll(ctx, id, body, {body.w, height}, &i.scroll)
@@ -902,6 +922,8 @@ tag_format :: proc(
 	s: engine.Summary,
 	conversion: []string,
 	x, top, width: f32,
+) -> (
+	bottom: f32,
 ) {
 	th := ctx.theme
 	y := top
@@ -966,6 +988,7 @@ tag_format :: proc(
 			},
 		)
 	}
+	return y + f32(len(conversion)) * WARNING_LINE
 }
 
 // None, then each version, named by its tag's way of writing it: 2.4, 1.1.
