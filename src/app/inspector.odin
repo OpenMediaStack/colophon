@@ -29,21 +29,22 @@ NBSP :: " "
 // content, and what the selected tracks share, made again when the selection or the
 // library changes.
 Inspector :: struct {
-	scroll:         ui.Scroll,
-	comment_scroll: ui.Scroll,
-	tags_open:      bool,
-	file_open:      bool,
-	inspection:     engine.Inspection,
+	scroll:          ui.Scroll,
+	comment_scroll:  ui.Scroll,
+	tags_open:       bool,
+	file_open:       bool,
+	tag_format_open: bool,
+	inspection:      engine.Inspection,
 	// What the inspection was made from, once made: the engine's revision and how many
 	// commands had run.
-	made:           bool,
-	revision:       u64,
-	commands:       int,
+	made:            bool,
+	revision:        u64,
+	commands:        int,
 	// The field being typed in, whose next changes go on with the same step of the
 	// history, so that Escape takes the whole of the typing back.
-	typing:         Maybe(engine.Field),
+	typing:          Maybe(engine.Field),
 	// The cover drawn in the well, made again when the selection's cover changes.
-	cover:          Maybe(Shown_Cover),
+	cover:           Maybe(Shown_Cover),
 }
 
 // A cover decoded into a texture, by the key of the cover it shows.
@@ -74,6 +75,7 @@ header_height :: proc(s: engine.Summary) -> f32 {
 init_inspector :: proc(i: ^Inspector) {
 	i.tags_open = true
 	i.file_open = true
+	i.tag_format_open = true
 }
 
 // The inspector: the tags of the selected tracks, their file, and the actions on
@@ -163,6 +165,12 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	}
 	height += SECTION_GAP + 16
 	if i.file_open do height += 8 + f32(s.modified != {} ? 4 : 3) * 20
+	conversion: []string
+	if e.view.developer_mode {
+		conversion = conversion_lines(r, s, width)
+		height += SECTION_GAP + 16
+		if i.tag_format_open do height += 8 + 2 * (ui.BUTTON_HEIGHT + FIELD_GAP) + f32(len(conversion)) * WARNING_LINE
+	}
 	origin := ui.begin_scroll(ctx, id, body, {body.w, height}, &i.scroll)
 	x := origin.x + INSPECTOR_PADDING
 	y := origin.y + INSPECTOR_PADDING
@@ -242,6 +250,16 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 		y += 20
 		if s.modified != {} {
 			file_row(ctx, ui.tr("Saved as"), formats_text(s.saved_as), x, y, width, false, 3)
+			y += 20
+		}
+	} else {
+		y += 16
+	}
+	if e.view.developer_mode {
+		y += SECTION_GAP
+		if section_header(ctx, 2, ui.tr("Tag format"), {x, y, width, 16}, &i.tag_format_open) {
+			y += 16 + 8
+			tag_format(ctx, app, s, conversion, x, y, width)
 		}
 	}
 	ui.end_scroll(ctx, id, body, {body.w, height}, &i.scroll)
@@ -873,6 +891,200 @@ size_text :: proc(bytes: i64) -> string {
 	}
 	tenths := (bytes + 50_000_000) / 100_000_000
 	return ui.fill(ui.tr("{}.{}\u00A0GB"), fmt.tprint(tenths / 10), fmt.tprint(tenths % 10))
+}
+
+// The Tag format section of developer mode: the versions saving writes the selected
+// tracks in, ID3v2 and ID3v1, each with None, and what saving converts.
+@(private = "file")
+tag_format :: proc(
+	ctx: ^ui.Ui,
+	app: ^App,
+	s: engine.Summary,
+	conversion: []string,
+	x, top, width: f32,
+) {
+	th := ctx.theme
+	y := top
+	field_x := x + FIELD_LABEL_WIDTH + 8
+	field_w := width - FIELD_LABEL_WIDTH - 8
+	versions, shared := s.versions.(lib.Tag_Versions)
+	v2, v1: Maybe(int)
+	if shared {
+		v2 = versions.id3v2 == nil ? 0 : int(versions.id3v2.?) + 1
+		v1 = versions.id3v1 == nil ? 0 : int(versions.id3v1.?) + 1
+	}
+	v2_segments := id3v2_segments()
+	if chosen, picked := version_row(
+		   ctx,
+		   ui.tr("Write ID3v2"),
+		   {x, y},
+		   field_x,
+		   field_w,
+		   v2_segments[:],
+		   v2,
+	   ).?; picked {
+		request_version(
+			app,
+			engine.Id3v2_Choice{chosen == 0 ? nil : lib.Id3v2_Version(chosen - 1)},
+		)
+	}
+	y += ui.BUTTON_HEIGHT + FIELD_GAP
+	v1_segments := id3v1_segments()
+	if chosen, picked := version_row(
+		   ctx,
+		   ui.tr("Write ID3v1"),
+		   {x, y},
+		   field_x,
+		   field_w,
+		   v1_segments[:],
+		   v1,
+	   ).?; picked {
+		request_version(
+			app,
+			engine.Id3v1_Choice{chosen == 0 ? nil : lib.Id3v1_Version(chosen - 1)},
+		)
+	}
+	y += ui.BUTTON_HEIGHT + FIELD_GAP
+	if len(conversion) > 0 {
+		for line, i in conversion {
+			ui.draw_text(
+				ctx.renderer,
+				line,
+				field_x,
+				y + f32(i) * WARNING_LINE + WARNING_LINE / 2,
+				.Small,
+				th.text_tertiary,
+			)
+		}
+		ui.declare(
+			ctx,
+			{
+				id = ui.widget_id("Conversion"),
+				role = .Label,
+				label = conversion_text(s),
+				rect = {field_x, y, field_w, f32(len(conversion)) * WARNING_LINE},
+			},
+		)
+	}
+}
+
+// None, then each version, named by its tag's way of writing it: 2.4, 1.1.
+@(private = "file")
+id3v2_segments :: proc() -> [1 + len(lib.Id3v2_Version)]ui.Segment {
+	segments: [1 + len(lib.Id3v2_Version)]ui.Segment
+	segments[0] = {
+		label = ui.tr("None"),
+	}
+	for version, i in lib.Id3v2_Version do segments[i + 1] = {
+		label   = version_name(version),
+		numeric = true,
+	}
+	return segments
+}
+
+@(private = "file")
+id3v1_segments :: proc() -> [1 + len(lib.Id3v1_Version)]ui.Segment {
+	segments: [1 + len(lib.Id3v1_Version)]ui.Segment
+	segments[0] = {
+		label = ui.tr("None"),
+	}
+	for version, i in lib.Id3v1_Version do segments[i + 1] = {
+		label   = version_name(version),
+		numeric = true,
+	}
+	return segments
+}
+
+@(private = "file")
+version_name :: proc(version: $V) -> string {
+	when V == lib.Id3v2_Version {
+		switch version {
+		case .V2_2:
+			return "2.2"
+		case .V2_3:
+			return "2.3"
+		case .V2_4:
+			return "2.4"
+		}
+	} else {
+		switch version {
+		case .V1_0:
+			return "1.0"
+		case .V1_1:
+			return "1.1"
+		}
+	}
+	return ""
+}
+
+// A label and the segments that choose a version, gives the one chosen.
+@(private = "file")
+version_row :: proc(
+	ctx: ^ui.Ui,
+	name: string,
+	at: [2]f32,
+	field_x, field_w: f32,
+	segments: []ui.Segment,
+	selected: Maybe(int),
+) -> Maybe(int) {
+	field_label(ctx, name, {at.x, at.y, FIELD_LABEL_WIDTH, ui.BUTTON_HEIGHT}, false)
+	return ui.segmented(
+		ctx,
+		ui.widget_id(name),
+		{field_x, at.y, field_w, ui.BUTTON_HEIGHT},
+		name,
+		segments,
+		selected,
+	)
+}
+
+// The lines the conversion text takes, wrapped to the section's field.
+@(private = "file")
+conversion_lines :: proc(r: ^ui.Renderer, s: engine.Summary, width: f32) -> []string {
+	text := conversion_text(s)
+	if text == "" do return nil
+	return ui.wrap_text(r, text, .Small, width - FIELD_LABEL_WIDTH - 8, context.temp_allocator)
+}
+
+// What saving does to the tags of the files it converts, as 1.0.0 said it. Allocated
+// with the temporary allocator.
+@(private)
+conversion_text :: proc(s: engine.Summary) -> string {
+	if s.converted == 0 do return ""
+	_, saved_mixed := s.saved_as.(engine.Mixed)
+	saved, has_saved := s.saved_as.(lib.Tag_Formats)
+	if saved_mixed {
+		return ui.tr_n("Saving converts {n} file.", "Saving converts {n} files.", s.converted)
+	}
+	saved_text := has_saved ? lib.tag_formats_string(saved, context.temp_allocator) : ""
+	if saved_text == "" {
+		return ui.tr_n(
+			"Saving removes the tags of {n} file.",
+			"Saving removes the tags of {n} files.",
+			s.converted,
+		)
+	}
+	before, same := s.formats.(lib.Tag_Formats)
+	before_text := same ? lib.tag_formats_string(before, context.temp_allocator) : ""
+	if !same || before_text == "" {
+		return ui.fill(
+			ui.tr_n(
+				"Saving converts {n} file to {}.",
+				"Saving converts {n} files to {}.",
+				s.converted,
+			),
+			saved_text,
+		)
+	}
+	return ui.fill(
+		ui.tr_n(
+			"Saving converts {n} file from {} to {}.",
+			"Saving converts {n} files from {} to {}.",
+			s.converted,
+		),
+		before_text,
+		saved_text,
+	)
 }
 
 // The tag formats the tracks share, or that they differ, or that they have none.
