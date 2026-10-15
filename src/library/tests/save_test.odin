@@ -77,8 +77,8 @@ a_save_writes_each_file_then_finishes :: proc(t: ^testing.T) {
 	testing.expect(t, os.copy_file(one, fixture("v23_full.mp3")) == nil)
 	testing.expect(t, os.copy_file(two, fixture("v24_unicode.mp3")) == nil)
 	jobs := []lib.Save_Job {
-		{1, one, {title = "One"}, {.V2_4, nil}},
-		{2, fmt.tprintf("%s/missing.mp3", folder), {title = "Two"}, {.V2_4, nil}},
+		{1, one, {title = "One"}, {.V2_4, nil}, {}},
+		{2, fmt.tprintf("%s/missing.mp3", folder), {title = "Two"}, {.V2_4, nil}, {}},
 	}
 	save, started := lib.start_save(jobs)
 	if !testing.expect(t, started) do return

@@ -424,3 +424,110 @@ choosing_to_remove_a_tag_loses_it_from_the_files_that_have_it_and_keep_it :: pro
 	engine.execute(&e, engine.Set_Write_Policy{{.V2_4, .Never}})
 	testing.expect_value(t, len(engine.losing_tag(&e, .Id3v1, context.temp_allocator)), 0)
 }
+
+@(private = "file")
+padding_on_disk :: proc(t: ^testing.T, folder, name: string) -> int {
+	layout, found := lib.read_layout(fmt.tprintf("%s/%s", folder, name))
+	defer lib.destroy_layout(&layout)
+	testing.expect(t, found)
+	return layout.padding
+}
+
+@(test)
+rewriting_marks_the_selection_and_saves_it_with_the_details :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := two_tracks(t, &e)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	engine.execute(&e, engine.Toggle_Developer_Mode{})
+	engine.execute(&e, engine.Set_Write_Details{{padding = 4096, unsynchronisation = true}})
+	engine.execute(&e, engine.Select{track_named(&e, "1.mp3")})
+	engine.execute(&e, engine.Rewrite{})
+	testing.expect_value(t, len(e.edits.pending), 1)
+	// A step of no history: there is nothing to undo.
+	testing.expect_value(t, len(e.edits.undo), 0)
+
+	engine.execute(&e, engine.Save{})
+	poll_until_saved(t, &e)
+	testing.expect_value(t, len(e.edits.pending), 0)
+	testing.expect_value(t, padding_on_disk(t, folder, "1.mp3"), 4096)
+	layout, _ := lib.read_layout(fmt.tprintf("%s/1.mp3", folder))
+	defer lib.destroy_layout(&layout)
+	testing.expect(t, layout.unsynchronisation)
+	// The other file was not touched.
+	testing.expect(t, padding_on_disk(t, folder, "2.mp3") != 4096)
+}
+
+@(test)
+details_only_apply_in_developer_mode :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := two_tracks(t, &e)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	engine.execute(&e, engine.Set_Write_Details{{padding = 4096}})
+	engine.execute(&e, engine.Select{track_named(&e, "1.mp3")})
+	engine.execute(&e, engine.Rewrite{})
+	engine.execute(&e, engine.Save{})
+	poll_until_saved(t, &e)
+	testing.expect(t, padding_on_disk(t, folder, "1.mp3") != 4096)
+}
+
+@(test)
+rewriting_leaves_the_changes_that_wait_as_they_are :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := two_tracks(t, &e)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	engine.execute(&e, engine.Select{track_named(&e, "1.mp3")})
+	engine.execute(&e, engine.Apply_Edit{{.Album, "Analog Hearts"}})
+	engine.execute(&e, engine.Rewrite{})
+	testing.expect_value(t, len(e.edits.pending), 1)
+	engine.execute(&e, engine.Save{})
+	poll_until_saved(t, &e)
+	testing.expect_value(t, album_on_disk(folder, "1.mp3"), "Analog Hearts")
+}
+
+@(test)
+a_track_that_cannot_be_read_is_not_rewritten :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := folder_with(t, {"broken.mp3"})
+	engine_reading(t, &e, folder)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	engine.execute(&e, engine.Select_All{})
+	engine.execute(&e, engine.Rewrite{})
+	testing.expect_value(t, len(e.edits.pending), 0)
+}
+
+@(test)
+reverting_a_rewrite_leaves_the_file_alone :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := two_tracks(t, &e)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	engine.execute(&e, engine.Select{track_named(&e, "1.mp3")})
+	engine.execute(&e, engine.Rewrite{})
+	testing.expect_value(t, len(e.edits.pending), 1)
+	engine.execute(&e, engine.Revert{})
+	testing.expect_value(t, len(e.edits.pending), 0)
+	testing.expect(t, !engine.can_revert(&e))
+}
+
+// A mark that cannot be written, the file being read only, can still be dropped.
+@(test)
+a_rewrite_that_fails_can_be_reverted :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := two_tracks(t, &e)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	path := fmt.tprintf("%s/1.mp3", folder)
+	testing.expect(t, set_read_only(path, true))
+	defer set_read_only(path, false)
+	engine.execute(&e, engine.Select{track_named(&e, "1.mp3")})
+	engine.execute(&e, engine.Rewrite{})
+	engine.execute(&e, engine.Save{})
+	poll_until_saved(t, &e)
+	testing.expect_value(t, len(e.edits.pending), 1)
+	engine.execute(&e, engine.Revert{})
+	testing.expect_value(t, len(e.edits.pending), 0)
+}

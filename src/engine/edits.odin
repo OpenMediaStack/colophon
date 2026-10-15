@@ -93,6 +93,17 @@ Number_Tracks :: struct {}
 // Every listed track of the albums of the selected tracks joins the selection.
 Select_Album :: struct {}
 
+// How saving encodes the ID3v2 tag in developer mode: the text encoding, the padding
+// and the unsynchronisation.
+Set_Write_Details :: struct {
+	details: lib.Write_Details,
+}
+
+// Marks the selected tracks to be written again as they are, so that saving rewrites
+// their files in the current versions and details. Not a step of the history: there is
+// nothing to undo.
+Rewrite :: struct {}
+
 // The version to write one tag of the selected tracks in, or none to remove it.
 Choose_Version :: struct {
 	choice: Version_Choice,
@@ -354,6 +365,9 @@ revert_tracks :: proc(e: ^Engine, tracks: []Track_Id) {
 		append(&changes, change)
 	}
 	record(e, nil, &changes)
+	// A track only marked to be rewritten changes no value, and the history skips it:
+	// settling it drops the mark.
+	for track in tracks do settle(e, track)
 }
 
 @(private)
@@ -504,6 +518,18 @@ record :: proc(e: ^Engine, field: Maybe(Field), changes: ^[dynamic]Change) {
 	for c in changes do want(e, c.track, c.after)
 	append(&e.edits.undo, Action{field, changes^})
 	clear_redo(e)
+}
+
+// Marks tracks to be written again as they are, the ones that already wait for a save
+// left as they are.
+@(private)
+rewrite :: proc(e: ^Engine, tracks: []Track_Id) {
+	for track in tracks {
+		if track in e.edits.pending do continue
+		wanted, ok := wanted_of(e, track)
+		if !ok do continue
+		e.edits.pending[track] = wanted.tags
+	}
 }
 
 // Takes wanted in for a track: it waits to be saved if saving would change the file,

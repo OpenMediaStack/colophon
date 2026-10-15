@@ -182,6 +182,8 @@ edit_commands_keep_the_ids_of_1_0 :: proc(t: ^testing.T) {
 		{engine.command_id(engine.Number_Tracks{}), "tags.number_tracks"},
 		{engine.command_id(engine.Select_Album{}), "selection.select_album"},
 		{engine.command_id(engine.Choose_Version{}), "tags.choose_version"},
+		{engine.command_id(engine.Set_Write_Details{}), "developer.write_details"},
+		{engine.command_id(engine.Rewrite{}), "developer.rewrite"},
 	}
 	for id in ids do testing.expect_value(t, id[0], id[1])
 }

@@ -27,6 +27,18 @@ Write_Error :: enum u8 {
 	Cannot_Read_Back,
 }
 
+// How an ID3v2 tag is encoded, for people who make test files: odid3's choices unless
+// asked otherwise.
+Write_Details :: struct {
+	// The encoding of every text frame; nil keeps each frame's. A version without it
+	// writes UTF-16 instead: ID3v2.2 and 2.3 know neither UTF-16BE nor UTF-8.
+	encoding:          Maybe(Text_Encoding),
+	// The zeros after the last frame, in bytes; nil is odid3's default and a negative
+	// number is none. A tag over odid3's limit, about 256 MB, is not written.
+	padding:           Maybe(int),
+	unsynchronisation: bool,
+}
+
 // Writes tags into the MP3 at path, in the tags and versions of versions, and removes
 // the ID3 tags it leaves out. Every other frame, the APE tag and the audio stay as they
 // are, and a field whose value does not change keeps its frame as it was: its
@@ -42,7 +54,21 @@ write_track :: proc(
 	track: Track,
 	err: Write_Error,
 ) {
-	err = write_tags(path, tags, versions, allocator)
+	return write_track_with(path, tags, versions, {}, allocator)
+}
+
+// The same, with the ID3v2 tag encoded as details say.
+write_track_with :: proc(
+	path: string,
+	tags: Tags,
+	versions: Tag_Versions,
+	details: Write_Details,
+	allocator := context.allocator,
+) -> (
+	track: Track,
+	err: Write_Error,
+) {
+	err = write_tags(path, tags, versions, details, allocator)
 	if err != .None do return
 	track = read_track(path, allocator)
 	if track.error != .None {
@@ -57,6 +83,7 @@ write_tags :: proc(
 	path: string,
 	tags: Tags,
 	versions: Tag_Versions,
+	details: Write_Details,
 	allocator: runtime.Allocator,
 ) -> Write_Error {
 	info, stat_err := os.stat(path, allocator)
@@ -114,10 +141,38 @@ write_tags :: proc(
 		id3.destroy(&file.v1)
 	}
 	// 1.0.0 rewrote what it could read of a damaged tag, as this does.
-	if err := id3.write_file(path, &file, {replace_damaged = true}, allocator); err != nil {
+	options := id3.Write_Options {
+		replace_damaged   = true,
+		padding           = details.padding,
+		unsynchronisation = details.unsynchronisation,
+		encoding          = encoding_to_write(details.encoding, versions.id3v2),
+	}
+	if err := id3.write_file(path, &file, options, allocator); err != nil {
 		return write_error(err)
 	}
 	return .None
+}
+
+// The encoding to ask odid3 for: UTF-16BE and UTF-8 need ID3v2.4, so earlier versions
+// get UTF-16 instead, as 1.0.0 did.
+@(private = "file")
+encoding_to_write :: proc(
+	encoding: Maybe(Text_Encoding),
+	version: Maybe(Id3v2_Version),
+) -> Maybe(id3.Encoding) {
+	chosen, has := encoding.?
+	if !has do return nil
+	switch chosen {
+	case .Latin1:
+		return .Latin1
+	case .UTF16:
+		return .UTF16
+	case .UTF16BE:
+		return version == .V2_4 ? .UTF16BE : .UTF16
+	case .UTF8:
+		return version == .V2_4 ? .UTF8 : .UTF16
+	}
+	return nil
 }
 
 @(private = "file", rodata)
@@ -245,6 +300,7 @@ Save_Job :: struct {
 	path:     string,
 	tags:     Tags,
 	versions: Tag_Versions,
+	details:  Write_Details,
 }
 
 // A file as it is once written. The track is the caller's: free it with destroy_track.
@@ -301,6 +357,7 @@ start_save :: proc(
 			strings.clone(job.path, allocator),
 			clone_tags(job.tags, allocator),
 			job.versions,
+			job.details,
 		}
 	}
 	s.wake = wake
@@ -358,7 +415,7 @@ run_save :: proc(data: rawptr) {
 	}
 	for job in s.jobs {
 		if sync.atomic_load(&s.stop) do break
-		track, err := write_track(job.path, job.tags, job.versions, s.allocator)
+		track, err := write_track_with(job.path, job.tags, job.versions, job.details, s.allocator)
 		if err == .None {
 			report(s, Saved{job.id, track})
 		} else {
