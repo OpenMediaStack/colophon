@@ -13,6 +13,8 @@ Options :: struct {
 	// Renders one frame without a window, saves it as a PNG at this path, and quits.
 	screenshot:  string,
 	window_size: [2]i32,
+	// --size was given: it wins over the size the window had.
+	size_asked:  bool,
 }
 
 Option_Error :: enum {
@@ -37,6 +39,7 @@ parse_options :: proc(args: []string) -> (options: Options, err: Option_Error) {
 		case "--size":
 			if len(has_value) == 0 do return options, .Missing_Value
 			options.window_size = parse_size(value) or_return
+			options.size_asked = true
 		case:
 			return options, .Unknown_Option
 		}

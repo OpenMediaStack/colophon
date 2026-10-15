@@ -3,6 +3,8 @@ package main
 import "base:runtime"
 import "core:c"
 import "core:fmt"
+import "core:math"
+import "core:os"
 import "core:path/filepath"
 import "core:strings"
 import sdl "vendor:sdl3"
@@ -46,6 +48,7 @@ Window :: struct {
 
 // Opens the window and runs until it closes, or renders one frame for --screenshot.
 run :: proc(options: Options) -> bool {
+	options := options
 	headless := len(options.screenshot) > 0
 	if headless {
 		// The dummy video driver with the software renderer: no window shows, and the
@@ -70,6 +73,16 @@ run :: proc(options: Options) -> bool {
 	app: App
 	app_init(&app, lib.Wake{wake_loop, &w.wake_type})
 	defer app_destroy(&app)
+	// A screenshot starts from the defaults, and keeps nothing.
+	if !headless {
+		if dir, err := os.user_config_dir(context.allocator, ODIN_OS == .Windows); err == nil {
+			defer delete(dir)
+			path := preferences_path(dir, app.platform)
+			defer delete(path)
+			use_preferences(&app, path)
+		}
+		options.window_size = opening_size(options, app.engine.view.window_size)
+	}
 	app.dialogs = {
 		data        = &w,
 		open_folder = show_folder_dialog,
@@ -87,7 +100,9 @@ run :: proc(options: Options) -> bool {
 		draw(&w) or_return
 		return save_screenshot(w.renderer, options.screenshot)
 	}
-	return event_loop(&w, &app)
+	opened := event_loop(&w, &app)
+	remember_before_closing(&app)
+	return opened
 }
 
 // Opens the window at the size asked, with its renderer, the draw lists and the Ui.
@@ -102,13 +117,17 @@ open_window :: proc(w: ^Window, options: Options) -> bool {
 	scale := sdl.GetWindowDisplayScale(w.window)
 	units: f32 = density > 0 && scale > 0 ? scale / density : 1
 	if units != 1 {
-		if !sdl.SetWindowSize(w.window, c.int(f32(size.x) * units), c.int(f32(size.y) * units)) {
+		if !sdl.SetWindowSize(
+			w.window,
+			c.int(math.round(f32(size.x) * units)),
+			c.int(math.round(f32(size.y) * units)),
+		) {
 			sdl_failed("SDL_SetWindowSize")
 		}
 	}
 	least := [2]c.int {
-		c.int(f32(MINIMUM_WINDOW_SIZE.x) * units),
-		c.int(f32(MINIMUM_WINDOW_SIZE.y) * units),
+		c.int(math.round(f32(MINIMUM_WINDOW_SIZE.x) * units)),
+		c.int(math.round(f32(MINIMUM_WINDOW_SIZE.y) * units)),
 	}
 	if !sdl.SetWindowMinimumSize(w.window, least.x, least.y) do sdl_failed("SDL_SetWindowMinimumSize")
 	w.renderer = sdl.CreateRenderer(w.window, nil)

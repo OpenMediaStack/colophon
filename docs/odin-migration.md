@@ -31,6 +31,7 @@ A prototype built in a day (Odin, SDL3, every pixel drawn by the app) matched th
 | 2026-10-14 | A close asked for while a save runs waits for the save behind the unsaved changes dialog; when the save leaves nothing pending, the close is granted and the window closes, rather than the dialog asking about no file (1.0.0 asked about 0 files). Closing again while a chosen save runs changes nothing. To raise with Florent. |
 | 2026-10-14 | The catalogue in use is the one piece of state the toolkit keeps outside a struct, set once at startup before any frame and read by the UI thread alone, so that every text goes through `tr("...")` as AGENTS.md writes it, without a `Ui` at hand. The alternative is `tr(ui, "...")` everywhere. To raise with Florent. |
 | 2026-10-15 | The licenses view differs from 1.0.0's in three ways: its rows hold the name only (1.0.0 added a line with the version and the license, which the pane shows here), the license text is set in JetBrains Mono rather than Inter since the texts are hard wrapped, and the list scrolls when it outgrows the dialog. To raise with Florent. |
+| 2026-10-15 | A launch with `--size` also remembers that size when it quits, overwriting the one kept: `--size` is not in 1.0.0, so there is nothing to follow. The other choice is to keep nothing of a launch that asked for a size. To raise with Florent. |
 
 The spikes of [Phase 0](#phase-0-foundations-and-spikes) add their results here.
 
@@ -146,7 +147,7 @@ Each screen matches 1.0.0's reference captures (`crates/ui-slint/tests/reference
 
 - [ ] **44. `feat(platform): menus`.** As spike 5 decided.
 - [ ] **45. `feat(platform): accessibility`.** As spike 3 decided, for every widget.
-- [ ] **46. `feat(platform): preferences between launches`.** Window size and the rest of `preferences.toml`, read at start and written on change. Port `preferences.rs` (interface).
+- [x] **46. `feat(app): preferences between launches`.** Window size and the rest of `preferences.toml`, read at start and written on change. Port `preferences.rs` (interface). Done in the app, not in `src/platform` as the architecture table says, since it holds no platform call beyond the folder's name: `preferences.toml` lives in the system's settings folder (`Colophon`, `colophon` on Linux), is read at start (a file over 1 MiB is not read), written next to the file and moved over it once the engine's preferences have been still for half a second (a drag of a column's edge does not write at every frame, and a write that fails is not retried until they change) and as the window closes with its size, rounded, which the next launch opens at (kept within what a window can be) unless `--size` is given. A screenshot starts from the defaults and keeps nothing.
 
 ### Phase 6: release
 

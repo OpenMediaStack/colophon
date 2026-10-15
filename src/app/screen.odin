@@ -53,6 +53,7 @@ layout_of :: proc(app: ^App, window: ui.Rect) -> (l: Layout) {
 // status bar, and the shortcuts no widget took.
 main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	th := ctx.theme
+	app.window_size = {window.w, window.h}
 	follow_save(app, ctx.input.time)
 	poll_thumbnails(ctx, app)
 	l := layout_of(app, window)
@@ -77,6 +78,7 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	removal_dialog(ctx, app, window)
 	unsaved_changes(ctx, app, window)
 	shortcuts(ctx, app)
+	keep_preferences(ctx, app)
 }
 
 // Over the whole window while files are dragged over it: a scrim, a frame in the
