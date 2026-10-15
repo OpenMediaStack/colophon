@@ -7,49 +7,63 @@ import "../engine"
 import lib "../library"
 import ui "../ui"
 
+// What the engine remembers between launches, named here where the App's own field
+// called engine hides the package.
+Preferences :: engine.Preferences
+
 // Colophon's state above the engine: what the screens need between frames that the
 // engine does not already know. Make it with app_init, free it with app_destroy.
 App :: struct {
-	engine:         engine.Engine,
-	dialogs:        Dialogs,
-	drop:           Drop,
+	engine:           engine.Engine,
+	dialogs:          Dialogs,
+	drop:             Drop,
 	// What the track table keeps between frames: its scroll, a drag of a column.
-	table:          ui.Table_State,
+	table:            ui.Table_State,
 	// What it keeps beside that: the cell edited, a click waiting to shrink the
 	// selection, the track whose menu is open.
-	tracks:         Tracks,
-	genres:         Genres,
-	warnings:       Warnings_Cache,
-	thumbnails:     Thumbnails,
-	palette:        Palette,
-	settings_open:  bool,
-	about:          About,
+	tracks:           Tracks,
+	genres:           Genres,
+	warnings:         Warnings_Cache,
+	thumbnails:       Thumbnails,
+	palette:          Palette,
+	settings_open:    bool,
+	about:            About,
+	// Where the preferences are kept, empty to keep none, what was last written, what
+	// was last tried (a write that fails is not retried at every frame), and what was
+	// last seen changing, since when.
+	preferences_path: string,
+	kept:             Preferences,
+	tried:            Preferences,
+	seen:             Preferences,
+	seen_at:          f64,
+	// The window's size in points, as the last frame drew it.
+	window_size:      [2]f32,
 	// A removal waiting for the user's answer.
-	removal:        Maybe(Removal),
+	removal:          Maybe(Removal),
 	// The cover read for the save dialog, until it answers.
-	cover_to_write: Maybe(lib.Cover),
-	sidebar:        Sidebar,
-	inspector:      Inspector,
+	cover_to_write:   Maybe(lib.Cover),
+	sidebar:          Sidebar,
+	inspector:        Inspector,
 	// How many commands ran: a frame in which one ran is followed by another at once,
 	// so that what it changed shows.
-	commands:       int,
+	commands:         int,
 	// Whose conventions the screens follow, the shortcuts they write and the order of
 	// a dialog's buttons: the system's, unless a test pins one so that its captures
 	// are the same everywhere.
-	platform:       ui.Platform,
+	platform:         ui.Platform,
 	// Shown by About; a capture pins it so that a release does not change them.
-	version:        string,
+	version:          string,
 	// The user's home folder, without a trailing separator, which the table shows as
 	// a tilde; empty when the system does not say.
-	home:           string,
+	home:             string,
 	// The toast shown, if one is.
-	notice:         Maybe(Notice),
+	notice:           Maybe(Notice),
 	// How many saves had ended when the last one was told of.
-	shown_saves:    int,
+	shown_saves:      int,
 	// What the window does about quitting with changes that are not saved.
-	departure:      Maybe(Departure),
+	departure:        Maybe(Departure),
 	// The window closes: the loop ends after the frame.
-	quit:           bool,
+	quit:             bool,
 }
 
 // Runs a command of the engine, counting it for the loop.
@@ -104,6 +118,7 @@ app_destroy :: proc(app: ^App) {
 	delete(app.warnings.found)
 	forget_cover_to_write(app)
 	forget_removal(app)
+	delete(app.preferences_path, app.engine.allocator)
 	destroy_thumbnails(&app.thumbnails)
 	delete(app.palette.query, app.engine.allocator)
 	forget_dropped(app)
