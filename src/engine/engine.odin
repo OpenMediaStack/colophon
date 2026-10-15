@@ -64,6 +64,8 @@ Engine :: struct {
 	selection:        Selection,
 	edits:            Edits,
 	view:             View_State,
+	// How saving encodes the ID3v2 tag, in developer mode.
+	details:          lib.Write_Details,
 	// Set by the app to play tracks; nil without a sound device, and in tests that do
 	// not need sound.
 	output:           Maybe(Output),
@@ -124,6 +126,8 @@ Command :: union {
 	Save,
 	Save_Keeping_Id3v1,
 	Set_Write_Policy,
+	Set_Write_Details,
+	Rewrite,
 	Play,
 	Play_Pause,
 	Play_Next,
@@ -199,6 +203,10 @@ command_id :: proc(command: Command) -> string {
 		return "tags.save_keeping_id3v1"
 	case Set_Write_Policy:
 		return "settings.write_policy"
+	case Set_Write_Details:
+		return "developer.write_details"
+	case Rewrite:
+		return "developer.rewrite"
 	case Play:
 		return "playback.play"
 	case Play_Pause:
@@ -363,6 +371,10 @@ execute :: proc(e: ^Engine, command: Command) {
 		save(e, true)
 	case Set_Write_Policy:
 		e.edits.policy = c.policy
+	case Set_Write_Details:
+		e.details = c.details
+	case Rewrite:
+		rewrite(e, e.selection.tracks[:])
 	case Play:
 		play(e, c.track)
 	case Play_Pause:
@@ -393,7 +405,8 @@ execute :: proc(e: ^Engine, command: Command) {
 	     Redo,
 	     Revert,
 	     Number_Tracks,
-	     Choose_Version:
+	     Choose_Version,
+	     Rewrite:
 		e.revision += 1
 	}
 }

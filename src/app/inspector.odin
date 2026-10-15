@@ -14,7 +14,7 @@ INSPECTOR_PADDING :: 16
 SECTION_GAP :: 16
 @(private = "file")
 FIELD_LABEL_WIDTH :: 96
-@(private = "file")
+@(private)
 FIELD_GAP :: 6
 // The actions pinned at the bottom: a line, then the buttons with 14 points around.
 @(private = "file")
@@ -175,7 +175,10 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	if e.view.developer_mode {
 		conversion = conversion_lines(r, s, width)
 		height += SECTION_GAP + 16
-		if i.tag_format_open do height += 8 + 2 * (ui.BUTTON_HEIGHT + FIELD_GAP) + f32(len(conversion)) * WARNING_LINE
+		if i.tag_format_open {
+			height += 8 + 2 * (ui.BUTTON_HEIGHT + FIELD_GAP) + f32(len(conversion)) * WARNING_LINE
+			height += 8 + write_details(ctx, app, 0, 0, width, true)
+		}
 	}
 	layout := shown_layout(app, s)
 	if layout != nil {
@@ -704,7 +707,7 @@ tag_fields :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary, x, y, width: f32) 
 
 // A field's label: a dot takes the place of the padding while the field waits to be
 // saved.
-@(private = "file")
+@(private)
 field_label :: proc(ctx: ^ui.Ui, text: string, rect: ui.Rect, modified: bool) {
 	r := ctx.renderer
 	th := ctx.theme
@@ -988,7 +991,8 @@ tag_format :: proc(
 			},
 		)
 	}
-	return y + f32(len(conversion)) * WARNING_LINE
+	y += f32(len(conversion)) * WARNING_LINE + 8
+	return y + write_details(ctx, app, x, y, width)
 }
 
 // None, then each version, named by its tag's way of writing it: 2.4, 1.1.
