@@ -10,36 +10,38 @@ import ui "../ui"
 // Colophon's state above the engine: what the screens need between frames that the
 // engine does not already know. Make it with app_init, free it with app_destroy.
 App :: struct {
-	engine:      engine.Engine,
-	dialogs:     Dialogs,
-	drop:        Drop,
+	engine:         engine.Engine,
+	dialogs:        Dialogs,
+	drop:           Drop,
 	// What the track table keeps between frames: its scroll, a drag of a column.
-	table:       ui.Table_State,
+	table:          ui.Table_State,
 	// What it keeps beside that: the cell edited, a click waiting to shrink the
 	// selection, the track whose menu is open.
-	tracks:      Tracks,
-	genres:      Genres,
-	warnings:    Warnings_Cache,
-	sidebar:     Sidebar,
-	inspector:   Inspector,
+	tracks:         Tracks,
+	genres:         Genres,
+	warnings:       Warnings_Cache,
+	// The cover read for the save dialog, until it answers.
+	cover_to_write: Maybe(lib.Cover),
+	sidebar:        Sidebar,
+	inspector:      Inspector,
 	// How many commands ran: a frame in which one ran is followed by another at once,
 	// so that what it changed shows.
-	commands:    int,
+	commands:       int,
 	// Whose conventions the screens follow, the shortcuts they write and the order of
 	// a dialog's buttons: the system's, unless a test pins one so that its captures
 	// are the same everywhere.
-	platform:    ui.Platform,
+	platform:       ui.Platform,
 	// The user's home folder, without a trailing separator, which the table shows as
 	// a tilde; empty when the system does not say.
-	home:        string,
+	home:           string,
 	// The toast shown, if one is.
-	notice:      Maybe(Notice),
+	notice:         Maybe(Notice),
 	// How many saves had ended when the last one was told of.
-	shown_saves: int,
+	shown_saves:    int,
 	// What the window does about quitting with changes that are not saved.
-	departure:   Maybe(Departure),
+	departure:      Maybe(Departure),
 	// The window closes: the loop ends after the frame.
-	quit:        bool,
+	quit:           bool,
 }
 
 // Runs a command of the engine, counting it for the loop.
@@ -57,6 +59,8 @@ Dialogs :: struct {
 	open_files:  proc(app: ^App, data: rawptr),
 	// Asks for an image, which take_image makes the selected tracks' cover.
 	pick_image:  proc(app: ^App, data: rawptr),
+	// Asks where to write the cover, suggesting a path, which extract_cover_to writes.
+	save_cover:  proc(app: ^App, data: rawptr, suggested: string),
 	// Shows a file in the system's file manager.
 	reveal:      proc(app: ^App, data: rawptr, path: string),
 }
@@ -86,6 +90,7 @@ app_destroy :: proc(app: ^App) {
 	forget_notice(app)
 	delete(app.genres.list, app.engine.allocator)
 	delete(app.warnings.found)
+	forget_cover_to_write(app)
 	forget_dropped(app)
 	delete(app.drop.paths)
 	engine.destroy(&app.engine)
@@ -166,6 +171,11 @@ pick_image :: proc(app: ^App) {
 	if app.dialogs.pick_image != nil do app.dialogs.pick_image(app, app.dialogs.data)
 }
 
+// Asks the user where to write the selected tracks' cover, suggesting a path.
+pick_save :: proc(app: ^App, suggested: string) {
+	if app.dialogs.save_cover != nil do app.dialogs.save_cover(app, app.dialogs.data, suggested)
+}
+
 // Shows a file in the system's file manager.
 reveal_file :: proc(app: ^App, path: string) {
 	if app.dialogs.reveal != nil do app.dialogs.reveal(app, app.dialogs.data, path)
@@ -182,21 +192,30 @@ drop_file :: proc(app: ^App, path: string) {
 }
 
 // The drag ended, dropped or gone: what was dropped is opened together, folders and
-// audio files alike. Anything else is left alone; an image dropped on the inspector
-// becomes a cover with slice 32.
-drop_end :: proc(app: ^App) {
+// audio files alike. Without any, an image becomes the cover of the selected tracks,
+// as 1.0.0 took it; anything else is left alone. now is the frame's time, for a
+// toast.
+drop_end :: proc(app: ^App, now: f64) {
 	app.drop.hovering = false
 	defer forget_dropped(app)
 	files := make([dynamic]string, context.temp_allocator)
+	opened := false
 	for path in app.drop.paths {
 		switch {
 		case os.is_directory(path):
 			execute(app, engine.Open_Folder{path})
+			opened = true
 		case lib.is_audio_file(path):
 			append(&files, path)
 		}
 	}
 	if len(files) > 0 do execute(app, engine.Open_Files{files[:]})
+	if opened || len(files) > 0 do return
+	if _, tracks := engine.inspect(&app.engine).(engine.Summary); !tracks do return
+	for path in app.drop.paths do if is_image_file(path) {
+		take_image(app, path, now)
+		return
+	}
 }
 
 @(private = "file")

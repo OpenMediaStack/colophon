@@ -2,6 +2,7 @@ package main
 
 import "core:fmt"
 import "core:os"
+import "core:path/filepath"
 import "core:strings"
 import "core:testing"
 
@@ -185,4 +186,79 @@ a_jpeg_is_told_by_its_first_bytes_and_the_texture_goes_with_the_selection :: pro
 	ui.run_frame(&s.h)
 	testing.expect_value(t, s.app.inspector.cover, nil)
 	testing.expect(t, s.h.images[0].rgba == nil)
+}
+
+@(test)
+a_cover_is_extracted_to_a_file :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	s.answers.saved = fmt.tprintf("%s/extracted.png", folder)
+	testing.expect(t, ui.click(&s.h, "With a cover"))
+	ui.run_frame(&s.h)
+	testing.expect(t, ui.click(&s.h, "Cover", .Right))
+	testing.expect(t, ui.click(&s.h, "Extract Cover…"))
+	ui.run_frame(&s.h)
+	extracted, read := os.read_entire_file(s.answers.saved, context.temp_allocator)
+	original, _ := os.read_entire_file(fmt.tprintf("%s/cover.png", folder), context.temp_allocator)
+	testing.expect(t, read == nil && len(extracted) > 0 && string(extracted) == string(original))
+	testing.expect_value(t, len(s.app.engine.edits.pending), 0)
+	// The dialog suggested cover.png, by the format, beside the track's file.
+	expected, _ := filepath.join({folder, "Music", "cover.png"}, context.temp_allocator)
+	testing.expect_value(t, s.answers.suggested, expected)
+	testing.expect(t, s.app.cover_to_write == nil)
+	// A path that cannot be written is told.
+	s.answers.saved = fmt.tprintf("%s/missing/x.png", folder)
+	testing.expect(t, ui.click(&s.h, "Cover", .Right))
+	testing.expect(t, ui.click(&s.h, "Extract Cover…"))
+	ui.run_frame(&s.h)
+	testing.expect(t, shows(&s, "Could not write the cover to “x.png”"))
+}
+
+@(test)
+nothing_is_extracted_from_several_covers :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	s.answers.saved = fmt.tprintf("%s/never.png", folder)
+	testing.expect(t, ui.click(&s.h, "With a cover"))
+	ui.press_key(&s.h, .A, ui.COMMAND)
+	ui.run_frame(&s.h)
+	testing.expect(t, ui.click(&s.h, "Several covers", .Right))
+	testing.expect(t, ui.click(&s.h, "Extract Cover…"))
+	ui.run_frame(&s.h)
+	testing.expect_value(t, s.answers.suggested, "")
+	testing.expect(t, !os.exists(s.answers.saved))
+}
+
+@(test)
+an_image_dropped_becomes_the_cover_of_the_selection :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_covers(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	testing.expect(t, ui.click(&s.h, "Paper Satellites"))
+	ui.run_frame(&s.h)
+	drop_begin(&s.app)
+	drop_file(&s.app, fmt.tprintf("%s/cover.png", folder))
+	drop_end(&s.app, 0)
+	ui.run_frame(&s.h)
+	testing.expect_value(t, well_label(&s), "Cover")
+	testing.expect_value(t, len(s.app.engine.edits.pending), 1)
+	// Dropped with an audio file, the image is left alone: the file opens.
+	execute(&s.app, engine.Revert{})
+	drop_begin(&s.app)
+	drop_file(&s.app, fmt.tprintf("%s/cover.png", folder))
+	drop_file(&s.app, fmt.tprintf("%s/Music/2.mp3", folder))
+	drop_end(&s.app, 0)
+	testing.expect_value(t, len(s.app.engine.edits.pending), 0)
+	// Without a selection, an image dropped is left alone.
+	execute(&s.app, engine.Toggle_Selected{s.app.engine.listed[1]})
+	testing.expect_value(t, len(s.app.engine.selection.tracks), 0)
+	drop_begin(&s.app)
+	drop_file(&s.app, fmt.tprintf("%s/cover.png", folder))
+	drop_end(&s.app, 0)
+	testing.expect_value(t, len(s.app.engine.edits.pending), 0)
 }

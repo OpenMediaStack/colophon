@@ -3,6 +3,7 @@ package main
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
+import "core:strings"
 import "core:testing"
 import "core:time"
 import sdl "vendor:sdl3"
@@ -29,9 +30,13 @@ Screen :: struct {
 // What the dialogs answer: each folder in turn, then nothing; the files every time;
 // the image every time, or nothing while empty.
 Answers :: struct {
-	folders: [dynamic]string,
-	files:   []string,
-	image:   string,
+	folders:   [dynamic]string,
+	files:     []string,
+	image:     string,
+	// Where the cover is written when asked, or nowhere while empty.
+	saved:     string,
+	// The path the save dialog suggested last.
+	suggested: string,
 }
 
 // A screen of size points, in the theme of kind, drawn twice so that the hover and the
@@ -56,6 +61,12 @@ screen_init :: proc(s: ^Screen, size: [2]f32, kind := ui.Theme_Kind.Dark) {
 			a := (^Answers)(data)
 			if len(a.image) > 0 do take_image(app, a.image, 0)
 		},
+		save_cover = proc(app: ^App, data: rawptr, suggested: string) {
+			a := (^Answers)(data)
+			delete(a.suggested)
+			a.suggested = strings.clone(suggested)
+			if len(a.saved) > 0 do extract_cover_to(app, a.saved, 0)
+		},
 	}
 	ui.harness_init(&s.h, app_frame, &s.app, kind)
 	s.h.scale = 1
@@ -66,6 +77,7 @@ screen_destroy :: proc(s: ^Screen) {
 	ui.harness_destroy(&s.h)
 	app_destroy(&s.app)
 	delete(s.answers.folders)
+	delete(s.answers.suggested)
 	free_all(context.temp_allocator)
 }
 
