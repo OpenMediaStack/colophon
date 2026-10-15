@@ -72,6 +72,8 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	if app.drop.hovering do drop_target(ctx, window)
 	toasts(ctx, app, window)
 	palette(ctx, app, window)
+	settings_dialog(ctx, app, window)
+	removal_dialog(ctx, app, window)
 	unsaved_changes(ctx, app, window)
 	shortcuts(ctx, app)
 }

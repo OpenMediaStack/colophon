@@ -264,7 +264,7 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 		save_width,
 		ui.BUTTON_HEIGHT,
 	}
-	if ui.button(ctx, ui.widget_id("Save files"), save_rect, save_label, save_options) do execute(app, engine.Save{})
+	if ui.button(ctx, ui.widget_id("Save files"), save_rect, save_label, save_options) do request_save(app)
 	revert_label := ui.tr("Revert")
 	revert_options := ui.Button_Options {
 		kind     = .Secondary,

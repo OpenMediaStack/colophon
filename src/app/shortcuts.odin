@@ -15,8 +15,9 @@ shortcuts :: proc(ctx: ^ui.Ui, app: ^App) {
 	if ui.take_key(ctx, .F, ui.COMMAND) && open do ui.focus_field(ctx, ui.widget_id("Filter"))
 	if ui.take_key(ctx, .Z, ui.COMMAND) && engine.can_undo(e) do execute(app, engine.Undo{})
 	if ui.take_key(ctx, .Z, ui.COMMAND + {.Shift}) && engine.can_redo(e) do execute(app, engine.Redo{})
-	if ui.take_key(ctx, .S, ui.COMMAND) && len(e.edits.pending) > 0 && engine.saving(e) == nil do execute(app, engine.Save{})
+	if ui.take_key(ctx, .S, ui.COMMAND) && len(e.edits.pending) > 0 && engine.saving(e) == nil do request_save(app)
 	if ui.take_key(ctx, .K, ui.COMMAND) do open_palette(app)
+	if ui.take_key(ctx, .Comma, ui.COMMAND) do open_settings(app)
 	if ui.take_key(ctx, .O, ui.COMMAND) do open_folder(app)
 	if ui.take_key(ctx, .O, ui.COMMAND + {.Shift}) do open_files(app)
 }

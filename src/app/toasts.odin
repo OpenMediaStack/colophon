@@ -2,7 +2,6 @@ package main
 
 import "core:strings"
 
-import "../engine"
 import ui "../ui"
 
 // How long a toast stays, in seconds: a success goes on its own, an error waits to be
@@ -66,7 +65,7 @@ toasts :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	switch ui.toast(ctx, id, window, notice.kind, notice.message, action_label) {
 	case .None:
 	case .Acted:
-		if action, has := notice.action.?; has && action == .Retry_Save do execute(app, engine.Save{})
+		if action, has := notice.action.?; has && action == .Retry_Save do request_save(app)
 		dismiss_notice(ctx, app)
 	case .Closed:
 		dismiss_notice(ctx, app)

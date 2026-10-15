@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-15 19:14+0200\n"
+"POT-Creation-Date: 2026-10-15 19:19+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -71,11 +71,11 @@ msgid "Replace cover…"
 msgstr ""
 
 #: src/app/inspector.odin:225 src/app/inspector.odin:241
-#: src/app/palette.odin:244 src/app/tracks.odin:347
+#: src/app/palette.odin:255 src/app/tracks.odin:347
 msgid "Tags"
 msgstr ""
 
-#: src/app/inspector.odin:233 src/app/palette.odin:241 src/app/tracks.odin:349
+#: src/app/inspector.odin:233 src/app/palette.odin:252 src/app/tracks.odin:349
 msgid "File"
 msgstr ""
 
@@ -105,7 +105,7 @@ msgstr[1] ""
 msgid "Saving…"
 msgstr ""
 
-#: src/app/inspector.odin:268 src/app/palette.odin:271 src/app/tracks.odin:260
+#: src/app/inspector.odin:268 src/app/palette.odin:284 src/app/tracks.odin:260
 msgid "Revert"
 msgstr ""
 
@@ -290,189 +290,243 @@ msgstr ""
 msgid "Copy details"
 msgstr ""
 
-#: src/app/palette.odin:101 src/app/toolbar.odin:67
+#: src/app/palette.odin:106 src/app/toolbar.odin:67
 msgid "Command palette"
 msgstr ""
 
-#: src/app/palette.odin:125
+#: src/app/palette.odin:130
 msgid "Command"
 msgstr ""
 
-#: src/app/palette.odin:126
+#: src/app/palette.odin:131
 msgid "Type a command"
 msgstr ""
 
-#: src/app/palette.odin:151
+#: src/app/palette.odin:156
 msgid "Commands"
 msgstr ""
 
-#: src/app/palette.odin:153
+#: src/app/palette.odin:158
 msgid "No command holds “{}”"
 msgstr ""
 
-#: src/app/palette.odin:211
+#: src/app/palette.odin:216
 msgid "esc to close"
 msgstr ""
 
-#: src/app/palette.odin:211
+#: src/app/palette.odin:216
 msgid "↑↓ to move"
 msgstr ""
 
-#: src/app/palette.odin:211
+#: src/app/palette.odin:216
 msgid "↵ to run"
 msgstr ""
 
-#: src/app/palette.odin:242
+#: src/app/palette.odin:253
 msgid "Edit"
 msgstr ""
 
-#: src/app/palette.odin:243
+#: src/app/palette.odin:254
 msgid "Controls"
 msgstr ""
 
-#: src/app/palette.odin:245
+#: src/app/palette.odin:256
 msgid "View"
 msgstr ""
 
-#: src/app/palette.odin:246
+#: src/app/palette.odin:257 src/app/settings.odin:52
 msgid "Settings"
 msgstr ""
 
-#: src/app/palette.odin:256
+#: src/app/palette.odin:267
 msgid "Open Folder…"
 msgstr ""
 
-#: src/app/palette.odin:257
+#: src/app/palette.odin:268
 msgid "Open Files…"
 msgstr ""
 
-#: src/app/palette.odin:260 src/app/toolbar.odin:116
+#: src/app/palette.odin:271 src/app/toolbar.odin:116
 msgid "Save"
 msgstr ""
 
-#: src/app/palette.odin:265 src/app/toolbar.odin:43
+#: src/app/palette.odin:278 src/app/toolbar.odin:43
 msgid "Undo"
 msgstr ""
 
-#: src/app/palette.odin:266 src/app/toolbar.odin:54
+#: src/app/palette.odin:279 src/app/toolbar.odin:54
 msgid "Redo"
 msgstr ""
 
-#: src/app/palette.odin:267
+#: src/app/palette.odin:280
 msgid "Find"
 msgstr ""
 
-#: src/app/palette.odin:268
+#: src/app/palette.odin:281
 msgid "Select All"
 msgstr ""
 
-#: src/app/palette.odin:269 src/app/tracks.odin:258
+#: src/app/palette.odin:282 src/app/tracks.odin:258
 msgid "Select Album"
 msgstr ""
 
-#: src/app/palette.odin:270 src/app/tracks.odin:259
+#: src/app/palette.odin:283 src/app/tracks.odin:259
 msgid "Number Tracks"
 msgstr ""
 
-#: src/app/palette.odin:275
+#: src/app/palette.odin:288
 msgid "Pause"
 msgstr ""
 
-#: src/app/palette.odin:275
+#: src/app/palette.odin:288
 msgctxt "Player"
 msgid "Play"
 msgstr ""
 
-#: src/app/palette.odin:280
+#: src/app/palette.odin:293
 msgid "Next Track"
 msgstr ""
 
-#: src/app/palette.odin:283
+#: src/app/palette.odin:296
 msgid "Previous Track"
 msgstr ""
 
-#: src/app/palette.odin:291
+#: src/app/palette.odin:304
 msgid "Write ID3v2.4 to the selected files"
 msgstr ""
 
-#: src/app/palette.odin:298
+#: src/app/palette.odin:312
 msgid "Write ID3v2.3 to the selected files"
 msgstr ""
 
-#: src/app/palette.odin:305
+#: src/app/palette.odin:320
 msgid "Write ID3v2.2 to the selected files"
 msgstr ""
 
-#: src/app/palette.odin:312
+#: src/app/palette.odin:328
+msgid "Remove ID3v2 from the selected files…"
+msgstr ""
+
+#: src/app/palette.odin:336
 msgid "Write ID3v1.1 to the selected files"
 msgstr ""
 
-#: src/app/palette.odin:319
+#: src/app/palette.odin:344
 msgid "Write ID3v1.0 to the selected files"
 msgstr ""
 
-#: src/app/palette.odin:326
+#: src/app/palette.odin:352
+msgid "Remove ID3v1 from the selected files…"
+msgstr ""
+
+#: src/app/palette.odin:360
 msgid "Hide Sidebar"
 msgstr ""
 
-#: src/app/palette.odin:326
+#: src/app/palette.odin:360
 msgid "Show Sidebar"
 msgstr ""
 
-#: src/app/palette.odin:333
+#: src/app/palette.odin:367
 msgid "Hide Inspector"
 msgstr ""
 
-#: src/app/palette.odin:333
+#: src/app/palette.odin:367
 msgid "Show Inspector"
 msgstr ""
 
-#: src/app/palette.odin:344
+#: src/app/palette.odin:378
 msgid "Hide the {} column (ID3 versions)"
 msgstr ""
 
-#: src/app/palette.odin:346
+#: src/app/palette.odin:380
 msgid "Show the {} column (ID3 versions)"
 msgstr ""
 
-#: src/app/palette.odin:348
+#: src/app/palette.odin:382
 msgid "Hide the {} column"
 msgstr ""
 
-#: src/app/palette.odin:350
+#: src/app/palette.odin:384
 msgid "Show the {} column"
 msgstr ""
 
-#: src/app/palette.odin:354 src/app/tracks.odin:490
+#: src/app/palette.odin:388 src/app/tracks.odin:490
 msgid "Reset to default columns"
 msgstr ""
 
-#: src/app/palette.odin:358
+#: src/app/palette.odin:392
 msgid "Write ID3v2.4 by default"
 msgstr ""
 
-#: src/app/palette.odin:365
+#: src/app/palette.odin:399
 msgid "Write ID3v2.3 by default"
 msgstr ""
 
-#: src/app/palette.odin:372
+#: src/app/palette.odin:406
 msgid "ID3v1 policy: keep where it exists"
 msgstr ""
 
-#: src/app/palette.odin:379
+#: src/app/palette.odin:413
 msgid "ID3v1 policy: always write"
 msgstr ""
 
-#: src/app/palette.odin:386
+#: src/app/palette.odin:420
 msgid "ID3v1 policy: never write"
 msgstr ""
 
-#: src/app/palette.odin:393
+#: src/app/palette.odin:427
 msgid "Turn developer mode off"
 msgstr ""
 
-#: src/app/palette.odin:393
+#: src/app/palette.odin:427
 msgid "Turn developer mode on"
+msgstr ""
+
+#: src/app/removal.odin:109
+msgid "Remove the ID3v1 tag from {n} file?"
+msgid_plural "Remove the ID3v1 tag from {n} files?"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/app/removal.odin:114
+msgid "Some old players and car stereos only read ID3v1. After saving, these files will no longer have one."
+msgstr ""
+
+#: src/app/removal.odin:116
+msgid "Remove ID3v1"
+msgstr ""
+
+#: src/app/removal.odin:117
+msgid "Keep ID3v1"
+msgstr ""
+
+#: src/app/removal.odin:122
+msgid "Remove the ID3v2 tag from {n} file?"
+msgid_plural "Remove the ID3v2 tag from {n} files?"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/app/removal.odin:127
+msgid "ID3v2 holds what ID3v1 cannot: the album artist, the track total, long titles and comments, the cover. After saving, these files will lose them."
+msgstr ""
+
+#: src/app/removal.odin:129
+msgid "Remove ID3v2"
+msgstr ""
+
+#: src/app/removal.odin:130
+msgid "Keep ID3v2"
+msgstr ""
+
+#: src/app/removal.odin:182
+msgid "and {n} other file"
+msgid_plural "and {n} other files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/app/removal.odin:196
+msgid "Files"
 msgstr ""
 
 #: src/app/saving.odin:46 src/app/status_bar.odin:41
@@ -521,8 +575,76 @@ msgstr ""
 msgid "Quitting without saving discards them."
 msgstr ""
 
-#: src/app/screen.odin:90
+#: src/app/screen.odin:92
 msgid "Drop to open these folders and files"
+msgstr ""
+
+#: src/app/settings.odin:30
+msgid "Preferences…"
+msgstr ""
+
+#: src/app/settings.odin:32
+msgid "Options…"
+msgstr ""
+
+#: src/app/settings.odin:35
+msgid "Settings…"
+msgstr ""
+
+#: src/app/settings.odin:46
+msgid "Read by every player, the oldest included."
+msgstr ""
+
+#: src/app/settings.odin:46
+msgid "The current version, with UTF-8 text."
+msgstr ""
+
+#: src/app/settings.odin:47
+msgid "Removed from the files saved, after asking."
+msgstr ""
+
+#: src/app/settings.odin:47
+msgid "Rewritten in the files that have one, added to none."
+msgstr ""
+
+#: src/app/settings.odin:47
+msgid "Written in every file saved."
+msgstr ""
+
+#: src/app/settings.odin:48
+msgid "Choose the tag versions of each file in the inspector, ID3v2.2 included."
+msgstr ""
+
+#: src/app/settings.odin:53
+msgid "Done"
+msgstr ""
+
+#: src/app/settings.odin:103 src/app/settings.odin:109
+msgid "ID3v2 version"
+msgstr ""
+
+#: src/app/settings.odin:118 src/app/settings.odin:128
+msgid "ID3v1 tag"
+msgstr ""
+
+#: src/app/settings.odin:120
+msgid "Keep"
+msgstr ""
+
+#: src/app/settings.odin:121
+msgid "Always"
+msgstr ""
+
+#: src/app/settings.odin:122
+msgid "Never"
+msgstr ""
+
+#: src/app/settings.odin:137
+msgid "Developer"
+msgstr ""
+
+#: src/app/settings.odin:142 src/app/status_bar.odin:54
+msgid "Developer mode"
 msgstr ""
 
 #: src/app/sidebar.odin:58
@@ -581,10 +703,6 @@ msgid_plural "{n} files with unsaved changes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/status_bar.odin:54
-msgid "Developer mode"
-msgstr ""
-
 #: src/app/status_bar.odin:91
 msgid "No folder open"
 msgstr ""
@@ -617,7 +735,7 @@ msgid_plural "{n} selected"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/app/toasts.odin:62
+#: src/app/toasts.odin:61
 msgid "Retry"
 msgstr ""
 

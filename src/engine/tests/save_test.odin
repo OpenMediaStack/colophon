@@ -399,3 +399,28 @@ saving_a_cover_settles_the_track :: proc(t: ^testing.T) {
 	defer lib.destroy_cover(&written)
 	testing.expect(t, has && slice.equal(written.data, cover.data))
 }
+
+@(test)
+choosing_to_remove_a_tag_loses_it_from_the_files_that_have_it_and_keep_it :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := folder_with_fixtures(
+		t,
+		{{"v23_v1_long_title.mp3", "1.mp3"}, {"v23_full.mp3", "2.mp3"}, {"no_tag.mp3", "3.mp3"}},
+	)
+	defer remove_folder(folder)
+	engine_reading(t, &e, folder)
+	defer engine.destroy(&e)
+	engine.execute(&e, engine.Select_All{})
+	// 1.mp3 has both tags, 2.mp3 has ID3v2 alone, 3.mp3 none.
+	v1 := engine.losing_tag(&e, .Id3v1, context.temp_allocator)
+	v2 := engine.losing_tag(&e, .Id3v2, context.temp_allocator)
+	testing.expect_value(t, len(v1), 1)
+	testing.expect_value(t, len(v2), 2)
+	// Once the tag is chosen away, nothing more is lost.
+	engine.execute(&e, engine.Choose_Version{engine.Id3v1_Choice{nil}})
+	testing.expect_value(t, len(engine.losing_tag(&e, .Id3v1, context.temp_allocator)), 0)
+	// The policy that never writes ID3v1 drops it without asking.
+	engine.execute(&e, engine.Revert{})
+	engine.execute(&e, engine.Set_Write_Policy{{.V2_4, .Never}})
+	testing.expect_value(t, len(engine.losing_tag(&e, .Id3v1, context.temp_allocator)), 0)
+}

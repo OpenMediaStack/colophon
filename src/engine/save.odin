@@ -51,6 +51,30 @@ pending_tracks :: proc(e: ^Engine, allocator := context.allocator) -> []Track_Id
 	return tracks[:]
 }
 
+// A tag a choice of versions may remove.
+Removable_Tag :: enum u8 {
+	Id3v1,
+	Id3v2,
+}
+
+// The selected tracks whose file has the tag and whose versions to write, chosen or
+// by the write policy, still keep it: those that choosing to remove it would strip.
+// Allocated with allocator.
+losing_tag :: proc(e: ^Engine, tag: Removable_Tag, allocator := context.allocator) -> []Track_Id {
+	losing := make([dynamic]Track_Id, allocator)
+	for track in e.selection.tracks {
+		if e.library.tracks[track].error != .None do continue
+		formats := e.library.tracks[track].metadata.formats
+		versions := versions_of(e, track) or_continue
+		has, kept := formats.id3v1 != nil, versions.id3v1 != nil
+		if tag == .Id3v2 {
+			has, kept = formats.id3v2 != nil, versions.id3v2 != nil
+		}
+		if has && kept do append(&losing, track)
+	}
+	return losing[:]
+}
+
 // The tracks with changes that saving would strip of their ID3v1 tag because the write
 // policy never writes one, and not because the user chose so for them: saving them asks
 // first. Allocated with allocator.

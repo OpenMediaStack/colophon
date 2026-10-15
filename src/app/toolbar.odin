@@ -124,7 +124,7 @@ save_button :: proc(ctx: ^ui.Ui, app: ^App, at: [2]f32) -> f32 {
 	}
 	width := ui.button_width(ctx.renderer, label, options)
 	rect := ui.Rect{at.x, at.y, width, ui.BUTTON_HEIGHT}
-	if ui.button(ctx, ui.widget_id("Save"), rect, label, options) do execute(app, engine.Save{})
+	if ui.button(ctx, ui.widget_id("Save"), rect, label, options) do request_save(app)
 	return width
 }
 

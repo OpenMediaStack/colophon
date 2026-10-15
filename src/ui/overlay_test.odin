@@ -457,3 +457,39 @@ the_overlays_match_their_reference :: proc(t: ^testing.T) {
 	}
 	finish_capture(t, &cap, "overlays.png")
 }
+
+@(private = "file")
+Plain :: struct {
+	message:  string,
+	below_by: f32,
+}
+
+@(private = "file")
+plain_frame :: proc(ui: ^Ui, data: rawptr) {
+	p := (^Plain)(data)
+	d := begin_dialog(
+		ui,
+		widget_id("Plain"),
+		WINDOW,
+		{title = "Settings", message = p.message, primary = "Done"},
+	)
+	p.below_by = d.content.y - d.box.y
+	end_dialog(ui, d)
+}
+
+// A dialog without a message holds its content right under its title.
+@(test)
+a_dialog_without_a_message_holds_its_content_under_its_title :: proc(t: ^testing.T) {
+	h: Harness
+	p: Plain
+	harness_init(&h, plain_frame, &p)
+	defer harness_destroy(&h)
+	run_frame(&h)
+	bare := p.below_by
+	p.message = "A line of explanation."
+	run_frame(&h)
+	testing.expect(t, bare > 0 && p.below_by > bare)
+	// The padding, a title line and the gap: no empty message line.
+	testing.expect_value(t, bare, 50)
+	free_all(context.temp_allocator)
+}
