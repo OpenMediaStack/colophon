@@ -342,6 +342,16 @@ the_inspector_matches_its_references :: proc(t: ^testing.T) {
 			&s,
 			kind == .Dark ? "inspector-unreadable-dark.png" : "inspector-unreadable-light.png",
 		)
+		// Developer mode adds the Tag format section, with a conversion pending.
+		execute(&s.app, engine.Toggle_Developer_Mode{})
+		execute(&s.app, engine.Select{e.listed[1]})
+		execute(&s.app, engine.Choose_Version{engine.Id3v2_Choice{.V2_2}})
+		ui.run_frame(&s.h)
+		expect_screen(
+			t,
+			&s,
+			kind == .Dark ? "inspector-developer-dark.png" : "inspector-developer-light.png",
+		)
 	}
 }
 
