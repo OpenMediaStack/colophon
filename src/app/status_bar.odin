@@ -52,10 +52,10 @@ status_bar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	// Developer mode is on: its marker makes it impossible to forget.
 	if e.view.developer_mode {
 		label := ui.tr("Developer mode")
-		w := ui.text_width(r, label, .Numeric) + 12
+		w := ui.text_width(r, label, .Numeric_Hint) + 12
 		box := ui.Rect{rect.x + rect.w - 12 - w, middle - 9, w, 18}
 		ui.stroke_rect(r, box, th.border_strong, 3)
-		ui.draw_text(r, label, box.x + 6, middle, .Numeric, th.text_tertiary)
+		ui.draw_text(r, label, box.x + 6, middle, .Numeric_Hint, th.text_tertiary)
 		ui.declare(
 			ctx,
 			{id = ui.widget_id("Developer mode"), role = .Label, label = label, rect = box},
