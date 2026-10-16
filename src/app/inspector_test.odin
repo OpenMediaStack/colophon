@@ -404,9 +404,10 @@ sizes_and_audio_read_as_in_1_0_0 :: proc(t: ^testing.T) {
 	)
 }
 
-// The header is laid out as 1.0.0's column: the heading on the well's top (the lines are
-// taller than the well), 4 points between the lines, the cover button 8 under the album
-// line, and the Tags header 16 under the header, as in 1.0.0's capture.
+// The header is laid out as 1.0.0's column, whose lines are boxes of whole points: the
+// heading, 19 high, on the well's top (the lines are taller than the well), 4 points
+// between the lines, the cover button 8 under the album line, and the Tags header 16 under
+// the button: 71 points from the well's top to the button's bottom, as in 1.0.0's capture.
 @(test)
 the_header_is_as_high_as_its_lines :: proc(t: ^testing.T) {
 	s: Screen
@@ -433,23 +434,45 @@ the_header_is_as_high_as_its_lines :: proc(t: ^testing.T) {
 		t,
 		heading.rect.h > 0 && album.rect.h > 0 && replace.rect.h > 0 && tags.rect.h > 0,
 	)
-	approx :: proc(a, b: f32) -> bool {return abs(a - b) < 0.6}
+	testing.expect_value(t, heading.rect.h, 19)
+	testing.expect_value(t, album.rect.y - (heading.rect.y + heading.rect.h), 4)
+	testing.expect_value(t, replace.rect.y - (album.rect.y + album.rect.h), 8)
+	testing.expect_value(t, replace.rect.y + replace.rect.h - heading.rect.y, 71)
+	testing.expect_value(t, tags.rect.y - (replace.rect.y + replace.rect.h), 16)
+}
+
+// Without an album line the lines are shorter than the well and are centred on it, as
+// 1.0.0's `alignment: center` has them.
+@(test)
+the_header_centres_its_lines_on_the_well :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_showing(t, &s, {{"v23_full.mp3", "1.mp3"}, {"v24_unicode.mp3", "2.mp3"}})
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	execute(&s.app, engine.Select{s.app.engine.listed[0]})
+	execute(&s.app, engine.Select_Range{s.app.engine.listed[1]})
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	heading, replace, tags: ui.Widget_Info
+	for w in s.h.ui.widgets {
+		switch {
+		case w.role == .Label && w.label == "2 tracks selected":
+			heading = w
+		case w.label == "Replace cover…":
+			replace = w
+		case w.label == "Tags" && w.role == .Button:
+			tags = w
+		}
+	}
+	testing.expect(t, heading.rect.h > 0 && replace.rect.h > 0 && tags.rect.h > 0)
+	// The header is the 64 point well's height and the Tags header 16 under it.
+	well_centre := tags.rect.y - 16 - 32
+	stack_centre := (heading.rect.y + replace.rect.y + replace.rect.h) / 2
 	testing.expectf(
 		t,
-		approx(album.rect.y - (heading.rect.y + heading.rect.h), 4),
-		"album line %v",
-		album.rect,
-	)
-	testing.expectf(
-		t,
-		approx(replace.rect.y - (album.rect.y + album.rect.h), 8),
-		"button %v",
-		replace.rect,
-	)
-	testing.expectf(
-		t,
-		approx(tags.rect.y - (replace.rect.y + replace.rect.h), 16),
-		"tags %v",
-		tags.rect,
+		abs(stack_centre - well_centre) < 0.6,
+		"stack %v, well %v",
+		stack_centre,
+		well_centre,
 	)
 }
