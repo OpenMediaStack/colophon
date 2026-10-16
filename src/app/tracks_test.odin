@@ -290,6 +290,62 @@ the_keyboard_moves_and_extends_the_selection :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(e.selection.tracks), 5)
 }
 
+// The table has the keyboard as soon as a folder is open, as 1.0.0's had.
+@(test)
+the_table_has_the_keyboard_when_a_folder_opens :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_named_files(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	e := &s.app.engine
+	testing.expect(t, ui.has_focus(&s.h.ui, ui.widget_id("Tracks")))
+	ui.press_key(&s.h, .Down)
+	testing.expect_value(t, len(e.selection.tracks), 1)
+	ui.press_key(&s.h, .A, ui.COMMAND)
+	testing.expect_value(t, len(e.selection.tracks), 5)
+}
+
+// A dialog up when the folder opens keeps the keys: the table takes the keyboard once it
+// closes.
+@(test)
+the_table_takes_the_keyboard_once_a_dialog_closes :: proc(t: ^testing.T) {
+	s: Screen
+	screen_init(&s, {1440, 900})
+	defer screen_destroy(&s)
+	s.app.settings_open = true
+	ui.run_frame(&s.h)
+	folder := folder_with_fixtures(t, {{"v23_full.mp3", "1.mp3"}, {"v23_unicode.mp3", "2.mp3"}})
+	defer remove_folder(folder)
+	open_folder_of(t, &s, folder)
+	testing.expect(t, !ui.has_focus(&s.h.ui, ui.widget_id("Tracks")))
+	ui.press_key(&s.h, .A, ui.COMMAND)
+	testing.expect_value(t, len(s.app.engine.selection.tracks), 0)
+	s.app.settings_open = false
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	testing.expect(t, ui.has_focus(&s.h.ui, ui.widget_id("Tracks")))
+	ui.press_key(&s.h, .A, ui.COMMAND)
+	testing.expect_value(t, len(s.app.engine.selection.tracks), 2)
+}
+
+// A second folder opening does not take the keyboard from the field being typed in.
+@(test)
+a_folder_opening_leaves_the_filter_its_keyboard :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_named_files(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	ui.click(&s.h, "Filter")
+	ui.type_text(&s.h, "b")
+	other := folder_with_fixtures(t, {{"v23_full.mp3", "z.mp3"}})
+	defer remove_folder(other)
+	open_folder_of(t, &s, other)
+	testing.expect(t, ui.has_focus(&s.h.ui, ui.widget_id("Filter")))
+	ui.type_text(&s.h, "c")
+	testing.expect_value(t, s.app.engine.filter, "bc")
+}
+
 @(test)
 durations_read_as_in_a_player :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)

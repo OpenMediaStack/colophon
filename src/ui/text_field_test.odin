@@ -13,6 +13,7 @@ Form :: struct {
 	disabled: bool,
 	// What the fields take, when set.
 	accepts:  proc(text: string) -> bool,
+	stay:     bool,
 }
 
 @(private = "file")
@@ -23,8 +24,9 @@ form_frame :: proc(ui: ^Ui, data: rawptr) {
 	f := (^Form)(data)
 	for label, i in FIELD_LABELS {
 		options := Text_Field_Options {
-			placeholder = "Multiple values",
-			accepts     = f.accepts,
+			placeholder   = "Multiple values",
+			accepts       = f.accepts,
+			stay_on_enter = f.stay,
 		}
 		if i == 1 && f.disabled do options.flags += {.Disabled}
 		value := strings.to_string(f.values[i])
@@ -117,6 +119,25 @@ escape_brings_the_value_back :: proc(t: ^testing.T) {
 	testing.expect_value(t, value_of(&f, 0), "Paper Satellites")
 	info, _ := find_widget(&h.ui, "Title")
 	testing.expect_value(t, info.value, "Paper Satellites")
+}
+
+@(test)
+a_field_that_stays_on_enter_keeps_the_focus_and_the_text :: proc(t: ^testing.T) {
+	h: Harness
+	f: Form
+	f.stay = true
+	form_harness(&h, &f)
+	defer destroy_form(&h, &f)
+	click(&h, "Title")
+	type_text(&h, "!")
+	press_key(&h, .Enter)
+	testing.expect(t, has_focus(&h.ui, widget_id("Title")))
+	testing.expect_value(t, f.commits[0], 0)
+	testing.expect_value(t, f.cancels[0], 0)
+	info, _ := find_widget(&h.ui, "Title")
+	testing.expect(t, strings.contains(info.value, "!"))
+	press_key(&h, .Tab)
+	testing.expect(t, has_focus(&h.ui, widget_id("Artist")))
 }
 
 @(test)

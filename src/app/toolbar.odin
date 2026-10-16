@@ -130,7 +130,7 @@ save_button :: proc(ctx: ^ui.Ui, app: ^App, at: [2]f32) -> f32 {
 
 // Narrows the table to the tracks whose title, artist, album or file name hold the
 // text typed, as it is typed. Escape empties it and gives the keyboard back; so does
-// its clear button, which keeps the keyboard.
+// its clear button, which keeps the keyboard. Enter does nothing, as in 1.0.0.
 @(private = "file")
 filter_field :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	ICON :: 14
@@ -140,12 +140,13 @@ filter_field :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	hint := shortcut_hint(app, "F")
 	empty := len(e.filter) == 0
 	options := ui.Text_Field_Options {
-		placeholder = ui.tr("Filter by title, artist, album"),
-		flags       = {.Toolbar},
-		leading     = ICON + 6,
-		trailing    = empty ? ui.text_width(r, hint, .Small) + 6 : 24,
-		clearable   = true,
-		clear_label = ui.tr("Clear the filter"),
+		placeholder   = ui.tr("Filter by title, artist, album"),
+		flags         = {.Toolbar},
+		leading       = ICON + 6,
+		trailing      = empty ? ui.text_width(r, hint, .Small) + 6 : 24,
+		clearable     = true,
+		clear_label   = ui.tr("Clear the filter"),
+		stay_on_enter = true,
 	}
 	result := ui.text_field(ctx, ui.widget_id("Filter"), rect, e.filter, ui.tr("Filter"), options)
 	if result.changed do execute(app, engine.Filter{result.text})

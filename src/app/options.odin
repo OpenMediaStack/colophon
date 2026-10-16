@@ -19,18 +19,16 @@ Options :: struct {
 
 Option_Error :: enum {
 	None,
-	Unknown_Option,
 	Missing_Value,
 	Bad_Size,
 }
 
-// Reads the command line arguments, without the program name. The strings
-// of the result are slices of args.
+// Reads the command line arguments, without the program name. The strings of the result
+// are slices of args. Arguments it does not know are ignored: a launcher may hand an app
+// a path or a flag of its own, which must not stop the launch.
 parse_options :: proc(args: []string) -> (options: Options, err: Option_Error) {
 	options.window_size = DEFAULT_WINDOW_SIZE
 	for arg in args {
-		// macOS may hand an app opened from the Finder its process serial number.
-		if strings.has_prefix(arg, "-psn_") do continue
 		name, has_value, value := strings.partition(arg, "=")
 		switch name {
 		case "--screenshot":
@@ -40,8 +38,6 @@ parse_options :: proc(args: []string) -> (options: Options, err: Option_Error) {
 			if len(has_value) == 0 do return options, .Missing_Value
 			options.window_size = parse_size(value) or_return
 			options.size_asked = true
-		case:
-			return options, .Unknown_Option
 		}
 	}
 	return options, .None
@@ -52,8 +48,6 @@ option_error_message :: proc(err: Option_Error) -> string {
 	switch err {
 	case .None:
 		return ""
-	case .Unknown_Option:
-		return "unknown option"
 	case .Missing_Value:
 		return "an option is missing its value"
 	case .Bad_Size:

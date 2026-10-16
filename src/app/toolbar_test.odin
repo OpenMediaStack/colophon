@@ -49,6 +49,21 @@ the_clear_button_empties_the_filter_and_keeps_the_keyboard :: proc(t: ^testing.T
 	testing.expect_value(t, len(s.app.engine.listed), 1)
 }
 
+// Enter does nothing in the filter, as in 1.0.0: it keeps the caret and the text.
+@(test)
+enter_keeps_the_filter_focused :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_two_tracks(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	ui.click(&s.h, "Filter")
+	ui.type_text(&s.h, "marlowe")
+	ui.press_key(&s.h, .Enter)
+	testing.expect(t, ui.has_focus(&s.h.ui, ui.widget_id("Filter")))
+	testing.expect_value(t, s.app.engine.filter, "marlowe")
+	testing.expect_value(t, len(s.app.engine.listed), 1)
+}
+
 @(test)
 command_f_reaches_the_filter :: proc(t: ^testing.T) {
 	s: Screen

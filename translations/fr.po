@@ -895,7 +895,7 @@ msgstr "Fichiers illisibles"
 
 #: src/app/status_bar.odin:18
 msgid "Status bar"
-msgstr ""
+msgstr "Barre d’état"
 
 #: src/app/status_bar.odin:29
 msgid "Stop"
@@ -949,7 +949,7 @@ msgstr "Réessayer"
 
 #: src/app/toolbar.odin:18
 msgid "Toolbar"
-msgstr ""
+msgstr "Barre d’outils"
 
 #: src/app/toolbar.odin:29
 msgid "Open folder"
