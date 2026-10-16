@@ -25,21 +25,24 @@ Field_Flags :: bit_set[Field_Flag]
 // What a text field shows besides its value.
 Text_Field_Options :: struct {
 	// Shown while the field is empty: a hint, or what multiple values hide.
-	placeholder: string,
-	flags:       Field_Flags,
+	placeholder:   string,
+	flags:         Field_Flags,
+	// Enter does nothing: the field keeps the focus and its text, as the toolbar's filter
+	// does, whose text applies as it is typed.
+	stay_on_enter: bool,
 	// Room kept at the right for a button inside the field, in points.
-	trailing:    f32,
+	trailing:      f32,
 	// Room kept at the left for an icon inside the field, in points.
-	leading:     f32,
+	leading:       f32,
 	// A button that empties the field, shown while it has text: the toolbar's filter.
-	clearable:   bool,
+	clearable:     bool,
 	// What assistive technologies call its clear button; "Clear" when empty.
-	clear_label: string,
+	clear_label:   string,
 	// Whether the text is a value the field takes; nil takes any. While it is not, the
 	// field shows the error ring, and Enter and Tab keep the focus so that it shows
 	// what is wrong; the text is given up when the focus leaves otherwise, the value
 	// coming back as on Escape.
-	accepts:     proc(text: string) -> bool,
+	accepts:       proc(text: string) -> bool,
 }
 
 // What happened to a text field this frame.
@@ -129,7 +132,16 @@ text_field :: proc(
 		}
 	}
 	if focused && !keys_blocked(ui) {
-		result = edit_field(ui, id, rect, text_rect, style, interaction, options.accepts)
+		result = edit_field(
+			ui,
+			id,
+			rect,
+			text_rect,
+			style,
+			interaction,
+			options.accepts,
+			options.stay_on_enter,
+		)
 	}
 	shown := focused ? edit_text(&ui.edit) : value
 	options := options
@@ -194,6 +206,7 @@ edit_field :: proc(
 	style: Text_Style,
 	interaction: Interaction,
 	accepts: proc(text: string) -> bool,
+	stay_on_enter: bool,
 ) -> (
 	result: Text_Field_Result,
 ) {
@@ -248,6 +261,7 @@ edit_field :: proc(
 		taken := true
 		#partial switch press.key {
 		case .Enter:
+			if stay_on_enter do break
 			if accepted(accepts, edit_text(e)) {
 				result.committed = true
 				release_focus(ui, id)

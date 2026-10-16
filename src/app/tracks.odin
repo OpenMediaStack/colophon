@@ -58,6 +58,8 @@ Tracks :: struct {
 	shrink:  Maybe(Shrink),
 	// The track right-clicked, whose menu is open.
 	menu:    Maybe(engine.Track_Id),
+	// The table has been given the keyboard since something was opened.
+	focused: bool,
 }
 
 // The cell edited in place: the tracks its editor opened on, which it edits even once
@@ -91,6 +93,12 @@ track_table :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	rows := ui.Table_Rows{app, len(e.listed), track_cell, track_states}
 	sized := e.view.column_widths != nil
 	id := ui.widget_id("Tracks")
+	// The table has the keyboard as it appears, as 1.0.0's had: the arrows and Select All
+	// work before any click.
+	if !app.tracks.focused && !ui.modal_shown(ctx) {
+		ui.request_focus(ctx, id)
+		app.tracks.focused = true
+	}
 	result := ui.table(
 		ctx,
 		id,

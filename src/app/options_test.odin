@@ -73,7 +73,8 @@ every_error_has_a_message :: proc(t: ^testing.T) {
 }
 
 @(test)
-an_unknown_option_is_refused :: proc(t: ^testing.T) {
-	_, err := parse_options({"--colour=amber"})
-	testing.expect_value(t, err, Option_Error.Unknown_Option)
+an_unknown_argument_is_ignored :: proc(t: ^testing.T) {
+	options, err := parse_options({"--colour=amber", "/Users/me/song.mp3", "--size=1000x700"})
+	testing.expect_value(t, err, Option_Error.None)
+	testing.expect_value(t, options.window_size, [2]i32{1000, 700})
 }

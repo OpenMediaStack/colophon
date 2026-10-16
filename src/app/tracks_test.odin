@@ -290,6 +290,21 @@ the_keyboard_moves_and_extends_the_selection :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(e.selection.tracks), 5)
 }
 
+// The table has the keyboard as soon as a folder is open, as 1.0.0's had.
+@(test)
+the_table_has_the_keyboard_when_a_folder_opens :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_with_named_files(t, &s)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	e := &s.app.engine
+	testing.expect(t, ui.has_focus(&s.h.ui, ui.widget_id("Tracks")))
+	ui.press_key(&s.h, .Down)
+	testing.expect_value(t, len(e.selection.tracks), 1)
+	ui.press_key(&s.h, .A, ui.COMMAND)
+	testing.expect_value(t, len(e.selection.tracks), 5)
+}
+
 @(test)
 durations_read_as_in_a_player :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
