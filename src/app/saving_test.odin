@@ -495,7 +495,7 @@ a_toast_matches_its_references :: proc(t: ^testing.T) {
 }
 
 // A toast keeps clear of the status bar when no player shows: its box ends 16 points above
-// it, as 1.0.0's does, where it covered it before.
+// it, as 1.0.0's does.
 @(test)
 a_toast_stays_above_the_status_bar :: proc(t: ^testing.T) {
 	s: Screen
@@ -504,7 +504,7 @@ a_toast_stays_above_the_status_bar :: proc(t: ^testing.T) {
 	notify(&s.app, .Error, "2 files could not be saved", .Retry_Save, s.h.ui.input.time)
 	ui.run_frame(&s.h)
 	toast, found := ui.find_widget(&s.h.ui, "2 files could not be saved")
-	testing.expect(t, found)
+	if !testing.expect(t, found) do return
 	status := layout_of(&s.app, {0, 0, 1440, 900}).status
 	testing.expect_value(t, toast.rect.y + toast.rect.h, status.y - 16)
 }
