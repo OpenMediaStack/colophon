@@ -100,8 +100,8 @@ the_tags_column_names_the_formats_in_file_order :: proc(t: ^testing.T) {
 }
 
 // A file that starts with an ID3v2 header odid3 does not take (an unknown version, a size
-// that is not syncsafe) is damaged, as 1.0.0 had it: read as untagged, saving would leave
-// the broken header in front of the new tag.
+// that is not syncsafe) is damaged: it keeps those bytes in front of the audio, which a
+// save would leave behind the new tag. Headers it takes stay readable, whatever follows.
 @(test)
 a_bad_id3v2_header_is_a_damaged_file :: proc(t: ^testing.T) {
 	audio, read_err := os.read_entire_file(fixture("cbr_stereo.mp3"), context.allocator)
@@ -120,6 +120,8 @@ a_bad_id3v2_header_is_a_damaged_file :: proc(t: ^testing.T) {
 		{"version_1", {'I', 'D', '3', 1, 0, 0, 0, 0, 0, 10}, .Damaged},
 		{"size_not_syncsafe", {'I', 'D', '3', 4, 0, 0, 0x80, 0, 0, 0x10}, .Damaged},
 		{"empty_tag", {'I', 'D', '3', 4, 0, 0, 0, 0, 0, 0}, .None},
+		{"unknown_flags", {'I', 'D', '3', 4, 0, 0x0F, 0, 0, 0, 0}, .None},
+		{"padding_only", {'I', 'D', '3', 3, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0}, .None},
 	}
 	for c in cases {
 		bytes := make([dynamic]u8, context.temp_allocator)
@@ -137,5 +139,11 @@ a_bad_id3v2_header_is_a_damaged_file :: proc(t: ^testing.T) {
 			c.error,
 		)
 		lib.destroy_track(&track)
+		// A save refuses the file that is damaged too, as one changed after its scan.
+		written, write_err := lib.write_track(path, {title = "A title"}, {id3v2 = .V2_4})
+		lib.destroy_track(&written)
+		if c.error == .Damaged {
+			testing.expectf(t, write_err == .Damaged, "%s: saved with %v", c.name, write_err)
+		}
 	}
 }

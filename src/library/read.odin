@@ -28,7 +28,7 @@ read_track :: proc(path: string, allocator := context.allocator) -> (track: Trac
 		return
 	}
 	defer id3.destroy(&tags)
-	if tags.layout.v2.size == 0 && starts_with_id3_marker(path) {
+	if has_unusable_id3v2_header(&tags) {
 		track.error = .Damaged
 		return
 	}
@@ -53,18 +53,13 @@ read_track :: proc(path: string, allocator := context.allocator) -> (track: Trac
 	return
 }
 
-// Whether the file begins with "ID3", whatever follows. Odin's reading takes a header it
-// cannot use (an unknown version, a size that is not syncsafe) for no tag, leaving it as
-// audio; 1.0.0 called such a file damaged, and saving it would keep the broken header in
-// front of the new tag.
-@(private = "file")
-starts_with_id3_marker :: proc(path: string) -> bool {
-	file, err := os.open(path)
-	if err != nil do return false
-	defer os.close(file)
-	marker: [3]u8
-	n, _ := os.read(file, marker[:])
-	return n == len(marker) && string(marker[:]) == "ID3"
+// Whether the file begins with an ID3v2 header odid3 cannot use (a version it does not
+// know, a size that is not syncsafe): it keeps those bytes as unknown ones, in front of
+// the audio, and a save would leave them behind the new tag. 1.0.0 called such a file
+// damaged too, though not every one odid3 refuses: its reader masks a stray bit of the size.
+@(private)
+has_unusable_id3v2_header :: proc(tags: ^id3.Tags) -> bool {
+	return tags.warnings & {.Bad_Header, .Unsupported_Version} != {}
 }
 
 @(private = "file")

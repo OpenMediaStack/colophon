@@ -30,7 +30,8 @@ Read_Error :: enum u8 {
 	None,
 	// The file is gone, or Colophon may not read it.
 	Cannot_Open,
-	// The file holds no MPEG audio Colophon can read.
+	// The file holds no MPEG audio Colophon can read, or starts with an ID3v2 header it
+	// cannot use.
 	Damaged,
 }
 

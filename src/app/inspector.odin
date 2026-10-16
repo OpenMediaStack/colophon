@@ -1252,7 +1252,7 @@ error_sentence :: proc(error: lib.Read_Error) -> string {
 	case .Cannot_Open:
 		return "The file could not be opened"
 	case .Damaged:
-		return "The file holds no MPEG audio Colophon can read"
+		return "The file holds no MPEG audio Colophon can read, or an ID3v2 header it can use"
 	}
 	return ""
 }
