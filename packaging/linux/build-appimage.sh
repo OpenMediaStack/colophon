@@ -1,25 +1,26 @@
 #!/bin/bash
 # Builds Colophon for Linux and packs it as an AppImage with linuxdeploy, which brings the
-# libraries a distribution may lack: target/appimage/Colophon-<version>-x86_64.AppImage.
+# libraries a distribution may lack, SDL3 among them: build/appimage/Colophon-<version>-x86_64.AppImage.
 # Run from anywhere: ./packaging/linux/build-appimage.sh
 #
-# An AppImage runs where the glibc is at least as recent as the one it was built against, so the
-# release builds it on the oldest Ubuntu GitHub offers.
+# SDL3 is found as the build finds it, through SDL3_LIB_DIR and LD_LIBRARY_PATH. An AppImage
+# runs where the glibc is at least as recent as the one it was built against, so the release
+# builds it on the oldest Ubuntu GitHub offers.
 
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
+version=$(scripts/version.sh)
 linuxdeploy_release=1-alpha-20251107-1
 
-cargo build --release --locked -p colophon
+./scripts/build.sh release
 
-out=target/appimage
+out=build/appimage
 rm -rf "$out"
 mkdir -p "$out"
-linuxdeploy=target/tools/linuxdeploy-$linuxdeploy_release-x86_64.AppImage
+linuxdeploy=build/tools/linuxdeploy-$linuxdeploy_release-x86_64.AppImage
 if [[ ! -x $linuxdeploy ]]; then
-	mkdir -p target/tools
+	mkdir -p build/tools
 	curl -fsSL -o "$linuxdeploy" \
 		"https://github.com/linuxdeploy/linuxdeploy/releases/download/$linuxdeploy_release/linuxdeploy-x86_64.AppImage"
 	chmod +x "$linuxdeploy"
@@ -32,7 +33,7 @@ cp assets/icon/png/colophon-256.png "$out/colophon.png"
 	cd "$out"
 	APPIMAGE_EXTRACT_AND_RUN=1 LINUXDEPLOY_OUTPUT_VERSION="$version" "../../$linuxdeploy" \
 		--appdir AppDir \
-		--executable ../release/Colophon \
+		--executable ../colophon \
 		--desktop-file ../../packaging/linux/colophon.desktop \
 		--icon-file colophon.png \
 		--output appimage

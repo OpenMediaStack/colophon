@@ -1,0 +1,90 @@
+name: Toolchain
+description: >-
+  Odin, the libraries it ships unbuilt on some systems, and SDL3, as the Odin workflow
+  sets them up, for the workflows that build packages.
+
+inputs:
+  token:
+    description: The token setup-odin downloads the release with.
+    required: true
+  odin-release:
+    description: The Odin release to install.
+    required: true
+  sdl3-version:
+    description: The SDL3 release to build or download.
+    required: true
+  sdl3-cmake-flags:
+    description: The flags SDL3 is built with from source, on Linux and macOS.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: laytan/setup-odin@v2
+      with:
+        token: ${{ inputs.token }}
+        release: ${{ inputs.odin-release }}
+    - name: Build Odin's stb and miniaudio libraries (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        stb="$(odin root)/vendor/stb"
+        if [ ! -e "$stb/lib/stb_truetype.a" ]; then
+          sh "$stb/src/build_stb.sh" unix
+        fi
+        sh "$(odin root)/vendor/miniaudio/src/build_miniaudio.sh"
+    - name: Build Odin's miniaudio library (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      env:
+        # The oldest macOS the app runs on, as the plist and the build say.
+        MACOSX_DEPLOYMENT_TARGET: "11.0"
+      run: |
+        lib="$(odin root)/vendor/miniaudio/lib/miniaudio.a"
+        if [ ! -e "$lib" ]; then
+          sh "$(odin root)/vendor/miniaudio/src/build_miniaudio.sh"
+        fi
+    - name: Cache SDL3 (Linux and macOS)
+      if: runner.os != 'Windows'
+      id: sdl3-cache
+      uses: actions/cache@v6
+      with:
+        path: ~/sdl3
+        key: sdl3-${{ inputs.sdl3-version }}-${{ runner.os }}-${{ runner.arch }}-packages ${{ inputs.sdl3-cmake-flags }}
+    # From source on macOS too, so that both architectures of the universal app hold the same
+    # release, built for the oldest macOS the app runs on: Homebrew's is neither.
+    - name: Build SDL3 (Linux and macOS)
+      if: runner.os != 'Windows' && steps.sdl3-cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        SDL3_VERSION: ${{ inputs.sdl3-version }}
+        SDL3_CMAKE_FLAGS: ${{ inputs.sdl3-cmake-flags }}
+      run: |
+        curl --silent --show-error --location --fail \
+          "https://github.com/libsdl-org/SDL/releases/download/release-$SDL3_VERSION/SDL3-$SDL3_VERSION.tar.gz" \
+          | tar -xz -C "$RUNNER_TEMP"
+        macos_flags=""
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          macos_flags="-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_OSX_ARCHITECTURES=$(uname -m)"
+        fi
+        # shellcheck disable=SC2086
+        cmake -S "$RUNNER_TEMP/SDL3-$SDL3_VERSION" -B "$RUNNER_TEMP/sdl3-build" \
+          -DCMAKE_INSTALL_PREFIX="$HOME/sdl3" -DCMAKE_INSTALL_LIBDIR=lib $SDL3_CMAKE_FLAGS $macos_flags
+        cmake --build "$RUNNER_TEMP/sdl3-build" --parallel
+        cmake --install "$RUNNER_TEMP/sdl3-build"
+    - name: Point the linker at SDL3 (Linux and macOS)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        echo "SDL3_LIB_DIR=$HOME/sdl3/lib" >> "$GITHUB_ENV"
+        echo "LD_LIBRARY_PATH=$HOME/sdl3/lib" >> "$GITHUB_ENV"
+    - name: Download SDL3 (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      env:
+        SDL3_VERSION: ${{ inputs.sdl3-version }}
+      run: |
+        curl --silent --show-error --location --fail --output "$RUNNER_TEMP/sdl3.zip" \
+          "https://github.com/libsdl-org/SDL/releases/download/release-$SDL3_VERSION/SDL3-$SDL3_VERSION-win32-x64.zip"
+        unzip -q -o "$RUNNER_TEMP/sdl3.zip" -d "$RUNNER_TEMP/sdl3"
+        echo "SDL3_DLL=$RUNNER_TEMP/sdl3/SDL3.dll" >> "$GITHUB_ENV"

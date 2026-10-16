@@ -1,0 +1,71 @@
+name: Release
+
+# Only a version tag builds the packages, and releases them.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read the version, which the tag must match
+        id: version
+        run: |
+          version=$(scripts/version.sh)
+          if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::The tag $GITHUB_REF_NAME does not match version $version of src/app/window.odin."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  packages:
+    name: Packages
+    needs: version
+    uses: ./.github/workflows/packages.yml
+
+  release:
+    name: Release
+    needs: [version, packages]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      # A draft, for Florent to read the notes and the files before it goes public: one
+      # click on the releases page. Running the workflow again replaces the files.
+      - name: Make the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          files=()
+          while IFS= read -r -d '' file; do files+=("$file"); done < <(
+            find dist -type f \( -name '*.dmg' -o -name '*-setup.exe' -o -name '*.AppImage' \) -print0
+          )
+          if [[ ${#files[@]} -ne 3 ]]; then
+            echo "::error::Expected the disk image, the installer and the AppImage, found ${#files[@]} files."
+            exit 1
+          fi
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            pre=()
+            if [[ $VERSION == *-* ]]; then pre=(--prerelease); fi
+            gh release create "$GITHUB_REF_NAME" "${files[@]}" --repo "$GITHUB_REPOSITORY" \
+              --title "Colophon $VERSION" --generate-notes --verify-tag --draft "${pre[@]}"
+          fi
