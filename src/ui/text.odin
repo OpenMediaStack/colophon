@@ -38,6 +38,8 @@ Text_Style :: enum u8 {
 
 Text_Style_Info :: struct {
 	font:      Font,
+	// The em, in points, as the brief and 1.0.0 give it: set_font_state turns it into the
+	// line height fontstash is asked for.
 	size:      f32,
 	// Extra space between letters, in em.
 	tracking:  f32,
@@ -210,10 +212,10 @@ styled_text :: proc(text: string, style: Text_Style) -> string {
 @(private)
 set_font_state :: proc(r: ^Renderer, style: Text_Style) {
 	info := TEXT_STYLES[style]
-	size := info.size * r.scale
+	size := info.size * r.scale * r.atlas.em_scale[info.font]
 	fs.SetFont(&r.atlas.fonts, r.atlas.font_ids[info.font])
 	fs.SetSize(&r.atlas.fonts, size)
-	fs.SetSpacing(&r.atlas.fonts, info.tracking * size)
+	fs.SetSpacing(&r.atlas.fonts, info.tracking * info.size * r.scale)
 	fs.SetAlignHorizontal(&r.atlas.fonts, .LEFT)
 	fs.SetAlignVertical(&r.atlas.fonts, .MIDDLE)
 }

@@ -57,3 +57,33 @@ a_label_is_uppercase_and_tracked :: proc(t: ^testing.T) {
 	untracked := fs.TextBounds(&r.atlas.fonts, "TAGS")
 	testing.expect(t, text_width(r, "TAGS", .Label) > untracked)
 }
+
+// A style's size is the em: fontstash draws a line that high, so the sizes it is given are
+// scaled by each font's line height in ems (Inter's 1984 and 494 units of 2048, JetBrains
+// Mono's 1020 and 300 of 1000), and ten digits of the 12 point mono style are ten
+// advances of 0.6 em.
+@(test)
+a_text_styles_size_is_its_em :: proc(t: ^testing.T) {
+	r := test_renderer(2)
+	defer destroy_test_renderer(r)
+	for font in ([]Font{.Inter_Regular, .Inter_Medium, .Inter_Semibold}) {
+		testing.expectf(
+			t,
+			abs(r.atlas.em_scale[font] - 1.21) < 0.01,
+			"%v: %v",
+			font,
+			r.atlas.em_scale[font],
+		)
+	}
+	for font in ([]Font{.Mono_Regular, .Mono_Medium}) {
+		testing.expectf(
+			t,
+			abs(r.atlas.em_scale[font] - 1.32) < 0.01,
+			"%v: %v",
+			font,
+			r.atlas.em_scale[font],
+		)
+	}
+	width := text_width(r, "0000000000", .Numeric)
+	testing.expectf(t, abs(width - 72) <= 3, "ten digits are %v points wide", width)
+}

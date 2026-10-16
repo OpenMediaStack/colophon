@@ -157,9 +157,9 @@ segmented :: proc(
 		draw_text_fit(
 			r,
 			segment.label,
-			cell.x + 3,
+			cell.x + 2,
 			cell.y + cell.h / 2,
-			cell.w - 6,
+			cell.w - 4,
 			style,
 			color,
 			.Center,

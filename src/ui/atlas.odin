@@ -1,7 +1,9 @@
 package ui
 
 import "base:runtime"
+import "core:c"
 import fs "vendor:fontstash"
+import stbtt "vendor:stb/truetype"
 
 Icon :: enum u8 {
 	Check,
@@ -69,6 +71,10 @@ Atlas :: struct {
 	allocator: runtime.Allocator,
 	fonts:     fs.FontContext,
 	font_ids:  [Font]int,
+	// What a size of the styles is multiplied by for fontstash, which takes the height of a
+	// line (ascent to descent) where the brief and 1.0.0's 13 px are the em: Inter's lines
+	// are 1.21 em, so 13 would draw 10.7 px.
+	em_scale:  [Font]f32,
 	// Where each size of each icon starts in the atlas.
 	icons:     [Icon][len(ICON_LEVELS)][2]int,
 }
@@ -80,6 +86,7 @@ atlas_init :: proc(a: ^Atlas, allocator := context.allocator) {
 	fs.Init(&a.fonts, ATLAS_SIZE, ATLAS_SIZE, .TOPLEFT)
 	for font in Font {
 		a.font_ids[font] = fs.AddFontMem(&a.fonts, "colophon", FONT_FILES[font], false)
+		a.em_scale[font] = line_height_in_em(&a.fonts.fonts[a.font_ids[font]].info)
 	}
 	levels := ICON_LEVELS
 	for icon in Icon {
@@ -143,4 +150,13 @@ icon_uv :: proc(a: ^Atlas, icon: Icon, pixels: f32) -> (u0, v0, u1, v1: f32) {
 	w := f32(a.fonts.width)
 	h := f32(a.fonts.height)
 	return f32(p.x) / w, f32(p.y) / h, f32(p.x + size) / w, f32(p.y + size) / h
+}
+
+// How many ems a line of the font is high, from its ascent to its descent: what a size in
+// ems must be multiplied by for fontstash to draw that em.
+@(private = "file")
+line_height_in_em :: proc(info: ^stbtt.fontinfo) -> f32 {
+	ascent, descent, gap: c.int
+	stbtt.GetFontVMetrics(info, &ascent, &descent, &gap)
+	return f32(ascent - descent) * stbtt.ScaleForMappingEmToPixels(info, 1)
 }
