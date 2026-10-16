@@ -105,7 +105,7 @@ wait_until_shown :: proc(t: ^testing.T, s: ^Screen, label: string) {
 // A new temporary folder holding files of a few bytes each, which only start like an
 // MP3. Remove it with remove_folder.
 folder_with :: proc(t: ^testing.T, files: []string) -> string {
-	folder, err := os.make_directory_temp("", "colophon-*", context.allocator)
+	folder, err := make_temp_folder()
 	testing.expect(t, err == nil)
 	for file in files {
 		path := fmt.tprintf("%s/%s", folder, file)
@@ -132,7 +132,7 @@ shows :: proc(s: ^Screen, label: string) -> bool {
 // A new temporary folder holding copies of fixtures of testdata/, each under its new
 // name. Remove it with remove_folder.
 folder_with_fixtures :: proc(t: ^testing.T, copies: [][2]string) -> string {
-	folder, err := os.make_directory_temp("", "colophon-*", context.allocator)
+	folder, err := make_temp_folder()
 	testing.expect(t, err == nil)
 	for c in copies {
 		path := fmt.tprintf("%s/%s", folder, c[1])
@@ -226,4 +226,15 @@ suggestions :: proc(s: ^Screen) -> []string {
 	if !open do return found[:]
 	for w in s.h.ui.widgets do if w.parent == list.id do append(&found, w.label)
 	return found[:]
+}
+
+// A new temporary folder. Windows now and then refuses one when the tests make several
+// at once, so it is asked for again a few times before the error is given.
+make_temp_folder :: proc(pattern := "colophon-*") -> (folder: string, err: os.Error) {
+	for _ in 0 ..< 10 {
+		folder, err = os.make_directory_temp("", pattern, context.allocator)
+		if err == nil do return
+		time.sleep(10 * time.Millisecond)
+	}
+	return
 }
