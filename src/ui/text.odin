@@ -210,7 +210,7 @@ styled_text :: proc(text: string, style: Text_Style) -> string {
 @(private)
 set_font_state :: proc(r: ^Renderer, style: Text_Style) {
 	info := TEXT_STYLES[style]
-	size := info.size * r.scale
+	size := info.size * r.scale * r.atlas.em_scale[info.font]
 	fs.SetFont(&r.atlas.fonts, r.atlas.font_ids[info.font])
 	fs.SetSize(&r.atlas.fonts, size)
 	fs.SetSpacing(&r.atlas.fonts, info.tracking * size)
