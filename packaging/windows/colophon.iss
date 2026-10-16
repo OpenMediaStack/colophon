@@ -1,6 +1,7 @@
-; Colophon's installer for Windows, built with Inno Setup once Colophon is built in release:
+; Colophon's installer for Windows, built with Inno Setup once Colophon is built in release
+; (scripts/build.sh release, which puts SDL3.dll beside colophon.exe in build\):
 ;   iscc /DAppVersion=<version> packaging\windows\colophon.iss
-; It writes target\installer\Colophon-<version>-setup.exe. Paths are relative to this file.
+; It writes build\installer\Colophon-<version>-setup.exe. Paths are relative to this file.
 
 #ifndef AppVersion
   #error Give the version with /DAppVersion=<version>
@@ -25,7 +26,7 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputDir={#Root}\target\installer
+OutputDir={#Root}\build\installer
 OutputBaseFilename=Colophon-{#AppVersion}-setup
 SetupIconFile={#Root}\assets\icon\Colophon.ico
 UninstallDisplayIcon={app}\Colophon.exe
@@ -41,7 +42,8 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "{#Root}\target\release\Colophon.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#Root}\build\colophon.exe"; DestDir: "{app}"; DestName: "Colophon.exe"; Flags: ignoreversion
+Source: "{#Root}\build\SDL3.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#Root}\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"
 
 [Icons]

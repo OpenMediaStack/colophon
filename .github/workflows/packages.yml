@@ -1,0 +1,154 @@
+name: Packages
+
+# The packages of every platform, built as files to download. A release runs this workflow,
+# then publishes the files; a pull request that touches the packaging builds them to see that
+# they still build.
+on:
+  workflow_call:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - .github/actions/toolchain/**
+      - .github/workflows/packages.yml
+      - .github/workflows/release.yml
+      - packaging/**
+      - scripts/build.sh
+
+permissions:
+  contents: read
+
+env:
+  ODIN_RELEASE: dev-2026-10
+  SDL3_VERSION: 3.4.18
+  # SDL3 is built from source on Linux; the dummy video driver is enough for the tests, but a
+  # package needs the real ones.
+  SDL3_CMAKE_FLAGS: >-
+    -DCMAKE_BUILD_TYPE=Release -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read the version
+        id: version
+        run: |
+          version=$(sed -n 's/^VERSION :: "\(.*\)"$/\1/p' src/app/window.odin | head -n 1)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  macos-binary:
+    name: macOS binary (${{ matrix.arch }})
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-latest
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: ./.github/actions/toolchain
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          odin-release: ${{ env.ODIN_RELEASE }}
+          sdl3-version: ${{ env.SDL3_VERSION }}
+          sdl3-cmake-flags: ${{ env.SDL3_CMAKE_FLAGS }}
+      - name: Build and stage the binary
+        run: packaging/macos/stage-binary.sh build/stage
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-${{ matrix.arch }}
+          path: build/stage
+          if-no-files-found: error
+
+  macos:
+    name: macOS
+    needs: [version, macos-binary]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-arm64
+          path: build/stage-arm64
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-x86_64
+          path: build/stage-x86_64
+      # Artifacts do not keep the executable bit.
+      - name: Build the disk image
+        run: |
+          chmod +x build/stage-arm64/colophon build/stage-x86_64/colophon
+          packaging/macos/build-dmg.sh build/stage-arm64 build/stage-x86_64
+      - uses: actions/upload-artifact@v7
+        with:
+          path: build/dmg/Colophon-${{ needs.version.outputs.version }}.dmg
+          # The file itself rather than a zip of it, named after the file.
+          archive: false
+          if-no-files-found: error
+
+  windows:
+    name: Windows
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: ./.github/actions/toolchain
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          odin-release: ${{ env.ODIN_RELEASE }}
+          sdl3-version: ${{ env.SDL3_VERSION }}
+          sdl3-cmake-flags: ${{ env.SDL3_CMAKE_FLAGS }}
+      - name: Build
+        run: ./scripts/build.sh release
+      # Inno Setup comes with GitHub's Windows images.
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=${{ needs.version.outputs.version }}" `
+            packaging\windows\colophon.iss
+      - uses: actions/upload-artifact@v7
+        with:
+          path: build/installer/Colophon-${{ needs.version.outputs.version }}-setup.exe
+          # The file itself rather than a zip of it, named after the file.
+          archive: false
+          if-no-files-found: error
+
+  linux:
+    name: Linux
+    needs: version
+    # The oldest Ubuntu GitHub offers: the AppImage runs where the glibc is at least as recent.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: ./.github/actions/toolchain
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          odin-release: ${{ env.ODIN_RELEASE }}
+          sdl3-version: ${{ env.SDL3_VERSION }}
+          sdl3-cmake-flags: ${{ env.SDL3_CMAKE_FLAGS }}
+      - name: Build the AppImage
+        run: packaging/linux/build-appimage.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          path: build/appimage/Colophon-${{ needs.version.outputs.version }}-x86_64.AppImage
+          # The file itself rather than a zip of it, named after the file.
+          archive: false
+          if-no-files-found: error
