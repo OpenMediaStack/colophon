@@ -73,6 +73,8 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	follow_save(app, ctx.input.time)
 	follow_play_failure(app, ctx.input.time)
 	follow_waveform(app)
+	take_menu_choice(ctx, app)
+	sync_native_menu(ctx, app)
 	poll_thumbnails(ctx, app)
 	l := layout_of(app, window)
 	// The lines between the regions: the window shows through the point between them.

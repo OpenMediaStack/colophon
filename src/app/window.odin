@@ -40,6 +40,7 @@ Window :: struct {
 	// pushes with what the user chose.
 	wake_type:   u32,
 	chosen_type: u32,
+	menu_type:   u32,
 	// The files dialog's filter, which must last until the dialog answers.
 	filters:     [1]sdl.DialogFileFilter,
 	// An event kept for the next frame, so that each frame sees one change of a
@@ -68,8 +69,9 @@ run :: proc(options: Options) -> bool {
 	defer ui.catalog_destroy(&catalog)
 
 	w: Window
-	w.wake_type = sdl.RegisterEvents(2)
+	w.wake_type = sdl.RegisterEvents(3)
 	w.chosen_type = w.wake_type + 1
+	w.menu_type = w.wake_type + 2
 	w.filters = {{"MP3 files", "mp3"}}
 	// Without a sound device the player is off and the app works the same; a screenshot
 	// plays nothing. The player is destroyed after the app, so that nothing the engine
@@ -92,6 +94,7 @@ run :: proc(options: Options) -> bool {
 			use_preferences(&app, path)
 		}
 		options.window_size = opening_size(options, app.engine.view.window_size)
+		app.menu_event = w.menu_type
 	}
 	app.dialogs = {
 		data        = &w,
@@ -329,6 +332,11 @@ handle_event :: proc(w: ^Window, app: ^App, event: ^sdl.Event) -> Event_Outcome 
 		return .Other
 	}
 	if u32(event.type) == w.wake_type do return .Other
+	// A choice of the system's menu bar, which a key would have made.
+	if u32(event.type) == w.menu_type {
+		app.menu_choice = int(event.user.code)
+		return .Other
+	}
 	// A drag that SDL loses on macOS, of what is neither a file nor text, ends without
 	// a word: the mouse moving again means the drag is over.
 	if app.drop.hovering && (event.type == .MOUSE_MOTION || event.type == .MOUSE_BUTTON_DOWN) {

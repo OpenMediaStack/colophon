@@ -41,7 +41,7 @@ app_menus :: proc(ctx: ^ui.Ui, app: ^App) -> []Menu {
 	open := folder_open(app)
 	waiting := ui.modal_shown(ctx)
 	selected := len(e.selection.tracks) > 0
-	linux := app.platform == .Linux
+	linux, mac := app.platform == .Linux, app.platform == .Mac
 	menus := make([dynamic]Menu, context.temp_allocator)
 	lines := make([dynamic]Menu_Line, context.temp_allocator)
 	line :: proc(
@@ -60,6 +60,20 @@ app_menus :: proc(ctx: ^ui.Ui, app: ^App) -> []Menu {
 		clear(lines)
 	}
 
+	// macOS keeps About and Settings in the application menu, as the brief says.
+	if mac {
+		line(&lines, ui.tr("About Colophon"), !waiting, nil, .About)
+		line(
+			&lines,
+			settings_label(app),
+			!waiting,
+			nil,
+			.Settings,
+			shortcut_hint(app, ","),
+			separator = true,
+		)
+		finish(&menus, &lines, "Colophon")
+	}
 	line(&lines, ui.tr("Open Folder…"), !waiting, nil, .Open_Folder, shortcut_hint(app, "O"))
 	line(
 		&lines,
@@ -79,7 +93,7 @@ app_menus :: proc(ctx: ^ui.Ui, app: ^App) -> []Menu {
 		shortcut_hint(app, "S"),
 		separator = true,
 	)
-	if !linux {
+	if !linux && !mac {
 		line(
 			&lines,
 			settings_label(app),
@@ -172,7 +186,7 @@ app_menus :: proc(ctx: ^ui.Ui, app: ^App) -> []Menu {
 	)
 	finish(&menus, &lines, ui.tr("View"))
 
-	if app.platform != .Mac {
+	if !mac {
 		line(&lines, ui.tr("About Colophon"), !waiting, nil, .About)
 		finish(&menus, &lines, ui.tr("Help"))
 	}
@@ -271,3 +285,23 @@ menu_bar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 menu_bar_drawn :: proc(app: ^App) -> bool {
 	return app.platform != .Mac
 }
+
+// A menu choice made outside the frames, in the system's menu bar, as the number of the
+// menu times MENU_CODE plus the number of the line. Runs the command of the line, if it
+// is still there and can run: the choice and the frame that runs it are not the same
+// moment. Call it in a frame.
+take_menu_choice :: proc(ctx: ^ui.Ui, app: ^App) {
+	code, chosen := app.menu_choice.?
+	if !chosen do return
+	app.menu_choice = nil
+	menus := app_menus(ctx, app)
+	menu, line := code / MENU_CODE, code % MENU_CODE
+	if code < 0 || menu >= len(menus) || line >= len(menus[menu].lines) do return
+	entry := menus[menu].lines[line].entry
+	if entry.enabled do run_entry(ctx, app, entry)
+	// The command ran in this frame, which shows it at once.
+	app.commands += 1
+}
+
+// What a menu choice's number is made of: menu * MENU_CODE + line.
+MENU_CODE :: 100

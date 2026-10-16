@@ -2,14 +2,15 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-16 19:59+0200\n"
+"POT-Creation-Date: 2026-10-16 20:09+0200\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: src/app/about.odin:128 src/app/menu.odin:176 src/app/palette.odin:283
+#: src/app/about.odin:128 src/app/menu.odin:65 src/app/menu.odin:190
+#: src/app/palette.odin:283
 msgid "About Colophon"
 msgstr "À propos de Colophon"
 
@@ -184,7 +185,7 @@ msgstr "Remplacer la pochette…"
 msgid "Tags"
 msgstr "Tags"
 
-#: src/app/inspector.odin:255 src/app/menu.odin:93 src/app/palette.odin:257
+#: src/app/inspector.odin:255 src/app/menu.odin:107 src/app/palette.odin:257
 #: src/app/tracks.odin:349
 msgid "File"
 msgstr "Fichier"
@@ -441,94 +442,102 @@ msgstr "Afficher dans le dossier"
 msgid "Copy details"
 msgstr "Copier les détails"
 
-#: src/app/menu.odin:63 src/app/palette.odin:272
+#: src/app/menu.odin:77 src/app/palette.odin:272
 msgid "Open Folder…"
 msgstr "Ouvrir un dossier…"
 
-#: src/app/menu.odin:66 src/app/palette.odin:273
+#: src/app/menu.odin:80 src/app/palette.odin:273
 msgid "Open Files…"
 msgstr "Ouvrir des fichiers…"
 
-#: src/app/menu.odin:75 src/app/palette.odin:276 src/app/toolbar.odin:116
+#: src/app/menu.odin:89 src/app/palette.odin:276 src/app/toolbar.odin:116
 msgid "Save"
 msgstr "Enregistrer"
 
-#: src/app/menu.odin:97 src/app/palette.odin:284 src/app/toolbar.odin:43
+#: src/app/menu.odin:111 src/app/palette.odin:284 src/app/toolbar.odin:43
 msgid "Undo"
 msgstr "Annuler"
 
-#: src/app/menu.odin:104 src/app/palette.odin:285 src/app/toolbar.odin:54
+#: src/app/menu.odin:118 src/app/palette.odin:285 src/app/toolbar.odin:54
 msgid "Redo"
 msgstr "Rétablir"
 
-#: src/app/menu.odin:111 src/app/palette.odin:286
+#: src/app/menu.odin:125 src/app/palette.odin:286
 msgid "Find"
 msgstr "Rechercher"
 
-#: src/app/menu.odin:120 src/app/palette.odin:288 src/app/tracks.odin:258
+#: src/app/menu.odin:134 src/app/palette.odin:288 src/app/tracks.odin:258
 msgid "Select Album"
 msgstr "Sélectionner l’album"
 
-#: src/app/menu.odin:125 src/app/palette.odin:289 src/app/tracks.odin:259
+#: src/app/menu.odin:139 src/app/palette.odin:289 src/app/tracks.odin:259
 msgid "Number Tracks"
 msgstr "Numéroter les pistes"
 
-#: src/app/menu.odin:137 src/app/palette.odin:258
+#: src/app/menu.odin:151 src/app/palette.odin:258
 msgid "Edit"
 msgstr "Édition"
 
-#: src/app/menu.odin:142 src/app/palette.odin:294 src/app/player.odin:167
+#: src/app/menu.odin:156 src/app/palette.odin:294 src/app/player.odin:167
 msgid "Pause"
 msgstr "Pause"
 
-#: src/app/menu.odin:142 src/app/palette.odin:294 src/app/player.odin:167
+#: src/app/menu.odin:156 src/app/palette.odin:294 src/app/player.odin:167
 msgctxt "Player"
 msgid "Play"
 msgstr "Lecture"
 
-#: src/app/menu.odin:146 src/app/palette.odin:299
+#: src/app/menu.odin:160 src/app/palette.odin:299
 msgid "Next Track"
 msgstr "Piste suivante"
 
-#: src/app/menu.odin:149 src/app/palette.odin:302
+#: src/app/menu.odin:163 src/app/palette.odin:302
 msgid "Previous Track"
 msgstr "Piste précédente"
 
-#: src/app/menu.odin:153 src/app/palette.odin:259
+#: src/app/menu.odin:167 src/app/palette.odin:259
 msgid "Controls"
 msgstr "Commandes"
 
-#: src/app/menu.odin:155
+#: src/app/menu.odin:169
 msgid "Command Palette…"
 msgstr "Palette de commandes…"
 
-#: src/app/menu.odin:159 src/app/palette.odin:366
+#: src/app/menu.odin:173 src/app/palette.odin:366
 msgid "Hide Sidebar"
 msgstr "Masquer la barre latérale"
 
-#: src/app/menu.odin:159 src/app/palette.odin:366
+#: src/app/menu.odin:173 src/app/palette.odin:366
 msgid "Show Sidebar"
 msgstr "Afficher la barre latérale"
 
-#: src/app/menu.odin:168 src/app/palette.odin:373
+#: src/app/menu.odin:182 src/app/palette.odin:373
 msgid "Hide Inspector"
 msgstr "Masquer l’inspecteur"
 
-#: src/app/menu.odin:168 src/app/palette.odin:373
+#: src/app/menu.odin:182 src/app/palette.odin:373
 msgid "Show Inspector"
 msgstr "Afficher l’inspecteur"
 
-#: src/app/menu.odin:173 src/app/palette.odin:261
+#: src/app/menu.odin:187 src/app/palette.odin:261
 msgid "View"
 msgstr "Présentation"
 
-#: src/app/menu.odin:177 src/app/palette.odin:283
+#: src/app/menu.odin:191 src/app/palette.odin:283
 msgid "Help"
 msgstr "Aide"
 
-#: src/app/menu.odin:191
+#: src/app/menu.odin:205
 msgid "Menu bar"
 msgstr "Barre de menus"
+
+#: src/app/menu_darwin.odin:80
+msgid "Hide {}"
+msgstr "Masquer {}"
+
+#: src/app/menu_darwin.odin:88
+msgid "Quit {}"
+msgstr "Quitter {}"
 
 #: src/app/palette.odin:108 src/app/toolbar.odin:67
 msgid "Command palette"
@@ -762,7 +771,7 @@ msgstr "{}, {} et {} autres fichiers ont des modifications qui ne sont pas encor
 msgid "Quitting without saving discards them."
 msgstr "Si vous quittez sans enregistrer, elles seront perdues."
 
-#: src/app/screen.odin:118
+#: src/app/screen.odin:120
 msgid "Drop to open these folders and files"
 msgstr "Déposez pour ouvrir ces dossiers et fichiers"
 

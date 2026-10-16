@@ -65,6 +65,12 @@ App :: struct {
 	told_failures:    int,
 	// What the window does about quitting with changes that are not saved.
 	departure:        Maybe(Departure),
+	// A choice made in the system's menu bar, waiting for the frame that runs it, and
+	// the event type its choices travel in (nil: no system menu bar, as in tests and
+	// screenshots).
+	menu_choice:      Maybe(int),
+	menu_event:       Maybe(u32),
+	native_menu:      Native_Menu,
 	// The window closes: the loop ends after the frame.
 	quit:             bool,
 }
