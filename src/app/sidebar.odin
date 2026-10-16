@@ -148,7 +148,8 @@ sidebar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		if .Clicked in interaction do s.artists_open = !s.artists_open
 		chevron := ui.Rect{x, y + 8 + 7, 12, 12}
 		ui.draw_icon(r, .Chevron_Down, chevron, th.text_tertiary, s.artists_open ? 0 : 3)
-		section_title(ctx, nil, ui.tr("Artists"), {x + 16, y, width - 16, 34}, .Bottom)
+		// The title sits on the chevron's line, 4 points after it, as in 1.0.0.
+		section_title(ctx, nil, ui.tr("Artists"), {x + 8, y + 8, width - 8, 26}, .Center)
 		states: ui.Widget_States = s.artists_open ? {.Expanded} : {}
 		ui.declare(
 			ctx,
