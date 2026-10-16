@@ -255,7 +255,11 @@ forget_dropped :: proc(app: ^App) {
 	clear(&app.drop.paths)
 }
 
-// How a shortcut is written for the user: Command on macOS, Control elsewhere.
-shortcut_hint :: proc(app: ^App, key: string) -> string {
-	return app.platform == .Mac ? ui.fill("⌘{}", key) : ui.fill("Ctrl+{}", key)
+// How a shortcut is written for the user: Command on macOS, with the symbols of the
+// Finder for Shift and Option, Control elsewhere, with their names.
+shortcut_hint :: proc(app: ^App, key: string, shift := false, alt := false) -> string {
+	if app.platform == .Mac {
+		return ui.fill("{}{}⌘{}", alt ? "⌥" : "", shift ? "⇧" : "", key)
+	}
+	return ui.fill("Ctrl+{}{}{}", alt ? "Alt+" : "", shift ? "Shift+" : "", key)
 }

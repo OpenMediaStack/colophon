@@ -52,6 +52,9 @@ Menu_State :: struct {
 	highlighted: int,
 	// It was drawn this frame: a menu its owner no longer draws is closed.
 	drawn:       bool,
+	// The arrow key the menu took to go to the menu beside it: -1 for Left, 1 for Right,
+	// 0 for none yet; its owner reads it with menu_step.
+	step:        int,
 }
 
 @(private = "file")
@@ -75,6 +78,15 @@ open_menu :: proc(ui: ^Ui, id: Widget_Id, at: [2]f32) {
 		highlighted = -1,
 		drawn       = true,
 	}
+}
+
+// The way the open menu asked to go to the menu beside it with an arrow key, -1 for
+// the one before and 1 for the one after, 0 when it did not; asking again gives 0. A
+// menu bar reads it to open the neighbour.
+menu_step :: proc(ui: ^Ui) -> int {
+	step := ui.menu.step
+	ui.menu.step = 0
+	return step
 }
 
 // Closes the context menu, whichever is open.
@@ -118,6 +130,8 @@ menu :: proc(ui: ^Ui, id: Widget_Id, items: []Menu_Item, label := "") -> (chosen
 	if ui.input.moved && !rect_contains(box, ui.input.mouse) do state.highlighted = -1
 
 	if take_key(ui, .Escape) do state.open = false
+	if take_key(ui, .Left) do state.step = -1
+	if take_key(ui, .Right) do state.step = 1
 	if take_key(ui, .Down, repeats = true) do state.highlighted = next_item(items, state.highlighted, 1)
 	if take_key(ui, .Up, repeats = true) do state.highlighted = next_item(items, state.highlighted, -1)
 	if state.highlighted >= 0 && take_key(ui, .Enter) do chosen = state.highlighted
@@ -478,6 +492,8 @@ end_dialog :: proc(ui: ^Ui, d: Dialog) -> (choice: Dialog_Choice) {
 // and the focus remembered for when the overlay closes, when it goes back where it
 // was. The caller declares the widget id for what it draws, and ends with end_modal.
 begin_modal :: proc(ui: ^Ui, id: Widget_Id, window: Rect) {
+	// A menu left open under it would take the keys the overlay needs.
+	if !ui.in_menu do ui.menu.open = false
 	ui.modal_next = id
 	ui.dialog = id
 	remember_focus(ui, id)

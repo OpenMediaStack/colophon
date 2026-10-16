@@ -51,6 +51,7 @@ Special :: enum u8 {
 	Settings,
 	About,
 	Version,
+	Palette,
 }
 
 // An entry that holds what is typed, cut around where it first does.
@@ -220,7 +221,7 @@ palette :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 }
 
 // Runs an entry: its engine command, or what the app does on its own.
-@(private = "file")
+@(private)
 run_entry :: proc(ctx: ^ui.Ui, app: ^App, entry: Entry) {
 	switch entry.special {
 	case .None:
@@ -239,6 +240,8 @@ run_entry :: proc(ctx: ^ui.Ui, app: ^App, entry: Entry) {
 		if choose, is := entry.command.(engine.Choose_Version); is do request_version(app, choose.choice)
 	case .Find:
 		ui.focus_field(ctx, ui.widget_id("Filter"))
+	case .Palette:
+		open_palette(app)
 	}
 }
 
