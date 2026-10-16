@@ -120,7 +120,7 @@ combo_box :: proc(
 		)
 	}
 	color := .Disabled in options.flags ? ui.theme.text_disabled : ui.theme.text_tertiary
-	draw_icon_centered(ui.renderer, .Chevron_Down, show_all, color)
+	draw_icon_centered(ui.renderer, .Chevron_Down, show_all, color, 14)
 
 	if combo.owner == id && combo.open && has_focus(ui, id) {
 		shown = suggest(choices, string(combo.filter[:]), context.temp_allocator)

@@ -19,6 +19,13 @@ cat >"$tmp/square.svg" <<'SVG'
 SVG
 qlmanage -t -s 256 -o "$tmp" "$tmp/square.svg" >/dev/null 2>&1
 view_box=$(magick "$tmp/square.svg.png" -alpha off -colorspace gray -negate -threshold 50% -format '%@' info:)
+# A square about 218 pixels wide: anything else means the measure failed, and the masks
+# would be cut from the whole canvas, as they were before.
+side=${view_box%%x*}
+if [[ ! $view_box =~ ^([0-9]+)x([0-9]+)\+0\+0$ || ${BASH_REMATCH[1]} -ne ${BASH_REMATCH[2]} || $side -lt 150 ]]; then
+	echo "icons.sh: Quick Look drew the view box as '$view_box', not a square from the corner" >&2
+	exit 1
+fi
 for svg in assets/icons/*.svg; do
 	name=$(basename "$svg" .svg)
 	# Black strokes on Quick Look's white background, drawn at 256 pixels.

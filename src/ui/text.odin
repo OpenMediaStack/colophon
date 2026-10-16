@@ -202,6 +202,15 @@ text_advances :: proc(r: ^Renderer, text: string, style: Text_Style) -> []Advanc
 	return advances[:]
 }
 
+// How high a line of a style is, as Slint sets it: its font's own line, from ascent to
+// descent, at the style's size in ems, rounded up to a whole point as its line boxes are
+// (19 for the 15 point title, 16 for the body, 15 for the small text). A column of lines
+// is laid out with it.
+line_height :: proc(r: ^Renderer, style: Text_Style) -> f32 {
+	info := TEXT_STYLES[style]
+	return math.ceil(info.size * r.atlas.em_scale[info.font])
+}
+
 // The text a style shows: in uppercase for labels, in context.temp_allocator.
 @(private)
 styled_text :: proc(text: string, style: Text_Style) -> string {
