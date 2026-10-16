@@ -5,7 +5,6 @@ import "core:c"
 import "core:fmt"
 import "core:math"
 import "core:os"
-import "core:path/filepath"
 import "core:strings"
 import sdl "vendor:sdl3"
 
@@ -447,20 +446,11 @@ system_theme :: proc() -> ui.Theme_Kind {
 }
 
 // Opens an address in the system's browser, or whatever it opens that scheme with.
-@(private = "file")
+@(private)
 open_url_in_browser :: proc(app: ^App, data: rawptr, url: string) {
 	_ = app
 	_ = data
 	if !sdl.OpenURL(strings.clone_to_cstring(url, context.temp_allocator)) do sdl_failed("SDL_OpenURL")
-}
-
-// Opens the folder holding a file in the system's file manager. Picking the file out
-// among the others needs each system's own call, which comes with the platform slices.
-@(private = "file")
-reveal_in_file_manager :: proc(app: ^App, data: rawptr, path: string) {
-	_ = app
-	_ = data
-	open_url_in_browser(app, data, file_url(filepath.dir(path)))
 }
 
 // What a dialog's user chose, on its way to the loop through an event. Made on the
