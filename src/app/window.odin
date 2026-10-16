@@ -18,6 +18,8 @@ APP_NAME :: "Colophon"
 // The identifier of Colophon 1.0.0, which SDL hands to the system (the Wayland app id).
 APP_ID :: "io.github.openmediastack.colophon"
 VERSION :: "1.0.0"
+@(private = "file")
+WINDOW_ICON :: #load("../../assets/icon/png/colophon-256.png")
 
 // How many frames follow one another at once while the hover or the focus settle,
 // before the loop waits for input again.
@@ -118,12 +120,27 @@ run :: proc(options: Options) -> bool {
 	return opened
 }
 
+// The icon in the window's title bar and the task bar on X11, and the Dock's on macOS
+// outside a bundle; Wayland takes it from the desktop file, and Windows from the
+// executable's resources. The window keeps a copy. A driver that cannot set one (the dummy
+// driver of a screenshot) leaves the system's icon, which is nothing to report.
+@(private = "file")
+set_window_icon :: proc(window: ^sdl.Window) {
+	rgba, w, h, decoded := ui.decode_image(WINDOW_ICON, context.temp_allocator)
+	if !decoded do return
+	surface := sdl.CreateSurfaceFrom(c.int(w), c.int(h), .RGBA32, raw_data(rgba), c.int(w * 4))
+	if surface == nil do return
+	defer sdl.DestroySurface(surface)
+	_ = sdl.SetWindowIcon(window, surface)
+}
+
 // Opens the window at the size asked, with its renderer, the draw lists and the Ui.
 @(private = "file")
 open_window :: proc(w: ^Window, options: Options) -> bool {
 	size := options.window_size
 	w.window = sdl.CreateWindow(APP_NAME, size.x, size.y, {.RESIZABLE, .HIGH_PIXEL_DENSITY})
 	if w.window == nil do return sdl_failed("SDL_CreateWindow")
+	set_window_icon(w.window)
 	// SDL sizes windows in points on macOS and Wayland but in pixels on Windows and
 	// X11: the sizes asked are in points, so they grow by the display's scale there.
 	density := sdl.GetWindowPixelDensity(w.window)
