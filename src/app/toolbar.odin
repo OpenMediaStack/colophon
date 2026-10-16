@@ -56,7 +56,8 @@ toolbar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	) {
 		execute(app, engine.Redo{})
 	}
-	x += BUTTON + GAP + 8
+	// The filter starts after the 4 points of spacing around a gap of 8.
+	x += BUTTON + GAP + 8 + GAP
 
 	// The right end, from the right: the panel toggles, then the command palette.
 	right := rect.x + rect.w - 8
@@ -143,7 +144,7 @@ filter_field :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		placeholder   = ui.tr("Filter by title, artist, album"),
 		flags         = {.Toolbar},
 		leading       = ICON + 6,
-		trailing      = empty ? ui.text_width(r, hint, .Small) + 6 : 24,
+		trailing      = empty ? ui.text_width(r, hint, .Hint) + 6 : 24,
 		clearable     = true,
 		clear_label   = ui.tr("Clear the filter"),
 		stay_on_enter = true,
@@ -153,5 +154,5 @@ filter_field :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	if result.cancelled do execute(app, engine.Filter{""})
 	middle := rect.y + rect.h / 2
 	ui.draw_icon(r, .Search, {rect.x + 8, middle - ICON / 2, ICON, ICON}, th.text_tertiary)
-	if empty do ui.draw_text(r, hint, rect.x + rect.w - 8, middle, .Small, th.text_tertiary, .Right)
+	if empty do ui.draw_text(r, hint, rect.x + rect.w - 8, middle, .Hint, th.text_tertiary, .Right)
 }

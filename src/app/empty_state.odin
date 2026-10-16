@@ -7,7 +7,7 @@ import ui "../ui"
 empty_state :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	WELL :: 72
 	SPACING :: 16
-	LINE :: 18
+	LARGE_BUTTON :: 32
 	WIDEST_TEXT :: 400
 	r := ctx.renderer
 	th := ctx.theme
@@ -21,10 +21,11 @@ empty_state :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	open_options := ui.Button_Options {
 		kind     = .Primary,
 		shortcut = shortcut_hint(app, "O"),
+		padding  = 14,
 	}
+	line := ui.line_height(r, .Body)
 	open_width := ui.button_width(r, open_label, open_options)
-	height: f32 =
-		WELL + SPACING + 22 + SPACING + f32(len(lines)) * LINE + SPACING + ui.BUTTON_HEIGHT
+	height: f32 = WELL + SPACING + 22 + SPACING + f32(len(lines)) * line + SPACING + LARGE_BUTTON
 	centre_x := rect.x + rect.w / 2
 	y := rect.y + (rect.h - height) / 2
 
@@ -46,21 +47,21 @@ empty_state :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	)
 	y += 22 + SPACING
 
-	for line, i in lines {
-		width := ui.draw_text(r, line, centre_x, y + LINE / 2, .Body, th.text_secondary, .Center)
+	for text, i in lines {
+		width := ui.draw_text(r, text, centre_x, y + line / 2, .Body, th.text_secondary, .Center)
 		ui.declare(
 			ctx,
 			{
 				id = ui.widget_id("Empty state line", i),
 				role = .Label,
-				label = line,
-				rect = {centre_x - width / 2, y, width, LINE},
+				label = text,
+				rect = {centre_x - width / 2, y, width, line},
 			},
 		)
-		y += LINE
+		y += line
 	}
 	y += SPACING
 
-	open := ui.Rect{centre_x - open_width / 2, y, open_width, ui.BUTTON_HEIGHT}
+	open := ui.Rect{centre_x - open_width / 2, y, open_width, LARGE_BUTTON}
 	if ui.button(ctx, ui.widget_id("Open folder…"), open, open_label, open_options) do open_folder(app)
 }

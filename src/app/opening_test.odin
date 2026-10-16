@@ -155,3 +155,15 @@ the_drop_target_matches_its_references :: proc(t: ^testing.T) {
 		expect_screen(t, &s, kind == .Dark ? "drop-dark.png" : "drop-light.png")
 	}
 }
+
+// The empty state's button is a large one, 32 high and 145 wide, as 1.0.0's.
+@(test)
+the_empty_states_button_is_a_large_one :: proc(t: ^testing.T) {
+	s: Screen
+	screen_init(&s, {1440, 900})
+	defer screen_destroy(&s)
+	button, found := ui.find_widget(&s.h.ui, "Open folder…")
+	if !testing.expect(t, found) do return
+	testing.expect_value(t, button.rect.h, 32)
+	testing.expect_value(t, button.rect.w, 145)
+}

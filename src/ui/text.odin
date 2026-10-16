@@ -28,6 +28,9 @@ Text_Style :: enum u8 {
 	Body_Strong,
 	Small,
 	Small_Strong,
+	// Shortcut hints and keys shown as buttons: Inter at 11, since at that size JetBrains
+	// Mono draws a tiny command sign, as the brief says.
+	Hint,
 	Label,
 	Title,
 	Numeric,
@@ -52,6 +55,7 @@ TEXT_STYLES := [Text_Style]Text_Style_Info {
 	.Body_Strong    = {.Inter_Medium, 13, 0, false},
 	.Small          = {.Inter_Regular, 12, 0, false},
 	.Small_Strong   = {.Inter_Medium, 12, 0, false},
+	.Hint           = {.Inter_Regular, 11, 0, false},
 	.Label          = {.Inter_Medium, 11, 0.06, true},
 	.Title          = {.Inter_Semibold, 15, 0, false},
 	.Numeric        = {.Mono_Regular, 12, 0, false},

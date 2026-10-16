@@ -87,3 +87,15 @@ a_text_styles_size_is_its_em :: proc(t: ^testing.T) {
 	width := text_width(r, "0000000000", .Numeric)
 	testing.expectf(t, abs(width - 72) <= 3, "ten digits are %v points wide", width)
 }
+
+// A line of a style is its font's own, in whole points as Slint's boxes are: 16 for the
+// 13 point body, 15 for the 12 point small text, 19 for the 15 point title.
+@(test)
+a_line_is_the_fonts_own_in_whole_points :: proc(t: ^testing.T) {
+	r := test_renderer(2)
+	defer destroy_test_renderer(r)
+	testing.expect_value(t, line_height(r, .Body), 16)
+	testing.expect_value(t, line_height(r, .Small), 15)
+	testing.expect_value(t, line_height(r, .Hint), 14)
+	testing.expect_value(t, line_height(r, .Title), 19)
+}
