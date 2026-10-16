@@ -343,3 +343,19 @@ the_toolbar_save_asks_first :: proc(t: ^testing.T) {
 	ui.run_frame(&s.h)
 	testing.expect(t, s.app.removal != nil)
 }
+
+// The dialog is laid out as 1.0.0's grid: a control, 8 points, its hint of natural lines
+// (15 for the 12 point text), and 8 more before the next control, the checkbox's row being
+// 16 high: 291 points in all, from its top to its bottom, as 1.0.0's capture.
+@(test)
+the_settings_dialog_is_as_high_as_1_0_0s :: proc(t: ^testing.T) {
+	s: Screen
+	screen_init(&s, {1440, 900})
+	defer screen_destroy(&s)
+	s.app.settings_open = true
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	dialog, found := ui.find_widget(&s.h.ui, "Settings")
+	if !testing.expect(t, found) do return
+	testing.expectf(t, abs(dialog.rect.h - 291) <= 2, "the dialog is %v high", dialog.rect.h)
+}

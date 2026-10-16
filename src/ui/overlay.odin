@@ -410,7 +410,13 @@ begin_dialog :: proc(
 	// A dialog without a title or a message holds its content right under what it has.
 	message_lines: []string
 	if options.message != "" do message_lines = wrap_text(r, options.message, .Body, width, context.temp_allocator)
-	box := dialog_box(window, options, len(title_lines), len(message_lines))
+	title_line, message_line := line_height(r, .Title), line_height(r, .Body)
+	box := dialog_box(
+		window,
+		options,
+		f32(len(title_lines)) * title_line,
+		f32(len(message_lines)) * message_line,
+	)
 	d.id = id
 	d.box = box
 	d.options = options
@@ -423,16 +429,23 @@ begin_dialog :: proc(
 	y := box.y + DIALOG_PADDING
 	if len(title_lines) > 0 {
 		for line in title_lines {
-			draw_text(r, line, box.x + DIALOG_PADDING, y + 10, .Title, th.text_primary)
-			y += 20
+			draw_text(r, line, box.x + DIALOG_PADDING, y + title_line / 2, .Title, th.text_primary)
+			y += title_line
 		}
 		y += DIALOG_GAP
 	}
 	if len(message_lines) > 0 {
 		top := y
 		for line in message_lines {
-			draw_text(r, line, box.x + DIALOG_PADDING, y + 9, .Body, th.text_secondary)
-			y += 18
+			draw_text(
+				r,
+				line,
+				box.x + DIALOG_PADDING,
+				y + message_line / 2,
+				.Body,
+				th.text_secondary,
+			)
+			y += message_line
 		}
 		declare(
 			ui,
@@ -529,12 +542,12 @@ dialog_width :: proc(window: Rect, options: Dialog_Options) -> f32 {
 dialog_box :: proc(
 	window: Rect,
 	options: Dialog_Options,
-	title_lines, message_lines: int,
+	title_height, message_height: f32,
 ) -> Rect {
 	width := dialog_width(window, options)
 	height: f32 = 2 * DIALOG_PADDING + BUTTON_HEIGHT + DIALOG_BUTTONS_GAP - DIALOG_GAP
-	if title_lines > 0 do height += 20 * f32(title_lines) + DIALOG_GAP
-	if message_lines > 0 do height += 18 * f32(message_lines) + DIALOG_GAP
+	if title_height > 0 do height += title_height + DIALOG_GAP
+	if message_height > 0 do height += message_height + DIALOG_GAP
 	height += options.content_height + (options.content_height > 0 ? DIALOG_GAP : 0)
 	y := window.y + max((window.h - height) * 0.4, 16)
 	return {window.x + (window.w - width) / 2, y, width, height}

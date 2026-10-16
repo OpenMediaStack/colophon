@@ -199,7 +199,8 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 		conversion = conversion_lines(r, s, width)
 		height += SECTION_GAP + 16
 		if i.tag_format_open {
-			height += 8 + 2 * (ui.BUTTON_HEIGHT + FIELD_GAP) + f32(len(conversion)) * WARNING_LINE
+			height +=
+				8 + 2 * (ui.BUTTON_HEIGHT + FIELD_GAP) + f32(len(conversion)) * warning_line(r)
 			height += 8 + write_details(ctx, app, 0, 0, width, true)
 		}
 	}
@@ -455,8 +456,12 @@ cover_menu :: proc(ctx: ^ui.Ui, app: ^App, s: engine.Summary) {
 	}
 }
 
+// The height of a line of a warning or a note: the small text's own line.
 @(private = "file")
-WARNING_LINE :: 16
+warning_line :: proc(r: ^ui.Renderer) -> f32 {
+	return ui.line_height(r, .Small)
+}
+
 @(private = "file")
 WARNING_GAP :: 6
 
@@ -483,14 +488,14 @@ warning_row :: proc(ctx: ^ui.Ui, text: string, x, y, width: f32, index: int) -> 
 	r := ctx.renderer
 	th := ctx.theme
 	lines := ui.wrap_text(r, text, .Small, width - 20, context.temp_allocator)
-	height = f32(max(len(lines), 1)) * WARNING_LINE + WARNING_GAP
+	height = f32(max(len(lines), 1)) * warning_line(r) + WARNING_GAP
 	ui.draw_icon(r, .Triangle_Alert, {x, y + 1, 14, 14}, th.warning)
 	for line, i in lines {
 		ui.draw_text(
 			r,
 			line,
 			x + 20,
-			y + f32(i) * WARNING_LINE + WARNING_LINE / 2,
+			y + f32(i) * warning_line(r) + warning_line(r) / 2,
 			.Small,
 			th.warning,
 		)
@@ -512,7 +517,7 @@ warning_row :: proc(ctx: ^ui.Ui, text: string, x, y, width: f32, index: int) -> 
 @(private = "file")
 warning_height :: proc(r: ^ui.Renderer, text: string, width: f32) -> f32 {
 	lines := ui.wrap_text(r, text, .Small, width - 20, context.temp_allocator)
-	return f32(max(len(lines), 1)) * WARNING_LINE + WARNING_GAP
+	return f32(max(len(lines), 1)) * warning_line(r) + WARNING_GAP
 }
 
 // The fields an ID3v1 tag would keep only part of, named in 1.0.0's order and joined
@@ -1008,7 +1013,7 @@ tag_format :: proc(
 				ctx.renderer,
 				line,
 				field_x,
-				y + f32(i) * WARNING_LINE + WARNING_LINE / 2,
+				y + f32(i) * warning_line(ctx.renderer) + warning_line(ctx.renderer) / 2,
 				.Small,
 				th.text_tertiary,
 			)
@@ -1019,11 +1024,11 @@ tag_format :: proc(
 				id = ui.widget_id("Conversion"),
 				role = .Label,
 				label = conversion_text(s),
-				rect = {field_x, y, field_w, f32(len(conversion)) * WARNING_LINE},
+				rect = {field_x, y, field_w, f32(len(conversion)) * warning_line(ctx.renderer)},
 			},
 		)
 	}
-	y += f32(len(conversion)) * WARNING_LINE + 8
+	y += f32(len(conversion)) * warning_line(ctx.renderer) + 8
 	return y + write_details(ctx, app, x, y, width)
 }
 
