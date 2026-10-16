@@ -265,3 +265,22 @@ the_conversion_speaks_french :: proc(t: ^testing.T) {
 	)
 	testing.expect_value(t, ui.catalog_tr(&c, "Write ID3v2"), "Écrire l’ID3v2")
 }
+
+// The developer mode's marker in the status bar is JetBrains Mono at 11 points in a box
+// 18 high with 6 points on either side, as 1.0.0's: its words are 91 points wide at twice the scale (92.4 as the font draws them).
+@(test)
+the_developer_marker_is_mono_at_11_points :: proc(t: ^testing.T) {
+	s: Screen
+	screen_init(&s, {1440, 900})
+	defer screen_destroy(&s)
+	// At twice the scale, where fontstash's whole pixel advances are fine enough to tell
+	// 11 points from 12 (13 pixels a glyph against 14).
+	s.h.scale = 2
+	execute(&s.app, engine.Toggle_Developer_Mode{})
+	ui.run_frame(&s.h)
+	marker: ui.Widget_Info
+	for w in s.h.ui.widgets do if w.role == .Label && w.label == "Developer mode" do marker = w
+	if !testing.expect(t, marker.rect.h > 0) do return
+	testing.expect_value(t, marker.rect.h, 18)
+	testing.expectf(t, abs(marker.rect.w - (91 + 12)) <= 1, "the marker is %v wide", marker.rect.w)
+}
