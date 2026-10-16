@@ -18,6 +18,7 @@ APP_NAME :: "Colophon"
 // The identifier of Colophon 1.0.0, which SDL hands to the system (the Wayland app id).
 APP_ID :: "io.github.openmediastack.colophon"
 VERSION :: "1.0.0"
+
 @(private = "file")
 WINDOW_ICON :: #load("../../assets/icon/png/colophon-256.png")
 
@@ -120,10 +121,10 @@ run :: proc(options: Options) -> bool {
 	return opened
 }
 
-// The icon in the window's title bar and the task bar on X11, and the Dock's on macOS
-// outside a bundle; Wayland takes it from the desktop file, and Windows from the
-// executable's resources. The window keeps a copy. A driver that cannot set one (the dummy
-// driver of a screenshot) leaves the system's icon, which is nothing to report.
+// The icon in the window's title bar and the task bar, and the Dock's on macOS, where it
+// also stands in for the bundle's. SDL copies it. Where the driver cannot set one (the
+// dummy driver of a screenshot, a Wayland compositor without xdg_toplevel_icon) the call
+// fails and the system's icon stays, which is nothing to report.
 @(private = "file")
 set_window_icon :: proc(window: ^sdl.Window) {
 	rgba, w, h, decoded := ui.decode_image(WINDOW_ICON, context.temp_allocator)
