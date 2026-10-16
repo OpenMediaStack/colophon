@@ -45,8 +45,9 @@ forget_notice :: proc(app: ^App) {
 	app.notice = nil
 }
 
-// The toast over the window, until its time; its action, and its close button.
-toasts :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
+// The toast, centred in area and above its bottom edge, until its time; its action, and its
+// close button.
+toasts :: proc(ctx: ^ui.Ui, app: ^App, area: ui.Rect) {
 	notice, shown := app.notice.?
 	if !shown do return
 	if ctx.input.time >= notice.until {
@@ -62,7 +63,7 @@ toasts :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 		}
 	}
 	id := ui.widget_id("Toast")
-	switch ui.toast(ctx, id, window, notice.kind, notice.message, action_label) {
+	switch ui.toast(ctx, id, area, notice.kind, notice.message, action_label) {
 	case .None:
 	case .Acted:
 		if action, has := notice.action.?; has && action == .Retry_Save do request_save(app)

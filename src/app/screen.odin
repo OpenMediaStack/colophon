@@ -93,9 +93,9 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	if l.inspector_shown do inspector(ctx, app, l.inspector)
 	status_bar(ctx, app, l.status)
 	if app.drop.hovering do drop_target(ctx, window)
-	// A toast stays above the player's bar, not over it.
+	// A toast stays above the player's bar, or the status bar without one, not over it.
 	toast_window := window
-	if l.player_shown do toast_window.h = l.player.y - toast_window.y
+	toast_window.h = (l.player_shown ? l.player.y : l.status.y) - toast_window.y
 	toasts(ctx, app, toast_window)
 	palette(ctx, app, window)
 	settings_dialog(ctx, app, window)
