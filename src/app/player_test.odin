@@ -284,14 +284,30 @@ the_player_matches_its_references :: proc(t: ^testing.T) {
 	for kind in ui.Theme_Kind {
 		s: Screen
 		speakers: Speakers
-		folder := screen_playing(t, &s, &speakers, {1440, 900}, kind)
-		defer remove_folder(folder)
+		screen_init(&s, {1440, 900}, kind)
 		defer screen_destroy(&s)
+		s.app.engine.output = fake_output(&speakers)
+		// A track with sound, so that the waveform has bars.
+		folder := folder_with_fixtures(
+			t,
+			{{"vbr_mono.mp3", "1.mp3"}, {"v23_unicode.mp3", "2.mp3"}},
+		)
+		defer remove_folder(folder)
+		open_folder_of(t, &s, folder)
+		wait_until_shown(t, &s, "2 tracks")
 		// The folder shows as the home, "~": the same on every platform.
 		delete(s.app.home)
 		s.app.home = strings.clone(folder)
-		ui.press_key(&s.h, .Space)
-		s.app.engine.library.tracks[0].metadata.audio.duration = 3 * time.Minute + 24 * time.Second
+		first := s.app.engine.listed[0]
+		tags := &s.app.engine.library.tracks[first].metadata.tags
+		tags.title = strings.clone("Paper Satellites")
+		tags.artist = strings.clone("Marlowe Kite")
+		s.app.engine.library.tracks[first].metadata.audio.duration =
+			3 * time.Minute + 24 * time.Second
+		execute(&s.app, engine.Select{first})
+		execute(&s.app, engine.Play_Pause{})
+		ui.run_frame(&s.h)
+		wait_for_waveform(t, &s)
 		speakers.position = 70 * time.Second
 		ui.move_mouse(&s.h, {0, 0})
 		ui.run_frame(&s.h)
@@ -456,4 +472,123 @@ long_times_do_not_run_into_the_bars :: proc(t: ^testing.T) {
 	testing.expect(t, position.rect.x + position.rect.w <= duration_text.rect.x)
 	volume, _ := in_player(&s, "Volume")
 	testing.expect(t, duration_text.rect.x + duration_text.rect.w <= volume.rect.x)
+}
+
+// Runs frames until the playing track's waveform has been read, or fails.
+@(private = "file")
+wait_for_waveform :: proc(t: ^testing.T, s: ^Screen) {
+	start := time.tick_now()
+	for s.app.waveform.waveform == nil {
+		if time.tick_since(start) > WAVEFORM_PATIENCE do testing.fail_now(t, "the waveform was not read in time")
+		ui.run_frame(&s.h)
+		time.sleep(time.Millisecond)
+	}
+	ui.run_frame(&s.h)
+}
+
+// How long a test waits for the waveform's thread.
+@(private = "file")
+WAVEFORM_PATIENCE :: 5 * time.Second
+
+// A screen over two fixtures with sound, of different lengths (44100 frames and 48000),
+// the first selected, for the waveform: most fixtures are silence.
+@(private = "file")
+screen_with_sound :: proc(t: ^testing.T, s: ^Screen, speakers: ^Speakers) -> (folder: string) {
+	screen_init(s, {1440, 900})
+	s.app.engine.output = fake_output(speakers)
+	folder = folder_with_fixtures(t, {{"cbr_stereo.mp3", "1.mp3"}, {"vbr_mono.mp3", "2.mp3"}})
+	open_folder_of(t, s, folder)
+	wait_until_shown(t, s, "2 tracks")
+	execute(&s.app, engine.Select{s.app.engine.listed[0]})
+	return
+}
+
+@(test)
+the_waveform_shows_once_read :: proc(t: ^testing.T) {
+	s: Screen
+	speakers: Speakers
+	folder := screen_with_sound(t, &s, &speakers)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	execute(&s.app, engine.Play_Pause{})
+	ui.run_frame(&s.h)
+	// Flat bars while it is read, as many as the width holds, a bar every 3 points.
+	testing.expect(t, len(s.app.waveform.bars) > 10)
+	for bar in s.app.waveform.bars do testing.expect_value(t, bar, 0)
+	wait_for_waveform(t, &s)
+	loudest: f32
+	for bar in s.app.waveform.bars do loudest = max(loudest, bar)
+	testing.expect_value(t, loudest, 1)
+	testing.expect_value(t, s.app.waveform.waveform.?.frames, 44100)
+}
+
+// Another track at once, with no wait between: the first's reading is stopped, and the
+// waveform that arrives is the second's.
+@(test)
+a_new_track_has_its_own_waveform_read :: proc(t: ^testing.T) {
+	s: Screen
+	speakers: Speakers
+	folder := screen_with_sound(t, &s, &speakers)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	execute(&s.app, engine.Play_Pause{})
+	follow_waveform(&s.app)
+	testing.expect_value(t, s.app.waveform.track, engine.Track_Id(0))
+	execute(&s.app, engine.Play_Next{})
+	follow_waveform(&s.app)
+	testing.expect_value(t, s.app.waveform.track, engine.Track_Id(1))
+	wait_for_waveform(t, &s)
+	testing.expect_value(t, s.app.waveform.waveform.?.frames, 48000)
+	testing.expect_value(t, s.app.waveform.track, engine.Track_Id(1))
+	// Playing stops at the end of the list: nothing is left of the waveform.
+	speakers.finished = true
+	engine.poll(&s.app.engine)
+	ui.run_frame(&s.h)
+	testing.expect(t, s.app.waveform.waveform == nil)
+	testing.expect_value(t, s.app.waveform.track, nil)
+}
+
+// 1.0.0's test of the bars: the loudest stands full height, the others beside it.
+@(test)
+the_loudest_bar_stands_full_height :: proc(t: ^testing.T) {
+	defer free_all(context.temp_allocator)
+	samples := make([]f32, 16384, context.temp_allocator)
+	for i in 0 ..< 8192 do samples[i] = 0.5
+	for i in 8192 ..< 16384 do samples[i] = -0.25
+	state: Waveform_State
+	init_waveform_state(&state, {})
+	defer destroy_waveform_state(&state)
+	state.waveform = audio.waveform_from_samples(samples, 1, 8192)
+	bars := waveform_bars(&state, 2)
+	testing.expect(t, abs(bars[0] - 1) < 1e-3)
+	testing.expect(t, abs(bars[1] - 0.5) < 1e-3)
+	// Without a waveform, or without room, the bars are flat or none.
+	forget_waveform(&state)
+	for bar in waveform_bars(&state, 4) do testing.expect_value(t, bar, 0)
+	testing.expect_value(t, len(waveform_bars(&state, 0)), 0)
+}
+
+// A mouse held still on the waveform while the track plays seeks once, where it was
+// pressed, not at every frame.
+@(test)
+a_held_mouse_seeks_once_while_the_track_plays :: proc(t: ^testing.T) {
+	s: Screen
+	speakers: Speakers
+	folder := screen_playing(t, &s, &speakers)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	s.app.engine.library.tracks[0].metadata.audio.duration = 10 * time.Second
+	ui.press_key(&s.h, .Space)
+	ui.run_frame(&s.h)
+	position, _ := in_player(&s, "Position")
+	ui.move_mouse(&s.h, {position.rect.x + position.rect.w / 2, position.rect.y + 8})
+	ui.press(&s.h)
+	held_at := speakers.position
+	testing.expect(t, held_at > 0)
+	for _ in 0 ..< 4 {
+		speakers.position += 100 * time.Millisecond
+		ui.run_frame(&s.h)
+	}
+	testing.expect_value(t, speakers.position, held_at + 400 * time.Millisecond)
+	ui.release(&s.h)
 }

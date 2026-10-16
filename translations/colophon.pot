@@ -486,11 +486,11 @@ msgstr ""
 msgid "Edit"
 msgstr ""
 
-#: src/app/menu.odin:142 src/app/palette.odin:294 src/app/player.odin:160
+#: src/app/menu.odin:142 src/app/palette.odin:294 src/app/player.odin:167
 msgid "Pause"
 msgstr ""
 
-#: src/app/menu.odin:142 src/app/palette.odin:294 src/app/player.odin:160
+#: src/app/menu.odin:142 src/app/palette.odin:294 src/app/player.odin:167
 msgctxt "Player"
 msgid "Play"
 msgstr ""
@@ -655,27 +655,27 @@ msgstr ""
 msgid "Turn developer mode on"
 msgstr ""
 
-#: src/app/player.odin:96
+#: src/app/player.odin:103
 msgid "Player"
 msgstr ""
 
-#: src/app/player.odin:154
+#: src/app/player.odin:161
 msgid "Previous track"
 msgstr ""
 
-#: src/app/player.odin:170
+#: src/app/player.odin:177
 msgid "Next track"
 msgstr ""
 
-#: src/app/player.odin:212
+#: src/app/player.odin:221
 msgid "Position"
 msgstr ""
 
-#: src/app/player.odin:230
+#: src/app/player.odin:243
 msgid "Volume"
 msgstr ""
 
-#: src/app/player.odin:259
+#: src/app/player.odin:272
 msgid "Could not play “{}”"
 msgstr ""
 
@@ -771,7 +771,7 @@ msgstr ""
 msgid "Quitting without saving discards them."
 msgstr ""
 
-#: src/app/screen.odin:117
+#: src/app/screen.odin:118
 msgid "Drop to open these folders and files"
 msgstr ""
 

@@ -25,6 +25,7 @@ App :: struct {
 	genres:           Genres,
 	warnings:         Warnings_Cache,
 	thumbnails:       Thumbnails,
+	waveform:         Waveform_State,
 	palette:          Palette,
 	settings_open:    bool,
 	about:            About,
@@ -103,6 +104,7 @@ Drop :: struct {
 app_init :: proc(app: ^App, wake := lib.Wake{}, allocator := context.allocator) {
 	engine.init(&app.engine, wake, allocator)
 	init_thumbnails(&app.thumbnails, wake, allocator)
+	init_waveform_state(&app.waveform, wake, allocator)
 	app.platform = ui.PLATFORM
 	app.version = VERSION
 	init_inspector(&app.inspector)
@@ -123,6 +125,7 @@ app_destroy :: proc(app: ^App) {
 	forget_removal(app)
 	delete(app.preferences_path, app.engine.allocator)
 	destroy_thumbnails(&app.thumbnails)
+	destroy_waveform_state(&app.waveform)
 	delete(app.palette.query, app.engine.allocator)
 	forget_dropped(app)
 	delete(app.drop.paths)

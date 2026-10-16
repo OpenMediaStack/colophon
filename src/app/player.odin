@@ -18,6 +18,13 @@ CONTROLS_GAP :: 6
 // What plays: its title and artist, in this width.
 @(private = "file")
 TITLE_WIDTH :: 140
+@(private = "file")
+WAVEFORM_HEIGHT :: 36
+// A bar of 2 points every 3: a bar for every second or two of a song.
+@(private = "file")
+BAR_STRIDE :: 3
+@(private = "file")
+BAR_WIDTH :: 2
 // How often a frame is drawn for the playhead while a track plays, in seconds.
 @(private = "file")
 REPAINT :: 0.1
@@ -194,8 +201,9 @@ time_label :: proc(
 	ui.declare(ctx, {id = ui.child_id(parent, name), role = .Label, label = text, rect = rect})
 }
 
-// The position: a bar to click or drag along, that seeks. A track without a duration
-// has nothing to seek in.
+// The position: the track's waveform, bars of 2 points every 3, the part played in the
+// accent colour; a click or a drag along it seeks. A track without a duration has
+// nothing to seek in.
 @(private = "file")
 seeker :: proc(
 	ctx: ^ui.Ui,
@@ -205,18 +213,23 @@ seeker :: proc(
 	progress: f32,
 	duration: time.Duration,
 ) {
-	moved, changed := ui.slider(
+	area := ui.Rect{rect.x, rect.y + (rect.h - WAVEFORM_HEIGHT) / 2, rect.w, WAVEFORM_HEIGHT}
+	scrubbed := ui.scrub(
 		ctx,
 		ui.child_id(id, "position"),
-		rect,
+		area,
 		ui.tr("Position"),
 		progress,
 		disabled = duration <= 0,
-	).?
-	if changed {
+	)
+	played := progress
+	if moved, changed := scrubbed.changed.?; changed {
 		target := min(time.Duration(f64(duration) * f64(moved)), max(duration - SEEK_MARGIN, 0))
 		execute(app, engine.Seek{target})
+		played = moved
 	}
+	draw_waveform(ctx, &app.waveform, area, played)
+	if scrubbed.focused && ctx.focus_by_key do ui.draw_focus_ring(ctx.renderer, ctx.theme, area, 4)
 }
 
 // The volume: its icon and a bar to click or drag along.
@@ -257,4 +270,27 @@ follow_play_failure :: proc(app: ^App, now: f64) {
 	if !failed || failure.track < 0 || int(failure.track) >= len(e.library.tracks) do return
 	name := filepath.base(e.library.tracks[failure.track].path)
 	notify(app, .Error, ui.fill(ui.tr("Could not play “{}”"), name), nil, now)
+}
+
+// The bars of the waveform in area, as loud as each share of the track sounds, the part
+// played, up to progress, in the accent colour: flat until the waveform is read.
+@(private = "file")
+draw_waveform :: proc(ctx: ^ui.Ui, w: ^Waveform_State, area: ui.Rect, progress: f32) {
+	r := ctx.renderer
+	th := ctx.theme
+	count := max(1, int((area.w + BAR_STRIDE - BAR_WIDTH) / BAR_STRIDE))
+	bars := waveform_bars(w, count)
+	end := f32(count * BAR_STRIDE - (BAR_STRIDE - BAR_WIDTH))
+	played := area.x + end * clamp(progress, 0, 1)
+	middle := area.y + area.h / 2
+	for loudness, i in bars {
+		height := max(2, loudness * area.h)
+		bar := ui.Rect{area.x + f32(i) * BAR_STRIDE, middle - height / 2, BAR_WIDTH, height}
+		if bar.x + bar.w <= played {
+			ui.fill_rect(r, bar, th.accent, 1)
+			continue
+		}
+		ui.fill_rect(r, bar, th.border_strong, 1)
+		if bar.x < played do ui.fill_rect(r, {bar.x, bar.y, played - bar.x, bar.h}, th.accent, 1)
+	}
 }

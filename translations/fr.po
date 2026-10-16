@@ -477,11 +477,11 @@ msgstr "Numéroter les pistes"
 msgid "Edit"
 msgstr "Édition"
 
-#: src/app/menu.odin:142 src/app/palette.odin:294 src/app/player.odin:160
+#: src/app/menu.odin:142 src/app/palette.odin:294 src/app/player.odin:167
 msgid "Pause"
 msgstr "Pause"
 
-#: src/app/menu.odin:142 src/app/palette.odin:294 src/app/player.odin:160
+#: src/app/menu.odin:142 src/app/palette.odin:294 src/app/player.odin:167
 msgctxt "Player"
 msgid "Play"
 msgstr "Lecture"
@@ -646,27 +646,27 @@ msgstr "Désactiver le mode développeur"
 msgid "Turn developer mode on"
 msgstr "Activer le mode développeur"
 
-#: src/app/player.odin:96
+#: src/app/player.odin:103
 msgid "Player"
 msgstr "Lecteur"
 
-#: src/app/player.odin:154
+#: src/app/player.odin:161
 msgid "Previous track"
 msgstr "Piste précédente"
 
-#: src/app/player.odin:170
+#: src/app/player.odin:177
 msgid "Next track"
 msgstr "Piste suivante"
 
-#: src/app/player.odin:212
+#: src/app/player.odin:221
 msgid "Position"
 msgstr "Position"
 
-#: src/app/player.odin:230
+#: src/app/player.odin:243
 msgid "Volume"
 msgstr "Volume"
 
-#: src/app/player.odin:259
+#: src/app/player.odin:272
 msgid "Could not play “{}”"
 msgstr "Impossible de lire « {} »"
 
@@ -762,7 +762,7 @@ msgstr "{}, {} et {} autres fichiers ont des modifications qui ne sont pas encor
 msgid "Quitting without saving discards them."
 msgstr "Si vous quittez sans enregistrer, elles seront perdues."
 
-#: src/app/screen.odin:117
+#: src/app/screen.odin:118
 msgid "Drop to open these folders and files"
 msgstr "Déposez pour ouvrir ces dossiers et fichiers"
 
