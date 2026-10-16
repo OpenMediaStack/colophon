@@ -8,6 +8,7 @@ import stbtt "vendor:stb/truetype"
 Icon :: enum u8 {
 	Check,
 	Chevron_Down,
+	Chevron_Right,
 	Chevron_Up,
 	Circle_Alert,
 	Columns,
@@ -36,6 +37,7 @@ ICON_SIZE :: 64
 ICON_MASKS := [Icon][]u8 {
 	.Check          = #load("../../assets/icons/masks/check.a8"),
 	.Chevron_Down   = #load("../../assets/icons/masks/chevron-down.a8"),
+	.Chevron_Right  = #load("../../assets/icons/masks/chevron-right.a8"),
 	.Chevron_Up     = #load("../../assets/icons/masks/chevron-up.a8"),
 	.Circle_Alert   = #load("../../assets/icons/masks/circle-alert.a8"),
 	.Columns        = #load("../../assets/icons/masks/columns.a8"),

@@ -140,14 +140,14 @@ sidebar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		}
 	}
 	if len(artists) > 0 {
-		// A section that folds: its title is a button, with a chevron that turns.
+		// A section that folds: its title is a button, with a chevron that points down when it is open and right when it is folded.
 		header := ui.child_id(id, "artists")
 		header_rect := ui.Rect{x, y, width, 34}
 		interaction := ui.interact(ctx, header, header_rect)
 		if .Hovered in interaction do ctx.cursor = .Pointer
 		if .Clicked in interaction do s.artists_open = !s.artists_open
 		chevron := ui.Rect{x + 8, y + 8 + 7, 12, 12}
-		ui.draw_icon(r, .Chevron_Down, chevron, th.text_tertiary, s.artists_open ? 0 : 3)
+		ui.draw_icon(r, s.artists_open ? .Chevron_Down : .Chevron_Right, chevron, th.text_tertiary)
 		// Inset like the other titles, the chevron's 12 points and 4 more before the text,
 		// both on the line 21 points under the header's top, as the design's markup has it.
 		// section_title insets its text by 8.

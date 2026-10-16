@@ -198,8 +198,11 @@ stroke_rect :: proc(r: ^Renderer, rect: Rect, color: Color, radius: f32 = 0, wid
 	}
 }
 
-// Draws an icon of the atlas in rect, turned clockwise by quarter_turns.
-draw_icon :: proc(r: ^Renderer, icon: Icon, rect: Rect, color: Color, quarter_turns := 0) {
+// Draws an icon of the atlas in rect. An icon that points another way is another icon of
+// the atlas, not a turn of this one: SDL's software renderer (SDL_SW_RenderGeometryRaw)
+// blits an axis aligned quad of one colour from the texture coordinates of its top left and
+// bottom right vertices only, so a quarter turn of them comes out as a flip.
+draw_icon :: proc(r: ^Renderer, icon: Icon, rect: Rect, color: Color) {
 	x0, y0, x1, y1 := snap(r, rect)
 	if x1 <= x0 || y1 <= y0 do return
 	u0, v0, u1, v1 := icon_uv(&r.atlas, icon, max(x1 - x0, y1 - y0))
@@ -208,7 +211,7 @@ draw_icon :: proc(r: ^Renderer, icon: Icon, rect: Rect, color: Color, quarter_tu
 	list := begin_command(r, ATLAS_TEXTURE)
 	first := vertex_count(list)
 	for corner, i in corners {
-		push_vertex(list, corner, color, uvs[(i - quarter_turns) %% 4])
+		push_vertex(list, corner, color, uvs[i])
 	}
 	push_quad(list, first)
 }

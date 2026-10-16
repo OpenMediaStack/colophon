@@ -157,17 +157,6 @@ a_square_stroke_is_four_rects :: proc(t: ^testing.T) {
 }
 
 @(test)
-an_icon_turns_by_quarters :: proc(t: ^testing.T) {
-	r := test_renderer(1)
-	defer destroy_test_renderer(r)
-	draw_icon(r, .Chevron_Down, {0, 0, 16, 16}, {1, 1, 1, 1})
-	draw_icon(r, .Chevron_Down, {0, 0, 16, 16}, {1, 1, 1, 1}, quarter_turns = 1)
-	v := r.lists[.Base].vertices
-	testing.expect_value(t, v[4].uv, v[3].uv)
-	testing.expect_value(t, v[5].uv, v[0].uv)
-}
-
-@(test)
 an_icon_is_sampled_at_the_size_it_is_drawn :: proc(t: ^testing.T) {
 	r := test_renderer(1)
 	defer destroy_test_renderer(r)
