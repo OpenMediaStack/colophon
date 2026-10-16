@@ -146,9 +146,12 @@ sidebar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		interaction := ui.interact(ctx, header, header_rect)
 		if .Hovered in interaction do ctx.cursor = .Pointer
 		if .Clicked in interaction do s.artists_open = !s.artists_open
-		chevron := ui.Rect{x, y + 8 + 7, 12, 12}
+		chevron := ui.Rect{x + 8, y + 8 + 7, 12, 12}
 		ui.draw_icon(r, .Chevron_Down, chevron, th.text_tertiary, s.artists_open ? 0 : 3)
-		section_title(ctx, nil, ui.tr("Artists"), {x + 16, y, width - 16, 34}, .Bottom)
+		// Inset like the other titles, the chevron's 12 points and 4 more before the text,
+		// both on the line 21 points under the header's top, as the design's markup has it.
+		// section_title insets its text by 8.
+		section_title(ctx, nil, ui.tr("Artists"), {x + 16, y + 8, width - 16, 26}, .Center)
 		states: ui.Widget_States = s.artists_open ? {.Expanded} : {}
 		ui.declare(
 			ctx,
