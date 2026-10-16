@@ -336,3 +336,45 @@ lighter :: proc(c: Color) -> Color {
 	k := min(value * 1.1, 1) / value
 	return {c.r * k, c.g * k, c.b * k, c.a}
 }
+
+// The round button of a player's main control: an icon on an accent disc, the icon
+// nudged by offset points to look centred (a play triangle needs one). Its label is
+// read by screen readers and shown in its tooltip. A disabled one is grey. True when
+// it was clicked, or activated with Enter or Space while it had the keyboard focus.
+disc_button :: proc(
+	ui: ^Ui,
+	id: Widget_Id,
+	rect: Rect,
+	icon: Icon,
+	label: string,
+	offset: f32 = 0,
+	disabled := false,
+) -> bool {
+	r := ui.renderer
+	th := ui.theme
+	states, activated := button_states(ui, id, rect, disabled)
+	fill := th.accent
+	switch {
+	case .Disabled in states:
+		fill = th.surface_3
+	case .Hovered in states || .Pressed in states:
+		fill = th.accent_hover
+	}
+	fill_rect(r, rect, fill, rect.w / 2)
+	if .Focused in states do draw_focus_ring(r, th, rect, rect.w / 2)
+	moved := Rect{rect.x + offset, rect.y, rect.w, rect.h}
+	draw_icon_centered(r, icon, moved, disabled ? th.text_disabled : th.on_accent, 16)
+	tooltip(ui, id, rect, label)
+	declare(
+		ui,
+		{
+			id = id,
+			role = .Button,
+			label = label,
+			rect = rect,
+			states = widget_states(states),
+			focusable = !disabled,
+		},
+	)
+	return activated
+}

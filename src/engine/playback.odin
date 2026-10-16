@@ -106,12 +106,14 @@ position :: proc(e: ^Engine) -> time.Duration {
 play :: proc(e: ^Engine, track: Track_Id) {
 	output, ok := e.output.?
 	if !ok || !has_track(e, track) do return
+	// The volume first, so that a track never starts at the device's own.
+	output.set_volume(output.data, e.playback.volume)
 	if err := output.play(output.data, e.library.tracks[track].path); err != .None {
 		stop_playing(e)
 		e.play_failure = Play_Failure{track, err}
+		e.play_failures += 1
 		return
 	}
-	output.set_volume(output.data, e.playback.volume)
 	e.playback.track = track
 	e.playback.paused = false
 	e.play_failure = nil

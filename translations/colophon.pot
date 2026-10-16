@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-16 19:33+0200\n"
+"POT-Creation-Date: 2026-10-16 19:59+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,39 +18,39 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: src/app/about.odin:121 src/app/menu.odin:153 src/app/palette.odin:283
+#: src/app/about.odin:128 src/app/menu.odin:176 src/app/palette.odin:283
 msgid "About Colophon"
 msgstr ""
 
-#: src/app/about.odin:122 src/app/about.odin:125
+#: src/app/about.odin:129 src/app/about.odin:132
 msgid "Third-party licenses"
 msgstr ""
 
-#: src/app/about.odin:123
+#: src/app/about.odin:130
 msgid "Colophon ships these fonts, icons and libraries, each under its own license."
 msgstr ""
 
-#: src/app/about.odin:124 src/ui/overlay.odin:299
+#: src/app/about.odin:131 src/ui/overlay.odin:313
 msgid "Close"
 msgstr ""
 
-#: src/app/about.odin:125
+#: src/app/about.odin:132
 msgid "Back"
 msgstr ""
 
-#: src/app/about.odin:177
+#: src/app/about.odin:184
 msgid "Version {}"
 msgstr ""
 
-#: src/app/about.odin:189
+#: src/app/about.odin:196
 msgid "An MP3 tag editor."
 msgstr ""
 
-#: src/app/about.odin:202
+#: src/app/about.odin:209
 msgid "Released under the MIT License."
 msgstr ""
 
-#: src/app/about.odin:242
+#: src/app/about.odin:249
 msgid "Components"
 msgstr ""
 
@@ -193,7 +193,7 @@ msgstr ""
 msgid "Tags"
 msgstr ""
 
-#: src/app/inspector.odin:255 src/app/menu.odin:86 src/app/palette.odin:257
+#: src/app/inspector.odin:255 src/app/menu.odin:93 src/app/palette.odin:257
 #: src/app/tracks.odin:349
 msgid "File"
 msgstr ""
@@ -450,92 +450,92 @@ msgstr ""
 msgid "Copy details"
 msgstr ""
 
-#: src/app/menu.odin:64 src/app/palette.odin:272
+#: src/app/menu.odin:63 src/app/palette.odin:272
 msgid "Open Folder…"
 msgstr ""
 
-#: src/app/menu.odin:67 src/app/palette.odin:273
+#: src/app/menu.odin:66 src/app/palette.odin:273
 msgid "Open Files…"
 msgstr ""
 
-#: src/app/menu.odin:76 src/app/palette.odin:276 src/app/toolbar.odin:116
+#: src/app/menu.odin:75 src/app/palette.odin:276 src/app/toolbar.odin:116
 msgid "Save"
 msgstr ""
 
-#: src/app/menu.odin:90 src/app/palette.odin:284 src/app/toolbar.odin:43
+#: src/app/menu.odin:97 src/app/palette.odin:284 src/app/toolbar.odin:43
 msgid "Undo"
 msgstr ""
 
-#: src/app/menu.odin:97 src/app/palette.odin:285 src/app/toolbar.odin:54
+#: src/app/menu.odin:104 src/app/palette.odin:285 src/app/toolbar.odin:54
 msgid "Redo"
 msgstr ""
 
-#: src/app/menu.odin:102 src/app/palette.odin:286
+#: src/app/menu.odin:111 src/app/palette.odin:286
 msgid "Find"
 msgstr ""
 
-#: src/app/menu.odin:105 src/app/palette.odin:288 src/app/tracks.odin:258
+#: src/app/menu.odin:120 src/app/palette.odin:288 src/app/tracks.odin:258
 msgid "Select Album"
 msgstr ""
 
-#: src/app/menu.odin:110 src/app/palette.odin:289 src/app/tracks.odin:259
+#: src/app/menu.odin:125 src/app/palette.odin:289 src/app/tracks.odin:259
 msgid "Number Tracks"
 msgstr ""
 
-#: src/app/menu.odin:114 src/app/palette.odin:258
+#: src/app/menu.odin:137 src/app/palette.odin:258
 msgid "Edit"
 msgstr ""
 
-#: src/app/menu.odin:119 src/app/palette.odin:294
+#: src/app/menu.odin:142 src/app/palette.odin:294 src/app/player.odin:160
 msgid "Pause"
 msgstr ""
 
-#: src/app/menu.odin:119 src/app/palette.odin:294
+#: src/app/menu.odin:142 src/app/palette.odin:294 src/app/player.odin:160
 msgctxt "Player"
 msgid "Play"
 msgstr ""
 
-#: src/app/menu.odin:123 src/app/palette.odin:299
+#: src/app/menu.odin:146 src/app/palette.odin:299
 msgid "Next Track"
 msgstr ""
 
-#: src/app/menu.odin:126 src/app/palette.odin:302
+#: src/app/menu.odin:149 src/app/palette.odin:302
 msgid "Previous Track"
 msgstr ""
 
-#: src/app/menu.odin:130 src/app/palette.odin:259
+#: src/app/menu.odin:153 src/app/palette.odin:259
 msgid "Controls"
 msgstr ""
 
-#: src/app/menu.odin:132
+#: src/app/menu.odin:155
 msgid "Command Palette…"
 msgstr ""
 
-#: src/app/menu.odin:136 src/app/palette.odin:366
+#: src/app/menu.odin:159 src/app/palette.odin:366
 msgid "Hide Sidebar"
 msgstr ""
 
-#: src/app/menu.odin:136 src/app/palette.odin:366
+#: src/app/menu.odin:159 src/app/palette.odin:366
 msgid "Show Sidebar"
 msgstr ""
 
-#: src/app/menu.odin:145 src/app/palette.odin:373
+#: src/app/menu.odin:168 src/app/palette.odin:373
 msgid "Hide Inspector"
 msgstr ""
 
-#: src/app/menu.odin:145 src/app/palette.odin:373
+#: src/app/menu.odin:168 src/app/palette.odin:373
 msgid "Show Inspector"
 msgstr ""
 
-#: src/app/menu.odin:150 src/app/palette.odin:261
+#: src/app/menu.odin:173 src/app/palette.odin:261
 msgid "View"
 msgstr ""
 
-#: src/app/menu.odin:154 src/app/palette.odin:283
+#: src/app/menu.odin:177 src/app/palette.odin:283
 msgid "Help"
 msgstr ""
 
-#: src/app/menu.odin:175
+#: src/app/menu.odin:191
 msgid "Menu bar"
 msgstr ""
 
@@ -655,6 +655,30 @@ msgstr ""
 msgid "Turn developer mode on"
 msgstr ""
 
+#: src/app/player.odin:96
+msgid "Player"
+msgstr ""
+
+#: src/app/player.odin:154
+msgid "Previous track"
+msgstr ""
+
+#: src/app/player.odin:170
+msgid "Next track"
+msgstr ""
+
+#: src/app/player.odin:212
+msgid "Position"
+msgstr ""
+
+#: src/app/player.odin:230
+msgid "Volume"
+msgstr ""
+
+#: src/app/player.odin:259
+msgid "Could not play “{}”"
+msgstr ""
+
 #: src/app/removal.odin:109
 msgid "Remove the ID3v1 tag from {n} file?"
 msgid_plural "Remove the ID3v1 tag from {n} files?"
@@ -747,7 +771,7 @@ msgstr ""
 msgid "Quitting without saving discards them."
 msgstr ""
 
-#: src/app/screen.odin:104
+#: src/app/screen.odin:117
 msgid "Drop to open these folders and files"
 msgstr ""
 
