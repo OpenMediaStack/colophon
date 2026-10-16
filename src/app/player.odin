@@ -1,5 +1,6 @@
 package main
 
+import "core:math"
 import "core:path/filepath"
 import "core:time"
 
@@ -281,16 +282,24 @@ draw_waveform :: proc(ctx: ^ui.Ui, w: ^Waveform_State, area: ui.Rect, progress: 
 	count := max(1, int((area.w + BAR_STRIDE - BAR_WIDTH) / BAR_STRIDE))
 	bars := waveform_bars(w, count)
 	end := f32(count * BAR_STRIDE - (BAR_STRIDE - BAR_WIDTH))
-	played := area.x + end * clamp(progress, 0, 1)
+	// The bars start on a whole point, so that at a scale of 1 each is two whole pixels with
+	// a pixel between them, not a bright one and two half bright ones.
+	left := math.round(area.x)
+	played := left + end * clamp(progress, 0, 1)
 	middle := area.y + area.h / 2
 	for loudness, i in bars {
-		height := max(2, loudness * area.h)
-		bar := ui.Rect{area.x + f32(i) * BAR_STRIDE, middle - height / 2, BAR_WIDTH, height}
+		height := max(2, math.round(loudness * area.h))
+		bar := ui.Rect {
+			left + f32(i) * BAR_STRIDE,
+			math.round(middle - height / 2),
+			BAR_WIDTH,
+			height,
+		}
 		if bar.x + bar.w <= played {
-			ui.fill_rect(r, bar, th.accent, 1)
+			ui.fill_rect(r, bar, th.accent)
 			continue
 		}
-		ui.fill_rect(r, bar, th.border_strong, 1)
-		if bar.x < played do ui.fill_rect(r, {bar.x, bar.y, played - bar.x, bar.h}, th.accent, 1)
+		ui.fill_rect(r, bar, th.border_strong)
+		if bar.x < played do ui.fill_rect(r, {bar.x, bar.y, played - bar.x, bar.h}, th.accent)
 	}
 }

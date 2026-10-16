@@ -192,7 +192,7 @@ palette :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 		x := row.x + 10
 		label := m.entry.label
 		x += ui.draw_text(r, label[:m.start], x, middle, .Body, th.text_primary)
-		x += ui.draw_text(r, label[m.start:m.end], x, middle, .Body, th.accent_text)
+		x += ui.draw_text(r, label[m.start:m.end], x, middle, .Body_Semibold, th.accent_text)
 		ui.draw_text(r, label[m.end:], x, middle, .Body, th.text_primary)
 		ui.draw_text(
 			r,

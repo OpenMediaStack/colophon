@@ -26,6 +26,8 @@ FONT_FILES := [Font][]u8 {
 Text_Style :: enum u8 {
 	Body,
 	Body_Strong,
+	// The body's text in semibold, such as the letters of a command that match the query.
+	Body_Semibold,
 	Small,
 	Small_Strong,
 	// Shortcut hints and keys shown as buttons: Inter at 11, since at that size JetBrains
@@ -55,6 +57,7 @@ Text_Style_Info :: struct {
 TEXT_STYLES := [Text_Style]Text_Style_Info {
 	.Body           = {.Inter_Regular, 13, 0, false},
 	.Body_Strong    = {.Inter_Medium, 13, 0, false},
+	.Body_Semibold  = {.Inter_Semibold, 13, 0, false},
 	.Small          = {.Inter_Regular, 12, 0, false},
 	.Small_Strong   = {.Inter_Medium, 12, 0, false},
 	.Hint           = {.Inter_Regular, 11, 0, false},
