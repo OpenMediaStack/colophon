@@ -711,6 +711,12 @@ keys_blocked :: proc(ui: ^Ui) -> bool {
 	return ui.menu.open && !ui.in_menu
 }
 
+// Whether a modal dialog or overlay was shown last frame, which the widgets below it wait
+// for.
+modal_shown :: proc(ui: ^Ui) -> bool {
+	return ui.modal != 0
+}
+
 // Asks for a frame at time at the latest, without input: a tooltip to show, a caret to
 // blink.
 wake_at :: proc(ui: ^Ui, at: f64) {

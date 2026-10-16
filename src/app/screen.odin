@@ -14,8 +14,9 @@ CENTRE_MIN_WIDTH :: 560
 // Where each region of the window goes, and which panels show. The regions are one
 // point apart, for the line between them.
 Layout :: struct {
-	toolbar, sidebar, centre, inspector, status: ui.Rect,
-	sidebar_shown, inspector_shown:              bool,
+	menu_bar, toolbar, sidebar, centre, inspector, status: ui.Rect,
+	sidebar_shown, inspector_shown:                        bool,
+	menu_bar_shown:                                        bool,
 }
 
 // The panels wait for something open. The sidebar gives way on its own when the centre
@@ -30,7 +31,14 @@ layout_of :: proc(app: ^App, window: ui.Rect) -> (l: Layout) {
 		open &&
 		view.sidebar_visible &&
 		window.w - SIDEBAR_WIDTH - inspector_width >= CENTRE_MIN_WIDTH
-	l.toolbar = {window.x, window.y, window.w, TOOLBAR_HEIGHT}
+	// Where the system has no menu bar of its own, the window draws one on top.
+	top_edge := window.y
+	l.menu_bar_shown = menu_bar_drawn(app)
+	if l.menu_bar_shown {
+		l.menu_bar = {window.x, window.y, window.w, MENU_BAR_HEIGHT}
+		top_edge += MENU_BAR_HEIGHT
+	}
+	l.toolbar = {window.x, top_edge, window.w, TOOLBAR_HEIGHT}
 	l.status = {window.x, window.y + window.h - STATUS_BAR_HEIGHT, window.w, STATUS_BAR_HEIGHT}
 	top := l.toolbar.y + l.toolbar.h + 1
 	height := max(l.status.y - 1 - top, 0)
@@ -59,6 +67,7 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	l := layout_of(app, window)
 	// The lines between the regions: the window shows through the point between them.
 	ui.fill_rect(ctx.renderer, window, th.border_subtle)
+	if l.menu_bar_shown do menu_bar(ctx, app, l.menu_bar)
 	toolbar(ctx, app, l.toolbar)
 	// The toolbar's toggles change the view: the panels follow in the same frame.
 	l = layout_of(app, window)

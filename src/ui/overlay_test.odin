@@ -520,3 +520,54 @@ a_dialog_without_a_message_holds_its_content_under_its_title :: proc(t: ^testing
 	testing.expect_value(t, bare, 50)
 	free_all(context.temp_allocator)
 }
+
+@(private = "file")
+Opening :: struct {
+	dialog:  bool,
+	stepped: int,
+}
+
+@(private = "file")
+opening_frame :: proc(ui: ^Ui, data: rawptr) {
+	o := (^Opening)(data)
+	id := widget_id("Owner")
+	items := [?]Menu_Item{{label = "One"}, {label = "Two"}}
+	menu(ui, id, items[:], "Owner")
+	if step := menu_step(ui); step != 0 do o.stepped = step
+	if o.dialog {
+		d := begin_dialog(ui, widget_id("Dialog"), WINDOW, {title = "Asks", primary = "Ok"})
+		end_dialog(ui, d)
+	}
+}
+
+@(test)
+a_dialog_beginning_closes_the_menu_under_it :: proc(t: ^testing.T) {
+	h: Harness
+	o: Opening
+	harness_init(&h, opening_frame, &o)
+	defer harness_destroy(&h)
+	run_frame(&h)
+	open_menu(&h.ui, widget_id("Owner"), {100, 100})
+	run_frame(&h)
+	testing.expect(t, is_menu_open(&h.ui, widget_id("Owner")))
+	o.dialog = true
+	run_frame(&h)
+	testing.expect(t, !is_menu_open(&h.ui, widget_id("Owner")))
+}
+
+@(test)
+the_side_arrows_ask_for_the_menu_beside :: proc(t: ^testing.T) {
+	h: Harness
+	o: Opening
+	harness_init(&h, opening_frame, &o)
+	defer harness_destroy(&h)
+	run_frame(&h)
+	open_menu(&h.ui, widget_id("Owner"), {100, 100})
+	run_frame(&h)
+	press_key(&h, .Right)
+	testing.expect_value(t, o.stepped, 1)
+	o.stepped = 0
+	press_key(&h, .Left)
+	testing.expect_value(t, o.stepped, -1)
+	testing.expect_value(t, menu_step(&h.ui), 0)
+}
