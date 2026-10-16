@@ -7,3 +7,4 @@ Exec=colophon
 Icon=colophon
 Categories=AudioVideo;Audio;
 Terminal=false
+StartupWMClass=io.github.openmediastack.colophon

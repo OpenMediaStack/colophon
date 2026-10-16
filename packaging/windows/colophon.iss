@@ -7,6 +7,8 @@
   #error Give the version with /DAppVersion=<version>
 #endif
 #define Root "..\.."
+; The numbers of the version, which the file's version resource needs: 2.0.0 of 2.0.0-rc.1.
+#define Numbers Copy(AppVersion, 1, Pos("-", AppVersion + "-") - 1)
 
 [Setup]
 ; Identifies Colophon across versions, for upgrades and uninstalling: never change it.
@@ -18,7 +20,7 @@ AppPublisher=Florent Sorel
 AppPublisherURL=https://github.com/OpenMediaStack/colophon
 AppSupportURL=https://github.com/OpenMediaStack/colophon/issues
 AppCopyright=© 2026 Florent Sorel
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#Numbers}
 DefaultDirName={autopf}\Colophon
 DisableProgramGroupPage=yes
 ; Installs for the current user without asking for administrator rights, or for every user.

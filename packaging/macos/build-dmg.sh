@@ -16,7 +16,11 @@ if [[ $# -lt 1 || $# -gt 2 ]]; then
 	echo "usage: build-dmg.sh <folder> [<folder>]" >&2
 	exit 2
 fi
-version=$(sed -n 's/^VERSION :: "\(.*\)"$/\1/p' src/app/window.odin | head -n 1)
+version=$(scripts/version.sh)
+# What the bundle's plist calls the version: the numbers of 2.0.0-rc.1.
+numbers=${version%%-*}
+chmod +x "$1/colophon"
+if [[ $# -eq 2 ]]; then chmod +x "$2/colophon"; fi
 out=build/dmg
 app="$out/image/Colophon.app"
 rm -rf "$out"
@@ -29,8 +33,10 @@ else
 	cp "$1/libSDL3.0.dylib" "$app/Contents/Frameworks/libSDL3.0.dylib"
 fi
 cp assets/icon/Colophon.icns "$app/Contents/Resources/"
-sed "s/@VERSION@/$version/g" packaging/macos/Info.plist >"$app/Contents/Info.plist"
-codesign --force --deep --sign - "$app"
+sed "s/@VERSION@/$numbers/g" packaging/macos/Info.plist >"$app/Contents/Info.plist"
+# The library first, then the app that holds it.
+codesign --force --sign - "$app/Contents/Frameworks/libSDL3.0.dylib"
+codesign --force --sign - "$app"
 ln -s /Applications "$out/image/Applications"
 
 hdiutil create -volname Colophon -srcfolder "$out/image" -fs HFS+ -format UDZO -ov \

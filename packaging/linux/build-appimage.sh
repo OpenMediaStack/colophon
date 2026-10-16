@@ -10,7 +10,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-version=$(sed -n 's/^VERSION :: "\(.*\)"$/\1/p' src/app/window.odin | head -n 1)
+version=$(scripts/version.sh)
 linuxdeploy_release=1-alpha-20251107-1
 
 ./scripts/build.sh release

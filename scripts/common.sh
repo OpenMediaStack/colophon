@@ -4,13 +4,20 @@
 # The flags every build, check and test uses.
 ODIN_FLAGS=(-vet -strict-style -warnings-as-errors)
 
-# Where the linker finds SDL3: SDL3_LIB_DIR when set, Homebrew's on macOS. Odin ships
-# SDL3 for Windows, and Linux finds it in the system's library folders.
-linker_flags() {
+# Where SDL3's library is: SDL3_LIB_DIR when set, Homebrew's on macOS. Odin ships SDL3 for
+# Windows, and Linux finds it in the system's library folders: nothing then.
+sdl3_lib_dir() {
 	local dir=${SDL3_LIB_DIR:-}
 	if [ -z "$dir" ] && [ "$(uname)" = "Darwin" ] && command -v brew >/dev/null; then
 		dir="$(brew --prefix)/lib"
 	fi
+	echo "$dir"
+}
+
+# Where the linker finds SDL3.
+linker_flags() {
+	local dir
+	dir=$(sdl3_lib_dir)
 	if [ -n "$dir" ]; then
 		echo "-extra-linker-flags:-L$dir"
 	fi

@@ -14,7 +14,7 @@ inputs:
     description: The SDL3 release to build or download.
     required: true
   sdl3-cmake-flags:
-    description: The flags SDL3 is built with on Linux.
+    description: The flags SDL3 is built with from source, on Linux and macOS.
     required: true
 
 runs:
@@ -36,24 +36,25 @@ runs:
     - name: Build Odin's miniaudio library (macOS)
       if: runner.os == 'macOS'
       shell: bash
+      env:
+        # The oldest macOS the app runs on, as the plist and the build say.
+        MACOSX_DEPLOYMENT_TARGET: "11.0"
       run: |
         lib="$(odin root)/vendor/miniaudio/lib/miniaudio.a"
         if [ ! -e "$lib" ]; then
           sh "$(odin root)/vendor/miniaudio/src/build_miniaudio.sh"
         fi
-    - name: Install SDL3 (macOS)
-      if: runner.os == 'macOS'
-      shell: bash
-      run: brew install sdl3
-    - name: Cache SDL3 (Linux)
-      if: runner.os == 'Linux'
+    - name: Cache SDL3 (Linux and macOS)
+      if: runner.os != 'Windows'
       id: sdl3-cache
       uses: actions/cache@v6
       with:
         path: ~/sdl3
         key: sdl3-${{ inputs.sdl3-version }}-${{ runner.os }}-${{ runner.arch }}-packages ${{ inputs.sdl3-cmake-flags }}
-    - name: Build SDL3 (Linux)
-      if: runner.os == 'Linux' && steps.sdl3-cache.outputs.cache-hit != 'true'
+    # From source on macOS too, so that both architectures of the universal app hold the same
+    # release, built for the oldest macOS the app runs on: Homebrew's is neither.
+    - name: Build SDL3 (Linux and macOS)
+      if: runner.os != 'Windows' && steps.sdl3-cache.outputs.cache-hit != 'true'
       shell: bash
       env:
         SDL3_VERSION: ${{ inputs.sdl3-version }}
@@ -62,13 +63,17 @@ runs:
         curl --silent --show-error --location --fail \
           "https://github.com/libsdl-org/SDL/releases/download/release-$SDL3_VERSION/SDL3-$SDL3_VERSION.tar.gz" \
           | tar -xz -C "$RUNNER_TEMP"
+        macos_flags=""
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          macos_flags="-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_OSX_ARCHITECTURES=$(uname -m)"
+        fi
         # shellcheck disable=SC2086
         cmake -S "$RUNNER_TEMP/SDL3-$SDL3_VERSION" -B "$RUNNER_TEMP/sdl3-build" \
-          -DCMAKE_INSTALL_PREFIX="$HOME/sdl3" -DCMAKE_INSTALL_LIBDIR=lib $SDL3_CMAKE_FLAGS
+          -DCMAKE_INSTALL_PREFIX="$HOME/sdl3" -DCMAKE_INSTALL_LIBDIR=lib $SDL3_CMAKE_FLAGS $macos_flags
         cmake --build "$RUNNER_TEMP/sdl3-build" --parallel
         cmake --install "$RUNNER_TEMP/sdl3-build"
-    - name: Point the linker at SDL3 (Linux)
-      if: runner.os == 'Linux'
+    - name: Point the linker at SDL3 (Linux and macOS)
+      if: runner.os != 'Windows'
       shell: bash
       run: |
         echo "SDL3_LIB_DIR=$HOME/sdl3/lib" >> "$GITHUB_ENV"
