@@ -271,14 +271,7 @@ palette_entries :: proc(app: ^App) -> []Entry {
 	}
 	add(&entries, ui.tr("Open Folder…"), file, true, nil, .Open_Folder)
 	add(&entries, ui.tr("Open Files…"), file, true, nil, .Open_Files)
-	add(
-		&entries,
-		ui.tr("Save"),
-		file,
-		len(e.edits.pending) > 0 && engine.saving(e) == nil,
-		nil,
-		.Save,
-	)
+	add(&entries, ui.tr("Save"), file, engine.can_save(e), nil, .Save)
 	add(&entries, settings_label(app), file, true, nil, .Settings)
 	add(&entries, ui.tr("About Colophon"), ui.tr("Help"), true, nil, .About)
 	add(&entries, ui.tr("Undo"), edit, engine.can_undo(e), engine.Undo{})

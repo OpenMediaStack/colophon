@@ -188,6 +188,11 @@ can_revert :: proc(e: ^Engine) -> bool {
 	return false
 }
 
+// Whether there are pending changes to write and no save is running.
+can_save :: proc(e: ^Engine) -> bool {
+	return len(e.edits.pending) > 0 && saving(e) == nil
+}
+
 // Whether there is a step to undo.
 can_undo :: proc(e: ^Engine) -> bool {
 	return len(e.edits.undo) > 0

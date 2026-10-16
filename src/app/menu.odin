@@ -69,11 +69,10 @@ app_menus :: proc(ctx: ^ui.Ui, app: ^App) -> []Menu {
 		.Open_Files,
 		shortcut_hint(app, "O", shift = true),
 	)
-	saving := engine.saving(e) != nil
 	line(
 		&lines,
 		ui.tr("Save"),
-		len(e.edits.pending) > 0 && !saving && !waiting,
+		engine.can_save(e) && !waiting,
 		nil,
 		.Save,
 		shortcut_hint(app, "S"),

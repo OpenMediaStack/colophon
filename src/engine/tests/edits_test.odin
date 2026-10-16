@@ -289,3 +289,19 @@ revert_is_possible_while_a_selected_track_has_changes :: proc(t: ^testing.T) {
 	engine.execute(&e, engine.Revert{})
 	testing.expect(t, !engine.can_revert(&e))
 }
+
+@(test)
+save_needs_pending_changes_and_no_running_save :: proc(t: ^testing.T) {
+	e: engine.Engine
+	folder := folder_with_fixtures(t, {{"v23_full.mp3", "1.mp3"}})
+	engine_reading(t, &e, folder)
+	defer remove_folder(folder)
+	defer engine.destroy(&e)
+	testing.expect(t, !engine.can_save(&e))
+	engine.execute(&e, engine.Select{track_named(&e, "1.mp3")})
+	engine.execute(&e, engine.Apply_Edit{{.Title, "Neon Overpass"}})
+	testing.expect(t, engine.can_save(&e))
+	engine.execute(&e, engine.Save{})
+	// While the save runs, a second has nothing to start.
+	testing.expect(t, !engine.can_save(&e))
+}

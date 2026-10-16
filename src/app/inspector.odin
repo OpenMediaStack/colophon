@@ -296,7 +296,7 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	save_label := saving ? ui.tr("Saving…") : ui.tr_n("Save {n} file", "Save {n} files", pending)
 	save_options := ui.Button_Options {
 		kind     = .Primary,
-		disabled = pending == 0 || saving,
+		disabled = !engine.can_save(e),
 	}
 	save_width := ui.button_width(r, save_label, save_options)
 	save_rect := ui.Rect {
