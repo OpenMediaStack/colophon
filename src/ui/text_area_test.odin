@@ -90,7 +90,7 @@ long_text_wraps_and_a_click_lands_on_its_line :: proc(t: ^testing.T) {
 	)
 	testing.expect(t, len(spans) >= 2)
 	// A click on the second line puts the caret there.
-	move_mouse(&h, {20, 10 + 6 + 18 + 9})
+	move_mouse(&h, {20, 10 + 6 + 16 + 8})
 	press(&h)
 	release(&h)
 	testing.expect(t, has_focus(&h.ui, widget_id("Comment")))

@@ -8,8 +8,7 @@ import ui "../ui"
 
 @(private = "file")
 LABEL_HEIGHT :: 20
-@(private = "file")
-HINT_LINE :: 16
+
 // How each encoding is named on its segment.
 @(private = "file", rodata)
 ENCODING_LABELS := [lib.Text_Encoding]string {
@@ -136,7 +135,7 @@ write_details :: proc(
 				r,
 				line,
 				control_x,
-				y + f32(i) * HINT_LINE + HINT_LINE / 2,
+				y + f32(i) * ui.line_height(r, .Small) + ui.line_height(r, .Small) / 2,
 				.Small,
 				th.text_tertiary,
 			)
@@ -147,11 +146,11 @@ write_details :: proc(
 				id = ui.widget_id("Write details hint"),
 				role = .Label,
 				label = hint,
-				rect = {control_x, y, control_width, f32(len(lines)) * HINT_LINE},
+				rect = {control_x, y, control_width, f32(len(lines)) * ui.line_height(r, .Small)},
 			},
 		)
 	}
-	y += f32(len(lines)) * HINT_LINE + FIELD_GAP
+	y += f32(len(lines)) * ui.line_height(r, .Small) + FIELD_GAP
 
 	if !measure_only {
 		label := ui.tr("Rewrite Selected Files")

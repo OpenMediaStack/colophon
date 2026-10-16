@@ -516,8 +516,8 @@ a_dialog_without_a_message_holds_its_content_under_its_title :: proc(t: ^testing
 	p.message = "A line of explanation."
 	run_frame(&h)
 	testing.expect(t, bare > 0 && p.below_by > bare)
-	// The padding, a title line and the gap: no empty message line.
-	testing.expect_value(t, bare, 50)
+	// The padding, a title line of 19 points and the gap: no empty message line.
+	testing.expect_value(t, bare, 49)
 	free_all(context.temp_allocator)
 }
 
