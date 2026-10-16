@@ -106,8 +106,8 @@ button_width :: proc(r: ^Renderer, label: string, options := Button_Options{}) -
 	return width
 }
 
-// A toolbar button: an icon in a 28 by 28 square, its label read by screen readers and
-// shown in its tooltip. A toggle, such as a panel's, says whether it is on: nil for a
+// A toolbar button: an icon of icon_size points in a 28 by 28 square, its label read by
+// screen readers and shown in its tooltip. A toggle, such as a panel's, says whether it is on: nil for a
 // button that is not one.
 toolbar_button :: proc(
 	ui: ^Ui,
@@ -117,12 +117,13 @@ toolbar_button :: proc(
 	label: string,
 	checked: Maybe(bool) = nil,
 	disabled := false,
+	icon_size: f32 = 16,
 ) -> (
 	clicked: bool,
 ) {
 	states, activated := button_states(ui, id, rect, disabled)
 	if checked == true do states += {.Checked}
-	draw_toolbar_button(ui.renderer, ui.theme, rect, icon, states)
+	draw_toolbar_button(ui.renderer, ui.theme, rect, icon, states, icon_size)
 	tooltip(ui, id, rect, label)
 	declared := widget_states(states)
 	if checked != nil do declared += {.Checkable}
@@ -262,6 +263,7 @@ draw_toolbar_button :: proc(
 	rect: Rect,
 	icon: Icon,
 	states: Button_States,
+	icon_size: f32 = 16,
 ) {
 	disabled := .Disabled in states
 	color := th.text_secondary
@@ -276,7 +278,7 @@ draw_toolbar_button :: proc(
 		if .Checked in states do color = th.text_primary
 	}
 	if .Focused in states && !disabled do draw_focus_ring(r, th, rect, RADIUS)
-	draw_icon_centered(r, icon, rect, color)
+	draw_icon_centered(r, icon, rect, color, icon_size)
 }
 
 // The keyboard focus ring around rect, outside it.
