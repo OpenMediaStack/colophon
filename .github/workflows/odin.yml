@@ -62,6 +62,14 @@ jobs:
           if [ ! -e "$stb/lib/stb_truetype.a" ]; then
             sh "$stb/src/build_stb.sh" unix
           fi
+      - name: Build Odin's miniaudio library (Linux and macOS)
+        # The sound of the player and the waveform's decoding: Windows ships the library built.
+        if: runner.os != 'Windows'
+        run: |
+          lib="$(odin root)/vendor/miniaudio/lib/miniaudio.a"
+          if [ ! -e "$lib" ]; then
+            sh "$(odin root)/vendor/miniaudio/src/build_miniaudio.sh"
+          fi
       - name: Install SDL3 (macOS)
         if: runner.os == 'macOS'
         run: brew install sdl3
