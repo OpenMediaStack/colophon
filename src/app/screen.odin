@@ -15,8 +15,11 @@ CENTRE_MIN_WIDTH :: 560
 // point apart, for the line between them.
 Layout :: struct {
 	menu_bar, toolbar, sidebar, centre, inspector, status: ui.Rect,
+	// The bar under the table, once a track plays.
+	player:                                                ui.Rect,
 	sidebar_shown, inspector_shown:                        bool,
 	menu_bar_shown:                                        bool,
+	player_shown:                                          bool,
 }
 
 // The panels wait for something open. The sidebar gives way on its own when the centre
@@ -54,6 +57,11 @@ layout_of :: proc(app: ^App, window: ui.Rect) -> (l: Layout) {
 		right -= 1
 	}
 	l.centre = {left, top, max(right - left, 0), height}
+	l.player_shown = open && player_shown(app) && height > PLAYER_HEIGHT + 1
+	if l.player_shown {
+		l.player = {left, top + height - PLAYER_HEIGHT, l.centre.w, PLAYER_HEIGHT}
+		l.centre.h -= PLAYER_HEIGHT + 1
+	}
 	return
 }
 
@@ -63,6 +71,7 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	th := ctx.theme
 	app.window_size = {window.w, window.h}
 	follow_save(app, ctx.input.time)
+	follow_play_failure(app, ctx.input.time)
 	poll_thumbnails(ctx, app)
 	l := layout_of(app, window)
 	// The lines between the regions: the window shows through the point between them.
@@ -77,10 +86,14 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	} else {
 		empty_state(ctx, app, l.centre)
 	}
+	if l.player_shown do player_bar(ctx, app, l.player)
 	if l.inspector_shown do inspector(ctx, app, l.inspector)
 	status_bar(ctx, app, l.status)
 	if app.drop.hovering do drop_target(ctx, window)
-	toasts(ctx, app, window)
+	// A toast stays above the player's bar, not over it.
+	toast_window := window
+	if l.player_shown do toast_window.h = l.player.y - toast_window.y
+	toasts(ctx, app, toast_window)
 	palette(ctx, app, window)
 	settings_dialog(ctx, app, window)
 	about_dialog(ctx, app, window)

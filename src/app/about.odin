@@ -51,6 +51,13 @@ THIRD_PARTY := [?]Third_Party {
 		#load("../../assets/icons/LICENSE-lucide.txt"),
 	},
 	{
+		"miniaudio",
+		"",
+		"Public domain or MIT No Attribution",
+		"https://github.com/mackron/miniaudio",
+		#load("../../assets/licenses/miniaudio.txt"),
+	},
+	{
 		"odid3",
 		"",
 		"MIT License",

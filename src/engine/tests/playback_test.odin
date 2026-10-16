@@ -181,6 +181,10 @@ a_track_that_cannot_play_is_reported :: proc(t: ^testing.T) {
 	failure, failed := e.play_failure.?
 	testing.expect(t, failed)
 	testing.expect_value(t, failure, engine.Play_Failure{0, .Cannot_Decode})
+	// The same failure again counts again, so that it is told again.
+	testing.expect_value(t, e.play_failures, 1)
+	engine.execute(&e, engine.Play{0})
+	testing.expect_value(t, e.play_failures, 2)
 }
 
 @(test)
