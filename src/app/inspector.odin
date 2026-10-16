@@ -564,7 +564,7 @@ section_header :: proc(
 	if .Hovered in interaction do ctx.cursor = .Pointer
 	if .Clicked in interaction do open^ = !open^
 	color := .Hovered in interaction ? th.text_secondary : th.text_tertiary
-	ui.draw_icon(r, .Chevron_Down, {rect.x, rect.y + 2, 12, 12}, color, open^ ? 0 : 3)
+	ui.draw_icon(r, open^ ? .Chevron_Down : .Chevron_Right, {rect.x, rect.y + 2, 12, 12}, color)
 	ui.draw_text(r, title, rect.x + 16, rect.y + rect.h / 2, .Label, color)
 	states: ui.Widget_States = open^ ? {.Expanded} : {}
 	ui.declare(ctx, {id = id, role = .Button, label = title, rect = rect, states = states})
