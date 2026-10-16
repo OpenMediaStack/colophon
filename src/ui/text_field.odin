@@ -433,13 +433,14 @@ draw_field_value :: proc(
 		color := .Disabled in options.flags ? th.text_disabled : th.text_primary
 		draw_text_fit(r, value, text_rect.x, middle, text_rect.w, style, color)
 	} else if len(options.placeholder) > 0 {
+		// In Inter whatever the value's font, as 1.0.0's: a hint is words, not numbers.
 		draw_text_fit(
 			r,
 			options.placeholder,
 			text_rect.x,
 			middle,
 			text_rect.w,
-			style,
+			.Body,
 			th.text_tertiary,
 		)
 	}
