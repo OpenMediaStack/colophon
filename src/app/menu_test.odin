@@ -383,6 +383,27 @@ a_choice_of_the_system_menu_runs_its_command :: proc(t: ^testing.T) {
 	testing.expect_value(t, s.app.menu_choice, nil)
 }
 
+// On macOS the application menu is the first: About, then Settings.
+@(test)
+the_application_menu_of_macos_opens_about_and_settings :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_on(t, &s, .Mac)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	s.app.menu_choice = 0 * MENU_CODE + 1
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	testing.expect(t, s.app.settings_open)
+	testing.expect(t, !s.app.about.open)
+	s.app.settings_open = false
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	s.app.menu_choice = 0 * MENU_CODE + 0
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	testing.expect(t, s.app.about.open)
+}
+
 @(test)
 a_choice_that_cannot_run_or_is_gone_does_nothing :: proc(t: ^testing.T) {
 	s: Screen

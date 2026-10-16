@@ -32,8 +32,8 @@ Menu :: struct {
 }
 
 // The menus of the menu bar, as 1.0.0's: what each does and whether it can now, a
-// dialog being up making them wait. Settings are in the File menu on macOS and Windows,
-// and in the Edit menu on Linux, which calls them Preferences; macOS has About in the
+// dialog being up making them wait. Settings are in the File menu on Windows, and in the
+// Edit menu on Linux, which calls them Preferences; macOS has Settings and About in the
 // application menu. The strings are allocated with the temporary allocator.
 @(private)
 app_menus :: proc(ctx: ^ui.Ui, app: ^App) -> []Menu {
@@ -72,7 +72,7 @@ app_menus :: proc(ctx: ^ui.Ui, app: ^App) -> []Menu {
 			shortcut_hint(app, ","),
 			separator = true,
 		)
-		finish(&menus, &lines, "Colophon")
+		finish(&menus, &lines, APP_NAME)
 	}
 	line(&lines, ui.tr("Open Folder…"), !waiting, nil, .Open_Folder, shortcut_hint(app, "O"))
 	line(
@@ -281,7 +281,7 @@ menu_bar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 }
 
 // Whether the window draws its own menu bar: on every platform whose menu bar is not the
-// system's. macOS has a global one, which a later slice fills.
+// system's. macOS has a global one, which sync_native_menu fills.
 menu_bar_drawn :: proc(app: ^App) -> bool {
 	return app.platform != .Mac
 }
@@ -298,7 +298,8 @@ take_menu_choice :: proc(ctx: ^ui.Ui, app: ^App) {
 	menu, line := code / MENU_CODE, code % MENU_CODE
 	if code < 0 || menu >= len(menus) || line >= len(menus[menu].lines) do return
 	entry := menus[menu].lines[line].entry
-	if entry.enabled do run_entry(ctx, app, entry)
+	if !entry.enabled do return
+	run_entry(ctx, app, entry)
 	// The command ran in this frame, which shows it at once.
 	app.commands += 1
 }

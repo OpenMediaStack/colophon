@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-16 20:09+0200\n"
+"POT-Creation-Date: 2026-10-16 20:24+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -31,7 +31,7 @@ msgstr ""
 msgid "Colophon ships these fonts, icons and libraries, each under its own license."
 msgstr ""
 
-#: src/app/about.odin:131 src/ui/overlay.odin:313
+#: src/app/about.odin:131 src/app/menu_darwin.odin:124 src/ui/overlay.odin:313
 msgid "Close"
 msgstr ""
 
@@ -540,12 +540,24 @@ msgstr ""
 msgid "Menu bar"
 msgstr ""
 
-#: src/app/menu_darwin.odin:80
+#: src/app/menu_darwin.odin:86
 msgid "Hide {}"
 msgstr ""
 
 #: src/app/menu_darwin.odin:88
 msgid "Quit {}"
+msgstr ""
+
+#: src/app/menu_darwin.odin:115
+msgid "Window"
+msgstr ""
+
+#: src/app/menu_darwin.odin:116
+msgid "Minimize"
+msgstr ""
+
+#: src/app/menu_darwin.odin:118
+msgid "Zoom"
 msgstr ""
 
 #: src/app/palette.odin:108 src/app/toolbar.odin:67

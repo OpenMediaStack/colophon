@@ -10,3 +10,6 @@ Native_Menu :: struct {}
 // Brings the system's menu bar up to date with the menus of the app: nothing, on a
 // platform whose bar is drawn in the window.
 sync_native_menu :: proc(ctx: ^ui.Ui, app: ^App) {}
+
+// Frees what the system's menu bar keeps: nothing here.
+destroy_native_menu :: proc(n: ^Native_Menu) {}

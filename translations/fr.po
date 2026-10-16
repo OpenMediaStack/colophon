@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Colophon\n"
 "Report-Msgid-Bugs-To: https://github.com/OpenMediaStack/colophon/issues\n"
-"POT-Creation-Date: 2026-10-16 20:09+0200\n"
+"POT-Creation-Date: 2026-10-16 20:24+0200\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -22,7 +22,7 @@ msgstr "Licences tierces"
 msgid "Colophon ships these fonts, icons and libraries, each under its own license."
 msgstr "Colophon inclut ces polices, ces icônes et ces bibliothèques, chacune sous sa propre licence."
 
-#: src/app/about.odin:131 src/ui/overlay.odin:313
+#: src/app/about.odin:131 src/app/menu_darwin.odin:124 src/ui/overlay.odin:313
 msgid "Close"
 msgstr "Fermer"
 
@@ -531,13 +531,25 @@ msgstr "Aide"
 msgid "Menu bar"
 msgstr "Barre de menus"
 
-#: src/app/menu_darwin.odin:80
+#: src/app/menu_darwin.odin:86
 msgid "Hide {}"
 msgstr "Masquer {}"
 
 #: src/app/menu_darwin.odin:88
 msgid "Quit {}"
 msgstr "Quitter {}"
+
+#: src/app/menu_darwin.odin:115
+msgid "Window"
+msgstr "Fenêtre"
+
+#: src/app/menu_darwin.odin:116
+msgid "Minimize"
+msgstr "Réduire"
+
+#: src/app/menu_darwin.odin:118
+msgid "Zoom"
+msgstr "Agrandir"
 
 #: src/app/palette.odin:108 src/app/toolbar.odin:67
 msgid "Command palette"

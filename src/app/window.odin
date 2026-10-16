@@ -36,8 +36,8 @@ Window :: struct {
 	text_input:  bool,
 	// The window's title, as last set.
 	title:       string,
-	// The event the engine's threads push to wake the loop, and the one a dialog
-	// pushes with what the user chose.
+	// The event the engine's threads push to wake the loop, the one a dialog pushes
+	// with what the user chose, and the one the system's menu bar pushes with its choice.
 	wake_type:   u32,
 	chosen_type: u32,
 	menu_type:   u32,
@@ -94,7 +94,7 @@ run :: proc(options: Options) -> bool {
 			use_preferences(&app, path)
 		}
 		options.window_size = opening_size(options, app.engine.view.window_size)
-		app.menu_event = w.menu_type
+		app.menu_event_type = w.menu_type
 	}
 	app.dialogs = {
 		data        = &w,
