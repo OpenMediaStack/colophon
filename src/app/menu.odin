@@ -219,6 +219,7 @@ menu_bar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	if !bar_open && ui.take_key(ctx, .F10) && len(menus) > 0 {
 		ui.open_menu(ctx, ui.child_id(id, "menu", 0), {title_rects[0].x, rect.y + rect.h})
 	}
+	focused_title := -1
 	for menu, i in menus {
 		menu_id := ui.child_id(id, "menu", i)
 		title_id := ui.child_id(id, "title", i)
@@ -226,9 +227,21 @@ menu_bar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		// The popup takes the mouse while a menu is open: where it is decides the switch.
 		over := ui.rect_contains(title_rects[i], ctx.input.mouse)
 		interaction := ui.interact(ctx, title_id, title_rects[i])
-		if (.Clicked in interaction) || (over && bar_open && !open) {
+		focused := ui.has_focus(ctx, title_id)
+		keyed := false
+		if focused {
+			focused_title = i
+			keyed = ui.take_key(ctx, .Enter) || ui.take_key(ctx, .Space) || ui.take_key(ctx, .Down)
+			if ui.take_key(ctx, .Tab) do ui.move_focus(ctx, .Forward)
+			if ui.take_key(ctx, .Tab, {.Shift}) do ui.move_focus(ctx, .Back)
+		}
+		if (.Clicked in interaction) || keyed || (over && bar_open && !open) {
 			ui.open_menu(ctx, menu_id, {title_rects[i].x, rect.y + rect.h})
 			open = true
+		}
+		if focused && ctx.focus_by_key && !bar_open {
+			// Inside the title, the bar having no room above it for the ring's stroke.
+			ui.draw_focus_ring(r, th, ui.rect_inset(title_rects[i], 3, 3), 1)
 		}
 		if open || .Hovered in interaction do ui.fill_rect(r, title_rects[i], th.surface_3, 4)
 		ui.draw_text(
@@ -240,6 +253,7 @@ menu_bar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 			th.text_primary,
 		)
 		states: ui.Widget_States = open ? {.Expanded} : {}
+		if focused do states += {.Focused}
 		ui.declare(
 			ctx,
 			{
@@ -248,6 +262,7 @@ menu_bar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 				label = menu.title,
 				rect = title_rects[i],
 				states = states,
+				focusable = true,
 			},
 		)
 	}
@@ -269,6 +284,9 @@ menu_bar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		// Left and Right go to the menu beside, as in every menu bar.
 		if step := ui.menu_step(ctx); step != 0 {
 			next := (i + step + len(menus)) % len(menus)
+			if focused_title >= 0 {
+				ui.request_focus(ctx, ui.child_id(id, "title", next), by_key = true)
+			}
 			ui.open_menu(
 				ctx,
 				ui.child_id(id, "menu", next),
