@@ -3,6 +3,7 @@ package main
 import "base:runtime"
 import "core:c"
 import "core:fmt"
+import "core:log"
 import "core:math"
 import "core:os"
 import "core:strings"
@@ -118,21 +119,22 @@ demo_cover :: proc(album: Demo_Album, seed: int) -> []u8 {
 			for k in 0 ..< 3 do pixels[(y * SIDE + x) * 3 + k] = u8(clamp(math.round(pixel[k]), 0, 255))
 		}
 	}
-	Output :: struct {
-		data:      [dynamic]u8,
-		allocator: runtime.Allocator,
-	}
-	jpeg := Output {
-		allocator = context.allocator,
-	}
-	jpeg.data.allocator = context.allocator
-	stbiw.write_jpg_to_func(proc "c" (written: rawptr, data: rawptr, size: c.int) {
-			out := (^Output)(written)
+	jpeg := make([dynamic]u8)
+	stbiw.write_jpg_to_func(
+		proc "c" (written: rawptr, data: rawptr, size: c.int) {
 			context = runtime.default_context()
-			context.allocator = out.allocator
-			append(&out.data, ..([^]u8)(data)[:size])
-		}, &jpeg, SIDE, SIDE, 3, raw_data(pixels), 90)
-	return jpeg.data[:]
+			out := (^[dynamic]u8)(written)
+			// The array appends with the allocator it was made with, whatever the context.
+			append(out, ..([^]u8)(data)[:size])
+		},
+		&jpeg,
+		SIDE,
+		SIDE,
+		3,
+		raw_data(pixels),
+		90,
+	)
+	return jpeg[:]
 }
 
 // A music folder in home, with a folder per album, its tracks tagged with its cover, as
@@ -144,6 +146,7 @@ demo_library :: proc(t: ^testing.T, home: string) -> (music, first: string) {
 	defer delete(whole)
 	// At 128 kbit/s and 44.1 kHz an unpadded frame is 417 bytes: the audio starts after the
 	// Info frame, whose count would give the fixture's length, not the repetitions'.
+	if !testing.expect(t, len(whole) > 417 && whole[417] == 0xFF && whole[418] == 0xFB) do return
 	second := whole[417:]
 	music = fmt.aprintf("%s/Music", home)
 	for album, seed in DEMO_ALBUMS {
@@ -211,8 +214,10 @@ demo_waveform :: proc(seconds: int) -> audio.Waveform {
 	defer delete(samples)
 	grain: u32 = 7
 	level: f32
+	// A level for each share of the track a bar of the player covers, about 300 of them.
+	block := max(len(samples) / 300, 1)
 	for i in 0 ..< len(samples) {
-		if i % 128 == 0 {
+		if i % block == 0 {
 			grain = grain * 1103515245 + 12345
 			noise := f32(grain >> 16) / 65535
 			place := f32(i) / f32(len(samples))
@@ -239,7 +244,9 @@ save_screen :: proc(t: ^testing.T, s: ^Screen, path: string) {
 }
 
 // The window on the demo library in a theme: the fourth track selected and its title
-// edited, and the first playing at 38 per cent.
+// edited, and the first playing at 38 per cent. The caller owns the temporary folder that
+// holds the library, which the covers are read from: remove it with remove_folder once
+// the frame is saved.
 @(private = "file")
 screen_on_demo :: proc(
 	t: ^testing.T,
@@ -256,6 +263,7 @@ screen_on_demo :: proc(
 	defer delete(first)
 	defer delete(music)
 	screen_init(s, {1440, 900}, kind)
+	// With Ctrl shortcuts and the menu bar drawn in the window, as 1.0.0's screenshots had.
 	s.app.platform = .Windows
 	// The sidebar shows the library as ~/Music.
 	delete(s.app.home, s.app.engine.allocator)
@@ -268,7 +276,6 @@ screen_on_demo :: proc(
 	retype(s, "Title", "Static Bloom (Radio Edit)")
 	ui.press_key(&s.h, .Enter)
 	ui.run_frame(&s.h)
-	// The first of the album Analog Hearts plays.
 	neon: engine.Track_Id
 	for track, i in s.app.engine.library.tracks {
 		if title, has := track.metadata.tags.title.?; has && title == "Neon Weather" do neon = engine.Track_Id(i)
@@ -293,7 +300,10 @@ screen_on_demo :: proc(
 
 @(test)
 the_readme_screenshots :: proc(t: ^testing.T) {
-	if os.get_env("WRITE_SCREENSHOTS", context.temp_allocator) == "" do return
+	if os.get_env("WRITE_SCREENSHOTS", context.temp_allocator) == "" {
+		log.info("WRITE_SCREENSHOTS is not set: no screenshot written")
+		return
+	}
 	for kind in ui.Theme_Kind {
 		s: Screen
 		speakers: Demo_Speakers
