@@ -266,8 +266,10 @@ the_conversion_speaks_french :: proc(t: ^testing.T) {
 	testing.expect_value(t, ui.catalog_tr(&c, "Write ID3v2"), "Écrire l’ID3v2")
 }
 
-// The developer mode's marker in the status bar is JetBrains Mono at 11 points in a box
-// 18 high with 6 points on either side, as 1.0.0's: its words are 91 points wide at twice the scale (92.4 as the font draws them).
+// The developer mode's marker in the status bar is JetBrains Mono at 11 points in a box 18
+// high with 6 points on either side, as 1.0.0's. 1.0.0's width is 14 glyphs of 6.6 points
+// and 12 around them, 104.4; fontstash rounds each advance to whole pixels, 13 at twice
+// the scale (6.5 points: 91 and 12 around them), 14 for the 12 point style.
 @(test)
 the_developer_marker_is_mono_at_11_points :: proc(t: ^testing.T) {
 	s: Screen
