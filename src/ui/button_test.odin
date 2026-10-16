@@ -240,3 +240,16 @@ the_disc_button_clicks_and_a_disabled_one_does_not :: proc(t: ^testing.T) {
 	info, _ = find_widget(&h.ui, "Play")
 	testing.expect(t, .Disabled in info.states)
 }
+
+// A key shown as a button is its label in the hint style with 8 points of padding at each
+// side, where a button has 12 and the body style.
+@(test)
+a_small_button_is_its_key_in_the_hint_style :: proc(t: ^testing.T) {
+	r := test_renderer()
+	defer destroy_test_renderer(r)
+	small := button_width(r, "⌘K", {kind = .Secondary, small = true})
+	testing.expect_value(t, small, 2 * 8 + text_width(r, "⌘K", .Hint))
+	plain := button_width(r, "⌘K", {kind = .Secondary})
+	testing.expect_value(t, plain, 2 * 12 + text_width(r, "⌘K", .Body))
+	testing.expect(t, small < plain)
+}

@@ -119,10 +119,10 @@ palette :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	up := ui.take_key(ctx, .Up, repeats = true)
 	ui.draw_icon(r, .Search, {box.x + 14, box.y + 14, 16, 16}, th.text_tertiary)
 	esc := "esc"
-	esc_width := ui.text_width(r, esc, .Small) + 12
+	esc_width := ui.text_width(r, esc, .Hint) + 12
 	esc_box := ui.Rect{box.x + box.w - 14 - esc_width, box.y + 13, esc_width, 18}
 	ui.stroke_rect(r, esc_box, th.border_strong, 3)
-	ui.draw_text(r, esc, esc_box.x + 6, esc_box.y + 9, .Small, th.text_secondary)
+	ui.draw_text(r, esc, esc_box.x + 6, esc_box.y + 9, .Hint, th.text_secondary)
 	field_rect := ui.Rect{box.x + 40, box.y + 8, esc_box.x - 10 - (box.x + 40), 28}
 	result := ui.text_field(
 		ctx,

@@ -116,7 +116,7 @@ frames_section :: proc(
 	for frame, i in shown {
 		value := single_line(frame_value(frame))
 		details := frame_details(frame, layout.unsynchronisation && layout.version != .V2_4)
-		lines := ui.wrap_text(r, details, .Small, width - VALUE_INDENT, context.temp_allocator)
+		lines := ui.wrap_text(r, details, .Hint, width - VALUE_INDENT, context.temp_allocator)
 		if !measure_only {
 			ui.draw_text(r, frame.id, x, y + FRAME_LINE / 2, .Numeric, th.text_primary)
 			ui.draw_text_fit(
@@ -147,7 +147,7 @@ frames_section :: proc(
 					line,
 					x + VALUE_INDENT,
 					y + f32(j) * DETAIL_LINE + DETAIL_LINE / 2,
-					.Small,
+					.Hint,
 					th.text_tertiary,
 				)
 			}

@@ -7,7 +7,6 @@ import ui "../ui"
 empty_state :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	WELL :: 72
 	SPACING :: 16
-	// The open button is a large one: 32 high with 14 points on either side, as 1.0.0's.
 	LARGE_BUTTON :: 32
 	WIDEST_TEXT :: 400
 	r := ctx.renderer

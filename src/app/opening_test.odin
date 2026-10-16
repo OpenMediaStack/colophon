@@ -156,18 +156,14 @@ the_drop_target_matches_its_references :: proc(t: ^testing.T) {
 	}
 }
 
-// The empty state's button is a large one, 32 high, as 1.0.0's.
+// The empty state's button is a large one, 32 high and 145 wide, as 1.0.0's.
 @(test)
 the_empty_states_button_is_a_large_one :: proc(t: ^testing.T) {
 	s: Screen
 	screen_init(&s, {1440, 900})
 	defer screen_destroy(&s)
 	button, found := ui.find_widget(&s.h.ui, "Open folder…")
-	// The toolbar's button of the same name comes first: the larger one is the other.
-	large: ui.Widget_Info
-	for w in s.h.ui.widgets do if w.label == "Open folder…" && w.rect.h > 30 do large = w
-	_ = button
-	_ = found
-	testing.expect_value(t, large.rect.h, 32)
-	testing.expectf(t, abs(large.rect.w - 145) <= 4, "the button is %v wide", large.rect.w)
+	if !testing.expect(t, found) do return
+	testing.expect_value(t, button.rect.h, 32)
+	testing.expect_value(t, button.rect.w, 145)
 }
