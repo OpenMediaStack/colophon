@@ -87,3 +87,20 @@ a_text_styles_size_is_its_em :: proc(t: ^testing.T) {
 	width := text_width(r, "0000000000", .Numeric)
 	testing.expectf(t, abs(width - 72) <= 3, "ten digits are %v points wide", width)
 }
+
+// The masks fill their 24 unit view box, as the SVGs are drawn at any size: panel-left's
+// strokes run from 2 to 22 units, so from 5 to 58 of 64 pixels (a thumbnail that is drawn
+// smaller than its size once gave 5 to 49).
+@(test)
+an_icon_mask_fills_its_view_box :: proc(t: ^testing.T) {
+	mask := ICON_MASKS[.Panel_Left]
+	testing.expect_value(t, len(mask), ICON_SIZE * ICON_SIZE)
+	first, last := ICON_SIZE, -1
+	for value, i in mask {
+		if value < 128 do continue
+		x := i % ICON_SIZE
+		first, last = min(first, x), max(last, x)
+	}
+	testing.expectf(t, first >= 5 && first <= 6, "the ink starts at %d", first)
+	testing.expectf(t, last >= 57 && last <= 58, "the ink ends at %d", last)
+}
