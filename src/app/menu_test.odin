@@ -426,3 +426,116 @@ a_choice_that_cannot_run_or_is_gone_does_nothing :: proc(t: ^testing.T) {
 	ui.run_frame(&s.h)
 	testing.expect(t, s.app.settings_open)
 }
+
+@(private = "file")
+focus_title :: proc(s: ^Screen, index: int) {
+	bar, _ := ui.find_widget(&s.h.ui, "Menu bar")
+	ui.request_focus(&s.h.ui, ui.child_id(bar.id, "title", index), by_key = true)
+	ui.ui_end_frame(&s.h.ui)
+	ui.run_frame(&s.h)
+}
+
+// A title the keyboard has opens its menu with Enter, Space or Down, and Tab goes on to
+// the title beside.
+@(test)
+a_title_with_the_focus_opens_with_the_keyboard :: proc(t: ^testing.T) {
+	for key in ([?]ui.Key{.Enter, .Space, .Down}) {
+		s: Screen
+		folder := screen_on(t, &s, .Linux)
+		defer remove_folder(folder)
+		defer screen_destroy(&s)
+		focus_title(&s, 1)
+		edit, _ := ui.find_widget(&s.h.ui, "Edit")
+		testing.expect(t, .Focused in edit.states)
+		testing.expect(t, !shows(&s, "Select Album"))
+		ui.press_key(&s.h, key)
+		ui.run_frame(&s.h)
+		testing.expectf(t, shows(&s, "Select Album"), "%v did not open Edit", key)
+	}
+}
+
+@(test)
+tab_goes_from_one_title_to_the_next :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_on(t, &s, .Linux)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	focus_title(&s, 0)
+	ui.press_key(&s.h, .Tab)
+	ui.run_frame(&s.h)
+	edit, _ := ui.find_widget(&s.h.ui, "Edit")
+	testing.expect(t, .Focused in edit.states)
+	file, _ := ui.find_widget(&s.h.ui, "File")
+	testing.expect(t, .Focused not_in file.states)
+	ui.press_key(&s.h, .Tab, {.Shift})
+	ui.run_frame(&s.h)
+	file, _ = ui.find_widget(&s.h.ui, "File")
+	testing.expect(t, .Focused in file.states)
+}
+
+// Left and Right in an open menu move the focus along with it, so that Escape and Down
+// act on the menu that is open.
+@(test)
+the_focus_follows_the_menu_that_opens_beside :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_on(t, &s, .Linux)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	focus_title(&s, 1)
+	ui.press_key(&s.h, .Down)
+	ui.run_frame(&s.h)
+	testing.expect(t, shows(&s, "Select Album"))
+	ui.press_key(&s.h, .Right)
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	controls, _ := ui.find_widget(&s.h.ui, "Controls")
+	testing.expect(t, .Focused in controls.states)
+	edit, _ := ui.find_widget(&s.h.ui, "Edit")
+	testing.expect(t, .Focused not_in edit.states)
+	ui.press_key(&s.h, .Escape)
+	ui.run_frame(&s.h)
+	testing.expect(t, !shows(&s, "Select Album"))
+	ui.press_key(&s.h, .Down)
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	testing.expect(t, shows(&s, "Play"))
+}
+
+// A click opens a menu without giving its title the focus, and F10 does not either.
+@(test)
+a_title_is_focused_only_by_the_keyboard_or_a_widget_asking :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_on(t, &s, .Linux)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	testing.expect(t, ui.click(&s.h, "Edit"))
+	ui.run_frame(&s.h)
+	edit, _ := ui.find_widget(&s.h.ui, "Edit")
+	testing.expect(t, .Focused not_in edit.states)
+	ui.press_key(&s.h, .Escape)
+	ui.run_frame(&s.h)
+	ui.press_key(&s.h, .F10)
+	ui.run_frame(&s.h)
+	file, _ := ui.find_widget(&s.h.ui, "File")
+	testing.expect(t, .Focused not_in file.states)
+}
+
+// The title the keyboard reached wears the focus ring, inside the bar, in both themes.
+@(test)
+a_focused_title_matches_its_references :: proc(t: ^testing.T) {
+	for kind in ui.Theme_Kind {
+		s: Screen
+		screen_init(&s, {1280, 720}, kind)
+		defer screen_destroy(&s)
+		s.app.platform = .Linux
+		ui.run_frame(&s.h)
+		focus_title(&s, 0)
+		ui.move_mouse(&s.h, {0, 300})
+		ui.run_frame(&s.h)
+		expect_screen(
+			t,
+			&s,
+			kind == .Dark ? "menu-bar-focus-dark.png" : "menu-bar-focus-light.png",
+		)
+	}
+}
