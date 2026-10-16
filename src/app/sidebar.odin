@@ -140,7 +140,7 @@ sidebar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		}
 	}
 	if len(artists) > 0 {
-		// A section that folds: its title is a button, with a chevron that turns.
+		// A section that folds: its title is a button, with a chevron that points down when it is open and right when it is folded.
 		header := ui.child_id(id, "artists")
 		header_rect := ui.Rect{x, y, width, 34}
 		interaction := ui.interact(ctx, header, header_rect)

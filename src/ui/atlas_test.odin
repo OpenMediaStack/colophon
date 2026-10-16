@@ -22,8 +22,8 @@ an_icon_mask_fills_its_view_box :: proc(t: ^testing.T) {
 	testing.expectf(t, bottom >= 57 && bottom <= 58, "the ink ends at %d from the top", bottom)
 }
 
-// The right chevron is the down chevron turned a quarter, drawn as an icon of its own: the
-// software renderer cannot turn a texture.
+// The right chevron is the down chevron turned a quarter, an icon of its own: SDL's software
+// renderer would draw a turned texture flipped (see draw_icon).
 @(test)
 the_right_chevron_is_the_down_chevron_turned :: proc(t: ^testing.T) {
 	down, right := ICON_MASKS[.Chevron_Down], ICON_MASKS[.Chevron_Right]
@@ -39,5 +39,5 @@ the_right_chevron_is_the_down_chevron_turned :: proc(t: ^testing.T) {
 			if abs(a - b) > 64 do differing += 1
 		}
 	}
-	testing.expectf(t, differing < 60, "%d pixels differ from the turned down chevron", differing)
+	testing.expectf(t, differing == 0, "%d pixels differ from the turned down chevron", differing)
 }
