@@ -65,6 +65,12 @@ App :: struct {
 	told_failures:    int,
 	// What the window does about quitting with changes that are not saved.
 	departure:        Maybe(Departure),
+	// A choice made in the system's menu bar, waiting for the frame that runs it, and
+	// the event type its choices travel in (nil: no system menu bar, as in tests and
+	// screenshots).
+	menu_choice:      Maybe(int),
+	menu_event_type:  Maybe(u32),
+	native_menu:      Native_Menu,
 	// The window closes: the loop ends after the frame.
 	quit:             bool,
 }
@@ -116,6 +122,7 @@ app_init :: proc(app: ^App, wake := lib.Wake{}, allocator := context.allocator) 
 app_destroy :: proc(app: ^App) {
 	delete(app.home, app.engine.allocator)
 	destroy_sidebar(&app.sidebar)
+	destroy_native_menu(&app.native_menu)
 	destroy_tracks(&app.tracks)
 	forget_notice(app)
 	delete(app.genres.list, app.engine.allocator)

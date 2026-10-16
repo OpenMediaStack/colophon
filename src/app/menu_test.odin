@@ -53,7 +53,14 @@ the_menus_follow_the_platform :: proc(t: ^testing.T) {
 		shortcut:  string,
 		open_with: string,
 	} {
-		{.Mac, {"File", "Edit", "Controls", "View"}, "Settings…", "File", "⌘,", "⌘O"},
+		{
+			.Mac,
+			{"Colophon", "File", "Edit", "Controls", "View"},
+			"Settings…",
+			"Colophon",
+			"⌘,",
+			"⌘O",
+		},
 		{
 			.Windows,
 			{"File", "Edit", "Controls", "View", "Help"},
@@ -358,4 +365,64 @@ the_bar_fits_the_smallest_windows :: proc(t: ^testing.T) {
 		toolbar, _ := ui.find_widget(&s.h.ui, "Toolbar")
 		testing.expect_value(t, toolbar.rect.y, f32(MENU_BAR_HEIGHT))
 	}
+}
+
+// What the system's menu bar chooses arrives as a number, and runs in the next frame.
+@(test)
+a_choice_of_the_system_menu_runs_its_command :: proc(t: ^testing.T) {
+	s: Screen
+	screen_on(t, &s, .Linux, false)
+	defer screen_destroy(&s)
+	music := folder_with_fixtures(t, {{"v23_full.mp3", "1.mp3"}})
+	defer remove_folder(music)
+	append(&s.answers.folders, music)
+	// File, then its first line: Open Folder….
+	s.app.menu_choice = 0 * MENU_CODE + 0
+	ui.run_frame(&s.h)
+	wait_until_shown(t, &s, "1 track")
+	testing.expect_value(t, s.app.menu_choice, nil)
+}
+
+// On macOS the application menu is the first: About, then Settings.
+@(test)
+the_application_menu_of_macos_opens_about_and_settings :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_on(t, &s, .Mac)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	s.app.menu_choice = 0 * MENU_CODE + 1
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	testing.expect(t, s.app.settings_open)
+	testing.expect(t, !s.app.about.open)
+	s.app.settings_open = false
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	s.app.menu_choice = 0 * MENU_CODE + 0
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	testing.expect(t, s.app.about.open)
+}
+
+@(test)
+a_choice_that_cannot_run_or_is_gone_does_nothing :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_on(t, &s, .Linux)
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	// Save, with nothing to save, and numbers past the menus and the lines.
+	for code in ([?]int{0 * MENU_CODE + 2, 9 * MENU_CODE, 0 * MENU_CODE + 99, -1}) {
+		s.app.menu_choice = code
+		ui.run_frame(&s.h)
+		testing.expect_value(t, s.app.menu_choice, nil)
+	}
+	testing.expect_value(t, len(s.app.engine.edits.pending), 0)
+	testing.expect(t, !s.app.settings_open)
+	// The Edit menu's Preferences… on Linux runs: Edit is the second, its last line.
+	menus := app_menus(&s.h.ui, &s.app)
+	last := len(menus[1].lines) - 1
+	s.app.menu_choice = 1 * MENU_CODE + last
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	testing.expect(t, s.app.settings_open)
 }
