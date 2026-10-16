@@ -282,8 +282,8 @@ draw_waveform :: proc(ctx: ^ui.Ui, w: ^Waveform_State, area: ui.Rect, progress: 
 	count := max(1, int((area.w + BAR_STRIDE - BAR_WIDTH) / BAR_STRIDE))
 	bars := waveform_bars(w, count)
 	end := f32(count * BAR_STRIDE - (BAR_STRIDE - BAR_WIDTH))
-	// The bars start on a whole point, so that at a scale of 1 each is two whole pixels with
-	// a pixel between them, not a bright one and two half bright ones.
+	// Square bars on whole points: a radius of 1 on a 2 point bar is all fringe, which at a
+	// scale of 1 left a bright pixel and two half bright ones where 1.0.0 has two and a gap.
 	left := math.round(area.x)
 	played := left + end * clamp(progress, 0, 1)
 	middle := area.y + area.h / 2
