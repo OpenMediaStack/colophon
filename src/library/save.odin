@@ -96,6 +96,8 @@ write_tags :: proc(
 	file, read_err := id3.read_file(path, {}, allocator)
 	if read_err != nil do return write_error(read_err)
 	defer id3.destroy(&file)
+	// A file changed since it was scanned may hold a header odid3 cannot use.
+	if has_unusable_id3v2_header(&file) do return .Damaged
 	// A file without MPEG audio is left as it is, as it was read.
 	audio := file.layout.audio
 	if _, audio_err := mpa.read_file(path, audio.offset, audio.size, allocator); audio_err != nil {

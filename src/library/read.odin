@@ -28,6 +28,10 @@ read_track :: proc(path: string, allocator := context.allocator) -> (track: Trac
 		return
 	}
 	defer id3.destroy(&tags)
+	if has_unusable_id3v2_header(&tags) {
+		track.error = .Damaged
+		return
+	}
 	audio := tags.layout.audio
 	properties, audio_err := mpa.read_file(path, audio.offset, audio.size, allocator)
 	if audio_err != nil {
@@ -47,6 +51,15 @@ read_track :: proc(path: string, allocator := context.allocator) -> (track: Trac
 		formats = formats_of(&tags),
 	}
 	return
+}
+
+// Whether the file begins with an ID3v2 header odid3 cannot use (a version it does not
+// know, a size that is not syncsafe): it keeps those bytes as unknown ones, in front of
+// the audio, and a save would leave them behind the new tag. 1.0.0 called such a file
+// damaged too, though not every one odid3 refuses: its reader masks a stray bit of the size.
+@(private)
+has_unusable_id3v2_header :: proc(tags: ^id3.Tags) -> bool {
+	return tags.warnings & {.Bad_Header, .Unsupported_Version} != {}
 }
 
 @(private = "file")
