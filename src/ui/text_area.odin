@@ -3,12 +3,6 @@ package ui
 import "core:math"
 import "core:strings"
 
-// The height of a line of a field of several lines: the body's own line.
-@(private = "file")
-area_line :: proc(r: ^Renderer) -> f32 {
-	return line_height(r, .Body)
-}
-
 @(private = "file")
 AREA_PADDING :: 8
 @(private = "file")
@@ -84,12 +78,12 @@ text_area :: proc(
 		shown = edit_text(&ui.edit)
 		spans = area_lines(r, shown, inner)
 	}
-	content := [2]f32{inner.w, f32(len(spans)) * area_line(r)}
+	content := [2]f32{inner.w, f32(len(spans)) * line_height(r, .Body)}
 	clip := Rect{rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2}
 	// The caret stays in view.
 	if focused {
 		line := line_of(spans, ui.edit.caret)
-		scroll_into_view(scroll, f32(line) * area_line(r), area_line(r), inner.h)
+		scroll_into_view(scroll, f32(line) * line_height(r, .Body), line_height(r, .Body), inner.h)
 	}
 	push_clip(r, clip)
 	origin := begin_scroll(ui, id, inner, content, scroll)
@@ -100,7 +94,7 @@ text_area :: proc(
 			r,
 			options.placeholder,
 			inner.x,
-			origin.y + area_line(r) / 2,
+			origin.y + line_height(r, .Body) / 2,
 			.Body,
 			th.text_tertiary,
 		)
@@ -110,7 +104,7 @@ text_area :: proc(
 				r,
 				shown[span.start:span.end],
 				inner.x,
-				origin.y + f32(i) * area_line(r) + area_line(r) / 2,
+				origin.y + f32(i) * line_height(r, .Body) + line_height(r, .Body) / 2,
 				.Body,
 				th.text_primary,
 			)
@@ -252,7 +246,7 @@ draw_area_text :: proc(ui: ^Ui, text: string, spans: []Line_Span, inner: Rect, o
 	e := &ui.edit
 	low, high := min(e.caret, e.anchor), max(e.caret, e.anchor)
 	for span, i in spans {
-		y := origin.y + f32(i) * area_line(r)
+		y := origin.y + f32(i) * line_height(r, .Body)
 		line := text[span.start:span.end]
 		if low < high && low <= span.end && high >= span.start {
 			from := clamp(low, span.start, span.end)
@@ -261,9 +255,9 @@ draw_area_text :: proc(ui: ^Ui, text: string, spans: []Line_Span, inner: Rect, o
 			b := text_width(r, text[span.start:to], .Body)
 			// A selection that goes past the line's end shows a space for the break.
 			if high > span.end do b += 4
-			fill_rect(r, {inner.x + a, y, b - a, area_line(r)}, th.accent_selection)
+			fill_rect(r, {inner.x + a, y, b - a, line_height(r, .Body)}, th.accent_selection)
 		}
-		draw_text(r, line, inner.x, y + area_line(r) / 2, .Body, th.text_primary)
+		draw_text(r, line, inner.x, y + line_height(r, .Body) / 2, .Body, th.text_primary)
 	}
 	line := line_of(spans, e.caret)
 	x := caret_x(r, text, spans, line, e.caret)
@@ -271,7 +265,12 @@ draw_area_text :: proc(ui: ^Ui, text: string, spans: []Line_Span, inner: Rect, o
 	if math.mod(since, 2 * BLINK) < BLINK {
 		fill_rect(
 			r,
-			{inner.x + x, origin.y + f32(line) * area_line(r) + 1, CARET_WIDTH, area_line(r) - 2},
+			{
+				inner.x + x,
+				origin.y + f32(line) * line_height(r, .Body),
+				CARET_WIDTH,
+				line_height(r, .Body),
+			},
 			th.text_primary,
 		)
 	}
@@ -300,7 +299,7 @@ caret_x :: proc(r: ^Renderer, text: string, spans: []Line_Span, line, offset: in
 @(private = "file")
 offset_on_line :: proc(r: ^Renderer, text: string, span: Line_Span, x: f32) -> int {
 	line := text[span.start:span.end]
-	return span.start + offset_in(r, line, {0, 0, 1e6, area_line(r)}, .Body, x, 0)
+	return span.start + offset_in(r, line, {0, 0, 1e6, line_height(r, .Body)}, .Body, x, 0)
 }
 
 // The offset in text nearest to a point of the window, over the lines as scrolled.
@@ -314,6 +313,10 @@ offset_at :: proc(
 	p: [2]f32,
 ) -> int {
 	if len(spans) == 0 do return 0
-	line := clamp(int((p.y - inner.y + scroll.offset.y) / area_line(r)), 0, len(spans) - 1)
+	line := clamp(
+		int((p.y - inner.y + scroll.offset.y) / line_height(r, .Body)),
+		0,
+		len(spans) - 1,
+	)
 	return offset_on_line(r, text, spans[line], p.x - inner.x)
 }

@@ -9,12 +9,6 @@ import ui "../ui"
 @(private = "file")
 LABEL_HEIGHT :: 20
 
-// The height of a line of a hint: the small text's own line.
-@(private = "file")
-hint_line :: proc(r: ^ui.Renderer) -> f32 {
-	return ui.line_height(r, .Small)
-}
-
 // How each encoding is named on its segment.
 @(private = "file", rodata)
 ENCODING_LABELS := [lib.Text_Encoding]string {
@@ -141,7 +135,7 @@ write_details :: proc(
 				r,
 				line,
 				control_x,
-				y + f32(i) * hint_line(r) + hint_line(r) / 2,
+				y + f32(i) * ui.line_height(r, .Small) + ui.line_height(r, .Small) / 2,
 				.Small,
 				th.text_tertiary,
 			)
@@ -152,11 +146,11 @@ write_details :: proc(
 				id = ui.widget_id("Write details hint"),
 				role = .Label,
 				label = hint,
-				rect = {control_x, y, control_width, f32(len(lines)) * hint_line(r)},
+				rect = {control_x, y, control_width, f32(len(lines)) * ui.line_height(r, .Small)},
 			},
 		)
 	}
-	y += f32(len(lines)) * hint_line(r) + FIELD_GAP
+	y += f32(len(lines)) * ui.line_height(r, .Small) + FIELD_GAP
 
 	if !measure_only {
 		label := ui.tr("Rewrite Selected Files")

@@ -12,9 +12,9 @@ LABEL_WIDTH :: 90
 LABEL_GAP :: 12
 @(private = "file")
 ROW_GAP :: 8
-// The checkbox's row is as high as its box.
+// The checkbox's row: 20 high, as 1.0.0's, with its 16 point box centred in it.
 @(private = "file")
-CHECKBOX_ROW :: 16
+CHECKBOX_ROW :: 20
 
 // Opens the settings: the defaults for writing tags, and developer mode.
 open_settings :: proc(app: ^App) {
@@ -61,7 +61,6 @@ settings_dialog :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	height: f32
 	for hint, i in hints {
 		lines := ui.wrap_text(r, hint, .Small, control_width, context.temp_allocator)
-		// The control, 8 points, the hint, and 8 more before the next control.
 		height += controls[i] + ROW_GAP + f32(max(len(lines), 1)) * hint_line
 		if i < len(hints) - 1 do height += ROW_GAP
 	}
