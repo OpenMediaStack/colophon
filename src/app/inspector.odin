@@ -57,22 +57,45 @@ Shown_Cover :: struct {
 	texture: Maybe(ui.Texture_Id),
 }
 
+// The side of the cover well, in points.
+@(private = "file")
+WELL :: 64
+
 // The side of the well's cover in pixels, 1.0.0's: the well at twice the scale.
 @(private = "file")
 COVER_PIXELS :: 128
 
-// The height of the inspector's header, at least: the well, the heading, the album
-// line and the cover button; the lines push the button down when there are more.
+// The lines of the header beside the cover well, as 1.0.0's column laid them out: each as
+// high as its font's line, with 4 points between them and before the cover button, whose
+// row has 4 more above it.
 @(private = "file")
-HEADER_HEIGHT :: 84
+Header_Lines :: struct {
+	title:  f32,
+	album:  f32,
+	note:   f32,
+	height: f32,
+}
 
-// The height the header takes for a summary: its lines, then the cover button.
 @(private = "file")
-header_height :: proc(s: engine.Summary) -> f32 {
-	lines: f32 = 12 + 24
-	if album_and_artist(s) != "" do lines += 18
-	if s.unreadable > 0 do lines += 16
-	return max(HEADER_HEIGHT, lines + 4 + 24 + 8)
+header_lines :: proc(r: ^ui.Renderer, s: engine.Summary) -> (lines: Header_Lines) {
+	lines.title = ui.line_height(r, .Title)
+	lines.height = lines.title
+	if album_and_artist(s) != "" {
+		lines.album = ui.line_height(r, .Body)
+		lines.height += 4 + lines.album
+	}
+	if s.unreadable > 0 {
+		lines.note = ui.line_height(r, .Small)
+		lines.height += 4 + lines.note
+	}
+	lines.height += 4 + 4 + 24
+	return
+}
+
+// The height of the header: the well, or its lines when they are taller.
+@(private = "file")
+header_height :: proc(r: ^ui.Renderer, s: engine.Summary) -> f32 {
+	return max(WELL, header_lines(r, s).height)
 }
 
 init_inspector :: proc(i: ^Inspector) {
@@ -158,7 +181,7 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	width := rect.w - 2 * INSPECTOR_PADDING
 
 	// The content's height, for the scroll.
-	height: f32 = 2 * INSPECTOR_PADDING + header_height(s) + SECTION_GAP + 16
+	height: f32 = 2 * INSPECTOR_PADDING + header_height(r, s) + SECTION_GAP + 16
 	// The warnings under the Tags header, wrapped to the panel's width.
 	notes := make([dynamic]string, context.temp_allocator)
 	if lost := lost_names(s.id3v1_losses); lost != "" {
@@ -189,12 +212,14 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	x := origin.x + INSPECTOR_PADDING
 	y := origin.y + INSPECTOR_PADDING
 
-	cover_well(ctx, app, s, {x, y, 64, 64})
+	cover_well(ctx, app, s, {x, y, WELL, WELL})
 	heading :=
 		s.count == 1 ? s.heading.? or_else "" : ui.tr_n("{n} track selected", "{n} tracks selected", s.count)
-	text_x := x + 64 + 12
-	ty := y + 12
-	ui.draw_text_fit(r, heading, text_x, ty + 10, width - 76, .Title, th.text_primary)
+	text_x := x + WELL + 12
+	lines := header_lines(r, s)
+	header := max(WELL, lines.height)
+	ty := y + (header - lines.height) / 2
+	ui.draw_text_fit(r, heading, text_x, ty + lines.title / 2, width - 76, .Title, th.text_primary)
 	hw := min(ui.text_width(r, heading, .Title), width - 76)
 	ui.declare(
 		ctx,
@@ -202,12 +227,20 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 			id = ui.widget_id("Heading"),
 			role = .Label,
 			label = heading,
-			rect = {text_x, ty, hw, 20},
+			rect = {text_x, ty, hw, lines.title},
 		},
 	)
-	ty += 24
+	ty += lines.title + 4
 	if line := album_and_artist(s); line != "" {
-		ui.draw_text_fit(r, line, text_x, ty + 9, width - 76, .Body, th.text_secondary)
+		ui.draw_text_fit(
+			r,
+			line,
+			text_x,
+			ty + lines.album / 2,
+			width - 76,
+			.Body,
+			th.text_secondary,
+		)
 		lw := min(ui.text_width(r, line, .Body), width - 76)
 		ui.declare(
 			ctx,
@@ -215,14 +248,14 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 				id = ui.widget_id("Album line"),
 				role = .Label,
 				label = line,
-				rect = {text_x, ty, lw, 18},
+				rect = {text_x, ty, lw, lines.album},
 			},
 		)
-		ty += 18
+		ty += lines.album + 4
 	}
 	if s.unreadable > 0 {
 		note := ui.tr_n("{n} file could not be read", "{n} files could not be read", s.unreadable)
-		ui.draw_text_fit(r, note, text_x, ty + 8, width - 76, .Small, th.error)
+		ui.draw_text_fit(r, note, text_x, ty + lines.note / 2, width - 76, .Small, th.error)
 		nw := min(ui.text_width(r, note, .Small), width - 76)
 		ui.declare(
 			ctx,
@@ -230,10 +263,10 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 				id = ui.widget_id("Unreadable note"),
 				role = .Label,
 				label = note,
-				rect = {text_x, ty, nw, 16},
+				rect = {text_x, ty, nw, lines.note},
 			},
 		)
-		ty += 16
+		ty += lines.note + 4
 	}
 	replace_label := ui.tr("Replace cover…")
 	replace_options := ui.Button_Options {
@@ -241,7 +274,7 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	}
 	replace_rect := ui.Rect{text_x, ty + 4, ui.button_width(r, replace_label, replace_options), 24}
 	if ui.button(ctx, ui.widget_id("Replace cover"), replace_rect, replace_label, replace_options) do pick_image(app)
-	y += header_height(s) + SECTION_GAP
+	y += header + SECTION_GAP
 
 	if section_header(ctx, 0, ui.tr("Tags"), {x, y, width, 16}, &i.tags_open) {
 		y += 16 + 8

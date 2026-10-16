@@ -744,7 +744,14 @@ draw_header :: proc(
 	end := Rect{header.x + header.w - TABLE_END_WIDTH, header.y, TABLE_END_WIDTH, header.h - 1}
 	fill_rect(r, end, th.surface_2)
 	button_rect := Rect{end.x + 4, header.y + 2, 24, 24}
-	if toolbar_button(ui, child_id(id, "columns"), button_rect, .Columns, tr("Choose columns")) {
+	if toolbar_button(
+		ui,
+		child_id(id, "columns"),
+		button_rect,
+		.Columns,
+		tr("Choose columns"),
+		icon_size = 14,
+	) {
 		result.column_menu = [2]f32{button_rect.x, button_rect.y + button_rect.h}
 	}
 	if .Right in in_.pressed && mouse_over(ui, header) do result.column_menu = in_.mouse
