@@ -22,6 +22,9 @@ buttons_frame :: proc(ui: ^Ui, data: rawptr) {
 		b.clicks["Save"] += 1
 	}
 	if button(ui, widget_id("Revert"), {120, 10, 80, 28}, "Revert") do b.clicks["Revert"] += 1
+	if disc_button(ui, widget_id("Play"), {250, 10, 36, 36}, .Play, "Play", 1, b.disabled) {
+		b.clicks["Play"] += 1
+	}
 	if toolbar_button(
 		ui,
 		widget_id("Sidebar"),
@@ -218,4 +221,22 @@ a_toggle_says_it_is_one_even_when_off :: proc(t: ^testing.T) {
 	testing.expect(t, .Checkable in info.states && .Checked not_in info.states)
 	revert, _ := find_widget(&h.ui, "Revert")
 	testing.expect(t, .Checkable not_in revert.states)
+}
+
+@(test)
+the_disc_button_clicks_and_a_disabled_one_does_not :: proc(t: ^testing.T) {
+	h: Harness
+	b: Buttons
+	buttons_harness(&h, &b)
+	defer harness_destroy(&h)
+	testing.expect(t, click(&h, "Play"))
+	testing.expect_value(t, b.clicks["Play"], 1)
+	info, _ := find_widget(&h.ui, "Play")
+	testing.expect_value(t, info.role, Role.Button)
+	b.disabled = true
+	run_frame(&h)
+	testing.expect(t, click(&h, "Play"))
+	testing.expect_value(t, b.clicks["Play"], 1)
+	info, _ = find_widget(&h.ui, "Play")
+	testing.expect(t, .Disabled in info.states)
 }

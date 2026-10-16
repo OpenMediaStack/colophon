@@ -9,6 +9,7 @@ import "core:path/filepath"
 import "core:strings"
 import sdl "vendor:sdl3"
 
+import "../audio"
 import "../engine"
 import lib "../library"
 import ui "../ui"
@@ -70,9 +71,18 @@ run :: proc(options: Options) -> bool {
 	w.wake_type = sdl.RegisterEvents(2)
 	w.chosen_type = w.wake_type + 1
 	w.filters = {{"MP3 files", "mp3"}}
+	// Without a sound device the player is off and the app works the same; a screenshot
+	// plays nothing. The player is destroyed after the app, so that nothing the engine
+	// still asks of it finds it gone.
+	player: ^audio.Player
+	if !headless {
+		if made, err := audio.make_player(); err == .None do player = made
+	}
+	defer audio.destroy_player(player)
 	app: App
 	app_init(&app, lib.Wake{wake_loop, &w.wake_type})
 	defer app_destroy(&app)
+	if player != nil do app.engine.output = output_of(player)
 	// A screenshot starts from the defaults, and keeps nothing.
 	if !headless {
 		if dir, err := os.user_config_dir(context.allocator, ODIN_OS == .Windows); err == nil {

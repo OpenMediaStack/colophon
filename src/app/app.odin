@@ -60,6 +60,8 @@ App :: struct {
 	notice:           Maybe(Notice),
 	// How many saves had ended when the last one was told of.
 	shown_saves:      int,
+	// How many failed plays the app has told.
+	told_failures:    int,
 	// What the window does about quitting with changes that are not saved.
 	departure:        Maybe(Departure),
 	// The window closes: the loop ends after the frame.

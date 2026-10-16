@@ -70,8 +70,10 @@ Engine :: struct {
 	// not need sound.
 	output:           Maybe(Output),
 	playback:         Playback,
-	// The track that last failed to play, until another plays.
+	// The track that last failed to play, until another plays, and how many plays have
+	// failed since Colophon started, so that a failure again is told again.
 	play_failure:     Maybe(Play_Failure),
+	play_failures:    int,
 	saving:           Maybe(Saving),
 	// The files the last save could not write.
 	save_failures:    [dynamic]Save_Failure,
