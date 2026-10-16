@@ -15,7 +15,7 @@ import ui "../ui"
 @(private = "file")
 screen_keeping :: proc(s: ^Screen) -> (path, folder: string) {
 	screen_init(s, {1280, 720})
-	made, _ := os.make_directory_temp("", "colophon-preferences-*", context.allocator)
+	made, _ := make_temp_folder("colophon-preferences-*")
 	folder = made
 	path, _ = filepath.join({folder, "Colophon", "preferences.toml"})
 	use_preferences(&s.app, path)
@@ -297,7 +297,7 @@ a_write_that_fails_is_not_retried_at_every_frame :: proc(t: ^testing.T) {
 	s: Screen
 	screen_init(&s, {1280, 720})
 	defer screen_destroy(&s)
-	folder, _ := os.make_directory_temp("", "colophon-preferences-*", context.allocator)
+	folder, _ := make_temp_folder("colophon-preferences-*")
 	defer remove_folder(folder)
 	blocker, _ := filepath.join({folder, "blocker"})
 	defer delete(blocker)
