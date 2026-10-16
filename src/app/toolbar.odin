@@ -130,7 +130,7 @@ save_button :: proc(ctx: ^ui.Ui, app: ^App, at: [2]f32) -> f32 {
 
 // Narrows the table to the tracks whose title, artist, album or file name hold the
 // text typed, as it is typed. Escape empties it and gives the keyboard back; so does
-// its clear button, which keeps the keyboard.
+// its clear button, which keeps the keyboard. Enter does nothing, as in 1.0.0.
 @(private = "file")
 filter_field :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 	ICON :: 14

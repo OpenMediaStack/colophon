@@ -197,7 +197,8 @@ accepted :: proc(accepts: proc(text: string) -> bool, text: string) -> bool {
 }
 
 // The keys, the typed text and the mouse on the focused field. Text that accepts
-// refuses keeps the focus on Enter and Tab, and is given up on a click elsewhere.
+// refuses keeps the focus on Enter and Tab, and is given up on a click elsewhere. A field
+// that stays on Enter ignores that key.
 @(private = "file")
 edit_field :: proc(
 	ui: ^Ui,

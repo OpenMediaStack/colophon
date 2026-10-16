@@ -58,7 +58,7 @@ Tracks :: struct {
 	shrink:  Maybe(Shrink),
 	// The track right-clicked, whose menu is open.
 	menu:    Maybe(engine.Track_Id),
-	// The table has been given the keyboard since something was opened.
+	// The table has been given the keyboard, once, when it first appeared.
 	focused: bool,
 }
 

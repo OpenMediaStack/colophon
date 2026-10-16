@@ -87,7 +87,6 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	if folder_open(app) {
 		track_table(ctx, app, l.centre)
 	} else {
-		app.tracks.focused = false
 		empty_state(ctx, app, l.centre)
 	}
 	if l.player_shown do player_bar(ctx, app, l.player)

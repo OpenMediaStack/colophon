@@ -245,7 +245,8 @@ row :: proc(ctx: ^ui.Ui, app: ^App, id: ui.Widget_Id, rect: ui.Rect, item: Item)
 		if texture, drawn := item.cover.?; drawn {
 			ui.draw_image(r, texture, square, 3)
 		} else {
-			ui.fill_rect(r, square, colour, 3)
+			// As 1.0.0's: the swatch to a darker one, corner to corner.
+			ui.fill_gradient(r, square, colour, darker(colour, 0.4), 3)
 		}
 		x += SWATCH + 8
 	}
@@ -330,4 +331,11 @@ hsv :: proc(hue, saturation, value: f32) -> ui.Color {
 		rgb = {c, 0, x}
 	}
 	return {rgb.r + m, rgb.g + m, rgb.b + m, 1}
+}
+
+// The colour with its brightness lowered by factor, as Slint's `darker`: the value of
+// the colour divided by 1 + factor, which scaling the three channels does.
+@(private = "file")
+darker :: proc(colour: ui.Color, factor: f32) -> ui.Color {
+	return {colour.r / (1 + factor), colour.g / (1 + factor), colour.b / (1 + factor), colour.a}
 }

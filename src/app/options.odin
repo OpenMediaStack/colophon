@@ -23,14 +23,12 @@ Option_Error :: enum {
 	Bad_Size,
 }
 
-// Reads the command line arguments, without the program name. The strings
-// of the result are slices of args. Arguments it does not know are ignored, as 1.0.0's
-// were: a launcher may hand an app any.
+// Reads the command line arguments, without the program name. The strings of the result
+// are slices of args. Arguments it does not know are ignored: a launcher may hand an app
+// a path or a flag of its own, which must not stop the launch.
 parse_options :: proc(args: []string) -> (options: Options, err: Option_Error) {
 	options.window_size = DEFAULT_WINDOW_SIZE
 	for arg in args {
-		// macOS may hand an app opened from the Finder its process serial number.
-		if strings.has_prefix(arg, "-psn_") do continue
 		name, has_value, value := strings.partition(arg, "=")
 		switch name {
 		case "--screenshot":
