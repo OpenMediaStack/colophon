@@ -403,3 +403,53 @@ sizes_and_audio_read_as_in_1_0_0 :: proc(t: ^testing.T) {
 		"Small Hours",
 	)
 }
+
+// The header is laid out as 1.0.0's column: the heading on the well's top (the lines are
+// taller than the well), 4 points between the lines, the cover button 8 under the album
+// line, and the Tags header 16 under the header, as in 1.0.0's capture.
+@(test)
+the_header_is_as_high_as_its_lines :: proc(t: ^testing.T) {
+	s: Screen
+	folder := screen_showing(t, &s, {{"v23_full.mp3", "1.mp3"}})
+	defer remove_folder(folder)
+	defer screen_destroy(&s)
+	execute(&s.app, engine.Select{s.app.engine.listed[0]})
+	ui.run_frame(&s.h)
+	ui.run_frame(&s.h)
+	heading, album, replace, tags: ui.Widget_Info
+	for w in s.h.ui.widgets {
+		switch {
+		case w.role == .Label && w.label == "Paper Satellites":
+			heading = w
+		case w.label == "Small Hours · Marlowe Kite":
+			album = w
+		case w.label == "Replace cover…":
+			replace = w
+		case w.label == "Tags" && w.role == .Button:
+			tags = w
+		}
+	}
+	testing.expect(
+		t,
+		heading.rect.h > 0 && album.rect.h > 0 && replace.rect.h > 0 && tags.rect.h > 0,
+	)
+	approx :: proc(a, b: f32) -> bool {return abs(a - b) < 0.6}
+	testing.expectf(
+		t,
+		approx(album.rect.y - (heading.rect.y + heading.rect.h), 4),
+		"album line %v",
+		album.rect,
+	)
+	testing.expectf(
+		t,
+		approx(replace.rect.y - (album.rect.y + album.rect.h), 8),
+		"button %v",
+		replace.rect,
+	)
+	testing.expectf(
+		t,
+		approx(tags.rect.y - (replace.rect.y + replace.rect.h), 16),
+		"tags %v",
+		tags.rect,
+	)
+}

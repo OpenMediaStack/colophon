@@ -203,6 +203,13 @@ text_advances :: proc(r: ^Renderer, text: string, style: Text_Style) -> []Advanc
 }
 
 // The text a style shows: in uppercase for labels, in context.temp_allocator.
+// How high a line of a style is, as a browser or Slint sets it: its font's own line, from
+// ascent to descent, at the style's size in ems. A column of lines is laid out with it.
+line_height :: proc(r: ^Renderer, style: Text_Style) -> f32 {
+	info := TEXT_STYLES[style]
+	return info.size * r.atlas.em_scale[info.font]
+}
+
 @(private)
 styled_text :: proc(text: string, style: Text_Style) -> string {
 	if !TEXT_STYLES[style].uppercase do return text
