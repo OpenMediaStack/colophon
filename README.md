@@ -112,6 +112,9 @@ the work runs is in [`AGENTS.md`](AGENTS.md).
 - SDL3 3.4: `brew install sdl3` on macOS; on Windows, Odin ships it; on Linux, your
   distribution's `libsdl3-dev` or a build from source, found through `SDL3_LIB_DIR` when it is not
   in the system's library folders
+- Odin's own libraries for sound and text, which its release ships built on Windows and
+  macOS; on Linux, build them once from Odin's folder: `sh "$(odin root)/vendor/stb/src/build_stb.sh" unix`
+  and `sh "$(odin root)/vendor/miniaudio/src/build_miniaudio.sh"`
 - `odinfmt`, built from [OLS](https://github.com/DanielGavin/ols) (`tools/odinfmt`), for
   `scripts/check.sh` to check the formatting
 - The [odid3](https://github.com/OpenMediaStack/odid3) submodule:
@@ -132,13 +135,16 @@ the work runs is in [`AGENTS.md`](AGENTS.md).
 
 | Folder | What it holds |
 |---|---|
-| `src/app` | The application: the window and the event loop |
+| `src/app` | The application: the window, the event loop and the screens |
 | `src/engine` | The application state and every command |
 | `src/library` | Finding the audio files of a folder, reading and saving them |
 | `src/mpa` | The MPEG audio properties: duration, bitrate, sample rate, channels |
+| `src/audio` | Playing and decoding sound with miniaudio, and the waveform of a track |
+| `src/ui` | The toolkit the interface is drawn with: widgets, text, the table, menus, dialogs |
 | `libs/odid3` | [odid3](https://github.com/OpenMediaStack/odid3), which reads and writes the ID3 tags |
 
-The other packages arrive with the slices of the plan.
+The platform package, for what differs from one system to the next, arrives with its slice of
+the plan.
 
 ---
 
