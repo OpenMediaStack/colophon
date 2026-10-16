@@ -72,6 +72,7 @@ main_screen :: proc(ctx: ^ui.Ui, app: ^App, window: ui.Rect) {
 	app.window_size = {window.w, window.h}
 	follow_save(app, ctx.input.time)
 	follow_play_failure(app, ctx.input.time)
+	follow_waveform(app)
 	poll_thumbnails(ctx, app)
 	l := layout_of(app, window)
 	// The lines between the regions: the window shows through the point between them.
