@@ -120,7 +120,7 @@ save_button :: proc(ctx: ^ui.Ui, app: ^App, at: [2]f32) -> f32 {
 	options := ui.Button_Options {
 		kind     = .Primary,
 		icon     = .Save,
-		disabled = pending == 0 || saving,
+		disabled = !engine.can_save(e),
 	}
 	width := ui.button_width(ctx.renderer, label, options)
 	rect := ui.Rect{at.x, at.y, width, ui.BUTTON_HEIGHT}

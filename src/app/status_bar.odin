@@ -41,7 +41,7 @@ status_bar :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect) {
 		text := ui.tr_n("{n} file could not be saved", "{n} files could not be saved", failures)
 		x += note(ctx, text, x, rect, th.error, 2) + GAP
 	}
-	if pending := len(e.edits.pending); pending > 0 && engine.saving(e) == nil {
+	if pending := len(e.edits.pending); engine.can_save(e) {
 		text := ui.tr_n("{n} file with unsaved changes", "{n} files with unsaved changes", pending)
 		x += note(ctx, text, x, rect, th.accent_text, 3) + GAP
 	}
