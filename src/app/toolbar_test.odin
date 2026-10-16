@@ -141,3 +141,19 @@ the_status_bar_counts_the_tracks_and_the_selection :: proc(t: ^testing.T) {
 	ui.run_frame(&s.h)
 	testing.expect(t, shows(&s, "2 tracks · 1 selected"))
 }
+
+// The command palette's button is its key (the command sign and K on a Mac) at 11 points in
+// 8 points of padding, 35 wide as 1.0.0's, and the filter starts 4 points after the gap that follows Redo.
+@(test)
+the_palette_button_is_its_key_in_a_small_box :: proc(t: ^testing.T) {
+	s: Screen
+	screen_init(&s, {1440, 900})
+	defer screen_destroy(&s)
+	button, found := ui.find_widget(&s.h.ui, "Command palette")
+	if !testing.expect(t, found) do return
+	testing.expectf(t, abs(button.rect.w - 35) <= 2, "the button is %v wide", button.rect.w)
+	redo, has_redo := ui.find_widget(&s.h.ui, "Redo")
+	filter, has_filter := ui.find_widget(&s.h.ui, "Filter")
+	testing.expect(t, has_redo && has_filter)
+	testing.expect_value(t, filter.rect.x - (redo.rect.x + redo.rect.w), 16)
+}

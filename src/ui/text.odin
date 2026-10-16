@@ -28,6 +28,9 @@ Text_Style :: enum u8 {
 	Body_Strong,
 	Small,
 	Small_Strong,
+	// Shortcut hints and keys shown as buttons: Inter at 11, since at that size JetBrains
+	// Mono draws a tiny command sign, as the brief says.
+	Hint,
 	Label,
 	Title,
 	Numeric,
@@ -52,6 +55,7 @@ TEXT_STYLES := [Text_Style]Text_Style_Info {
 	.Body_Strong    = {.Inter_Medium, 13, 0, false},
 	.Small          = {.Inter_Regular, 12, 0, false},
 	.Small_Strong   = {.Inter_Medium, 12, 0, false},
+	.Hint           = {.Inter_Regular, 11, 0, false},
 	.Label          = {.Inter_Medium, 11, 0.06, true},
 	.Title          = {.Inter_Semibold, 15, 0, false},
 	.Numeric        = {.Mono_Regular, 12, 0, false},
@@ -203,6 +207,13 @@ text_advances :: proc(r: ^Renderer, text: string, style: Text_Style) -> []Advanc
 }
 
 // The text a style shows: in uppercase for labels, in context.temp_allocator.
+// How high a line of a style is, as a browser or Slint sets it: its font's own line, from
+// ascent to descent, at the style's size in ems. A column of lines is laid out with it.
+line_height :: proc(r: ^Renderer, style: Text_Style) -> f32 {
+	info := TEXT_STYLES[style]
+	return info.size * r.atlas.em_scale[info.font]
+}
+
 @(private)
 styled_text :: proc(text: string, style: Text_Style) -> string {
 	if !TEXT_STYLES[style].uppercase do return text

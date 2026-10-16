@@ -237,8 +237,7 @@ inspect_tracks :: proc(ctx: ^ui.Ui, app: ^App, rect: ui.Rect, s: engine.Summary)
 	}
 	replace_label := ui.tr("Replace cover…")
 	replace_options := ui.Button_Options {
-		kind  = .Secondary,
-		small = true,
+		kind = .Secondary,
 	}
 	replace_rect := ui.Rect{text_x, ty + 4, ui.button_width(r, replace_label, replace_options), 24}
 	if ui.button(ctx, ui.widget_id("Replace cover"), replace_rect, replace_label, replace_options) do pick_image(app)

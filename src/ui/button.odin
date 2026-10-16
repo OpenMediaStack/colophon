@@ -41,8 +41,8 @@ Button_Options :: struct {
 	// What assistive technologies call it when the label drawn says less, a shortcut
 	// hint such as the command palette's; the label when empty.
 	name:     string,
-	// The label in the small style and the secondary text colour: a key shown as a
-	// button.
+	// The label in the hint style and the secondary text colour, with 8 points of padding
+	// where 12 is the default: a key shown as a button.
 	small:    bool,
 }
 
@@ -52,6 +52,8 @@ TOOLBAR_BUTTON_SIZE :: 28
 
 @(private = "file")
 BUTTON_PADDING :: 12
+@(private = "file")
+SMALL_PADDING :: 8
 @(private = "file")
 ICON_GAP :: 6
 @(private = "file")
@@ -94,7 +96,8 @@ button :: proc(
 @(private = "file")
 padding_of :: proc(options: Button_Options) -> f32 {
 	if options.flush do return 0
-	return options.padding > 0 ? options.padding : BUTTON_PADDING
+	if options.padding > 0 do return options.padding
+	return options.small ? SMALL_PADDING : BUTTON_PADDING
 }
 
 // The width a button needs for its label, icon and shortcut.
@@ -211,11 +214,11 @@ draw_button :: proc(
 	}
 }
 
-// The weight of a button's label: medium for the actions that stand out, small for a
+// The weight of a button's label: medium for the actions that stand out, a hint for a
 // key.
 @(private = "file")
 button_style :: proc(options: Button_Options) -> Text_Style {
-	if options.small do return .Small
+	if options.small do return .Hint
 	return options.kind == .Ghost || options.kind == .Secondary ? .Body : .Body_Strong
 }
 
