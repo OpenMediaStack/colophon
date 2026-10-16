@@ -113,9 +113,11 @@ sync_native_menu :: proc(ctx: ^ui.Ui, app: ^App) {
 		for line, l in menu.lines {
 			if l >= len(app.native_menu.items[m]) do break
 			item := app.native_menu.items[m][l]
-			if title := string_of(line.entry.label);
-			   NS.String_odinString(item->title()) != line.entry.label {
+			// Only a title that changed is made: an NSString is kept by its owner.
+			if NS.String_odinString(item->title()) != line.entry.label {
+				title := string_of(line.entry.label)
 				item->setTitle(title)
+				intrinsics.objc_send(nil, title, "release")
 			}
 			item->setEnabled(line.entry.enabled)
 		}
