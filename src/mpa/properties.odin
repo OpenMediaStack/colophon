@@ -29,6 +29,7 @@ properties_of :: proc(
 	if !found do counted, found = read_vbri(frame)
 	if found && trusted(counted, audio_bytes) {
 		apply_counted_frames(&p, h, counted, audio_bytes)
+		if counted.mode == .Constant do p.bitrate_kbps = constant_kbps(buf, offset, h)
 		return
 	}
 	frames := compare_frames(buf[offset:], h)
@@ -131,6 +132,19 @@ apply_counted_frames :: proc(
 	}
 	if c.delay + c.padding < samples do samples -= c.delay + c.padding
 	p.duration = time.Duration(samples * 1000 / i64(h.sample_rate)) * time.Millisecond
+}
+
+// The bitrate of a constant stream whose first frame, h, holds an Info header. That frame
+// may not be the stream's rate: an encoder makes it big enough for its header when the
+// stream's frames are too small, so the frame after it tells.
+@(private)
+constant_kbps :: proc(buf: []u8, offset: int, h: Frame_Header) -> int {
+	at := offset + h.length
+	if at + 4 <= len(buf) {
+		next, ok := parse_frame_header(buf[at:])
+		if ok && same_stream(next, h) do return next.bitrate_kbps
+	}
+	return h.bitrate_kbps
 }
 
 // The bitrate of bytes lasting samples at sample_rate, in kbps, rounded.

@@ -260,6 +260,13 @@ printf '\310' | dd of=v1_genre_out_of_range.mp3 bs=1 seek=$((size - 1)) conv=not
 # Expect: about 1 s, 128 kbps, 44100 Hz, 2 channels.
 ffmpeg "${sine[@]}" -ac 2 -ar 44100 -b:a 128k "${no_tags[@]}" cbr_stereo.mp3
 
+# cbr_mono_32k.mp3 and cbr_mono_16k.mp3: constant low bitrates with an Info header, whose own
+# frame is bigger than the stream's (the encoder makes room for its tag), so that the header's
+# bitrate is not the stream's. 32 kbps mono at 44.1 kHz, then 16 kbps mono at 22.05 kHz.
+# Expect: ffprobe's bitrate, which is the stream's.
+ffmpeg "${sine[@]}" -ac 1 -ar 44100 -b:a 32k "${no_tags[@]}" cbr_mono_32k.mp3
+ffmpeg "${sine[@]}" -ac 1 -ar 22050 -b:a 16k "${no_tags[@]}" cbr_mono_16k.mp3
+
 # vbr_mono.mp3: the same sine, variable bitrate (LAME quality 6) with a Xing header, mono, 48 kHz.
 # Expect: about 1 s, 48000 Hz, 1 channel, the average bitrate ffprobe reports.
 ffmpeg "${sine[@]}" -ac 1 -ar 48000 -q:a 6 "${no_tags[@]}" vbr_mono.mp3
