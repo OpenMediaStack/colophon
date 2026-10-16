@@ -142,7 +142,7 @@ the_bitrate_mode_follows_the_encoder :: proc(t: ^testing.T) {
 @(test)
 damaged_audio_never_panics :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
-	for name in ([]string{"cbr_stereo.mp3", "vbr_mono.mp3"}) {
+	for name in ([]string{"cbr_stereo.mp3", "vbr_mono.mp3", "cbr_mono_32k.mp3", "cbr_mono_16k.mp3"}) {
 		data, err := os.read_entire_file_from_path(
 			fmt.tprintf("%s/%s", TESTDATA, name),
 			context.allocator,

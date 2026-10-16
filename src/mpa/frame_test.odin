@@ -223,3 +223,49 @@ only_lame_and_ffmpeg_extensions_are_read :: proc(t: ^testing.T) {
 	testing.expect(t, is_lame_extension(transmute([]u8)string("Lavf")))
 	testing.expect(t, !is_lame_extension(transmute([]u8)string("GOGO")))
 }
+
+// An Info frame of 56 kbps, mono, 44.1 kHz: 182 bytes, which the encoder made bigger than
+// the stream's frames of 32 kbps, 104 bytes.
+@(private = "file")
+info_then :: proc(next: []u8) -> []u8 {
+	bytes := make([]u8, 182 + len(next))
+	copy(bytes, []u8{0xFF, 0xFB, 0x40, 0xC0})
+	copy(bytes[182:], next)
+	return bytes
+}
+
+@(test)
+a_constant_stream_takes_the_bitrate_of_the_frame_after_its_info_frame :: proc(t: ^testing.T) {
+	stream := info_then({0xFF, 0xFB, 0x10, 0xC0})
+	defer delete(stream)
+	info, ok := parse_frame_header(stream)
+	testing.expect(t, ok)
+	testing.expect_value(t, info.bitrate_kbps, 56)
+	testing.expect_value(t, info.length, 182)
+	testing.expect_value(t, constant_kbps(stream, 0, info), 32)
+	// The frame is found wherever the stream starts in the buffer.
+	shifted := make([]u8, 7 + len(stream))
+	defer delete(shifted)
+	copy(shifted[7:], stream)
+	testing.expect_value(t, constant_kbps(shifted, 7, info), 32)
+}
+
+@(test)
+the_info_frames_own_bitrate_stands_without_a_frame_of_the_stream_after_it :: proc(t: ^testing.T) {
+	alone := info_then({})
+	defer delete(alone)
+	info, _ := parse_frame_header(alone)
+	testing.expect_value(t, constant_kbps(alone, 0, info), 56)
+	// Three bytes are not a header.
+	short := info_then({0xFF, 0xFB, 0x10})
+	defer delete(short)
+	testing.expect_value(t, constant_kbps(short, 0, info), 56)
+	// A frame of another stream (22.05 kHz, MPEG-2) is not the stream's.
+	other := info_then({0xFF, 0xF3, 0x10, 0xC0})
+	defer delete(other)
+	testing.expect_value(t, constant_kbps(other, 0, info), 56)
+	// Nor is a header with a bitrate that does not exist.
+	free_rate := info_then({0xFF, 0xFB, 0x00, 0xC0})
+	defer delete(free_rate)
+	testing.expect_value(t, constant_kbps(free_rate, 0, info), 56)
+}
