@@ -119,6 +119,8 @@ the_bitrate_mode_follows_the_encoder :: proc(t: ^testing.T) {
 	}
 	cases := [?]Case {
 		{"cbr_stereo", .Constant},
+		{"cbr_mono_32k", .Constant},
+		{"cbr_mono_16k", .Constant},
 		{"no_tag", .Constant},
 		{"vbr_mono", .Variable},
 		{"vbr_no_header", .Variable},
