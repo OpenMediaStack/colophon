@@ -98,3 +98,44 @@ the_tags_column_names_the_formats_in_file_order :: proc(t: ^testing.T) {
 	testing.expect_value(t, lib.tag_formats_string({}, context.temp_allocator), "")
 	free_all(context.temp_allocator)
 }
+
+// A file that starts with an ID3v2 header odid3 does not take (an unknown version, a size
+// that is not syncsafe) is damaged, as 1.0.0 had it: read as untagged, saving would leave
+// the broken header in front of the new tag.
+@(test)
+a_bad_id3v2_header_is_a_damaged_file :: proc(t: ^testing.T) {
+	audio, read_err := os.read_entire_file(fixture("cbr_stereo.mp3"), context.allocator)
+	testing.expect(t, read_err == nil)
+	defer delete(audio)
+	folder, folder_err := make_temp_folder()
+	testing.expect(t, folder_err == nil)
+	defer remove_folder(folder)
+	Case :: struct {
+		name:   string,
+		header: []u8,
+		error:  lib.Read_Error,
+	}
+	cases := [?]Case {
+		{"version_5", {'I', 'D', '3', 5, 0, 0, 0, 0, 0, 10}, .Damaged},
+		{"version_1", {'I', 'D', '3', 1, 0, 0, 0, 0, 0, 10}, .Damaged},
+		{"size_not_syncsafe", {'I', 'D', '3', 4, 0, 0, 0x80, 0, 0, 0x10}, .Damaged},
+		{"empty_tag", {'I', 'D', '3', 4, 0, 0, 0, 0, 0, 0}, .None},
+	}
+	for c in cases {
+		bytes := make([dynamic]u8, context.temp_allocator)
+		append(&bytes, ..c.header)
+		append(&bytes, ..audio)
+		path := fmt.tprintf("%s/%s.mp3", folder, c.name)
+		testing.expect(t, os.write_entire_file(path, bytes[:]) == nil)
+		track := lib.read_track(path)
+		testing.expectf(
+			t,
+			track.error == c.error,
+			"%s: %v, wanted %v",
+			c.name,
+			track.error,
+			c.error,
+		)
+		lib.destroy_track(&track)
+	}
+}

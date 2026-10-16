@@ -28,6 +28,10 @@ read_track :: proc(path: string, allocator := context.allocator) -> (track: Trac
 		return
 	}
 	defer id3.destroy(&tags)
+	if tags.layout.v2.size == 0 && starts_with_id3_marker(path) {
+		track.error = .Damaged
+		return
+	}
 	audio := tags.layout.audio
 	properties, audio_err := mpa.read_file(path, audio.offset, audio.size, allocator)
 	if audio_err != nil {
@@ -47,6 +51,20 @@ read_track :: proc(path: string, allocator := context.allocator) -> (track: Trac
 		formats = formats_of(&tags),
 	}
 	return
+}
+
+// Whether the file begins with "ID3", whatever follows. Odin's reading takes a header it
+// cannot use (an unknown version, a size that is not syncsafe) for no tag, leaving it as
+// audio; 1.0.0 called such a file damaged, and saving it would keep the broken header in
+// front of the new tag.
+@(private = "file")
+starts_with_id3_marker :: proc(path: string) -> bool {
+	file, err := os.open(path)
+	if err != nil do return false
+	defer os.close(file)
+	marker: [3]u8
+	n, _ := os.read(file, marker[:])
+	return n == len(marker) && string(marker[:]) == "ID3"
 }
 
 @(private = "file")
