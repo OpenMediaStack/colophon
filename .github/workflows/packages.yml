@@ -138,6 +138,15 @@ jobs:
       - uses: actions/checkout@v7
         with:
           submodules: true
+      # What SDL3 needs to open a window under X11 and Wayland, which SDL loads at run time.
+      - name: Install the windowing headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            libx11-dev libxext-dev libxcursor-dev libxi-dev libxrandr-dev libxfixes-dev \
+            libxss-dev libxtst-dev libxkbcommon-dev libwayland-dev wayland-protocols \
+            libdecor-0-dev libdbus-1-dev libudev-dev libdrm-dev libgbm-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev
       - uses: ./.github/actions/toolchain
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
